@@ -2,6 +2,29 @@
 @use 'style';
 @use 'mixins';
 
+* {
+  scrollbar-width: thin;
+  scrollbar-color: variables.$primary-color variables.$bg-primary; 
+}
+
+::-webkit-scrollbar {
+  width: 0.313rem;
+
+  &-track {
+    background: variables.$bg-primary;
+  }
+
+  &-thumb {
+    background: variables.$primary-color;
+    border-radius: 0px;
+  }
+
+  &-corner {
+    background: transparent;
+  }
+}
+
+
 html,
 body{
   background: variables.$bg-secundary;
