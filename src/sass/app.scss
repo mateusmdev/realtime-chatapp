@@ -132,6 +132,10 @@ body{
           display: flex;
           align-items: center;
 
+          &:hover{
+            background-color: variables.$bg-link;
+          }
+
           .picture-wrapper{
             @include mixins.profilePictureWrapper(2.60rem, 2.60rem);
 
@@ -157,6 +161,7 @@ body{
 }
 
 .item{
+
   .message-data{
     display: grid;
     grid-template-columns: 79% 1fr;
@@ -193,6 +198,41 @@ body{
         background-size: 100%;
         background-repeat: no-repeat;
       }
+    }
+
+    .time-message,
+    .message-count {
+        position: absolute;
+        right: 0;
+        top: -0.35rem;
+    }
+
+    .time-message {
+      grid-area: time-message;
+      font-size: 0.75rem;
+    }
+
+    .message-count {
+      grid-area: message-count;
+      background-color: variables.$primary-color;
+      border-radius: 50%;
+      font-size: 0.60rem;
+      padding: 0.1rem 0.1rem 0 0;
+      width: 1.55rem;
+      height: 1.55rem;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0.2rem 0.25rem 0 0;
+    }
+
+    .message-content,
+    .phrase-contact {
+        font-size: 0.83rem;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        padding-top: 0.1rem;
     }
   }
   
