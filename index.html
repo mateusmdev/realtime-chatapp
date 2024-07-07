@@ -1,0 +1,81 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vite App</title>
+  </head>
+  <body>
+    <header>
+      <div class="user-picture-wrapper">
+        <img class="profile-picture" src="https://i.pinimg.com/474x/aa/67/b0/aa67b0bc9197a661b9c6c67c94c0a55b.jpg" alt="profile picture">
+        <div class="glass"></div>
+      </div>
+
+      <nav>
+        <ul class="navigation-list">
+          <li>
+            <a id="chat-menu-btn" class="navigation-link active" href="#" title="Mensagens">
+              <img src="./src/assets/message-icon.svg" alt="message icon">
+            </a>
+          </li>
+          <li>
+            <a id="contact-menu-btn" class="navigation-link" href="#" title="Contatos">
+              <img src="./src/assets/contact-icon.svg" alt="contact icon">
+            </a>
+          </li>
+          <li>
+            <a id="setting-menu-btn" class="navigation-link" href="#" title="Configurações">
+              <img src="./src/assets/settings-icon.svg" alt="setting icon">
+            </a>
+          </li>
+          <li>
+            <a id="exit-btn" class="navigation-link" href="#" title="Sair">
+              <img src="./src/assets/exit-icon.svg" alt="exit icon">
+            </a>
+          </li>
+        </ul>
+      </nav>
+    </header>
+    
+    <main>
+      <section id="message-section">
+        <div class="title">
+          <h1>
+            <img src="./src/assets/message-text-outline.svg" alt="message-icon">
+            Mensagens
+          </h1>
+        </div>
+
+        <div class="content-wrapper">
+          <ul id="message-container">
+            <li class="item">
+              <div class="picture-wrapper">
+                <img 
+                  src="https://muramasa.com.br/wp-content/uploads/2022/06/dragon-ball-super-goku-555x555.webp" 
+                  alt="contact profile picture"
+                  class="profile-picture"
+                >
+              </div>
+              <div class="message-data">
+                <p class="name">Goku</p>
+                <p class="message-content">
+                  <span class="message-status visualized"></span>
+                  Contemplem o mago com seus poderes.
+                </p>
+                <p class="message-amount">08:40</p>
+                <p class="time-message">+99</p>
+
+              </div>
+            </li>
+          </ul>
+        </div>
+      </section>
+      <section id="contact-section"></section>
+      <section id="setting-section"></section>
+    </main>
+
+    <script type="module" src="/src/controller/index.js"></script>
+  </body>
+</html>

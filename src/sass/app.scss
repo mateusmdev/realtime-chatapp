@@ -1,0 +1,199 @@
+@use 'variables';
+@use 'style';
+@use 'mixins';
+
+html,
+body{
+  background: variables.$bg-secundary;
+  min-width: 100vw;
+  min-height: 100%;
+  display: grid;
+  grid-template-columns: 5rem 1fr;
+  
+  header{
+    background: variables.$bg-primary;
+    min-height: 100%;
+    // width: 5rem;
+    display: grid;
+    grid-template-columns: auto;
+    justify-content: center;
+    align-content: space-between;
+    // justify-content: space-between;
+
+    .user-picture-wrapper{
+      @include mixins.profilePictureWrapper(3.125rem, 3.125rem);
+      margin: 1.125rem auto;
+      border-radius: 4px;
+      position: relative;
+
+      .profile-picture{
+        @include mixins.profilePicture;
+      }
+
+      .glass{
+        position: absolute;
+        width: 100%;
+        height: 100%;
+        top: 0;
+        left: 0;
+        z-index: 2;
+        // background-color: red;
+      }
+    }
+
+    nav{
+      min-height: calc(100vh - 3.125rem - 2.25rem - 4.375rem);
+      height: calc(100% - 3.125rem - 2.25rem - 4.375rem);
+      // background-color: blue;
+      // display: flex;
+
+      .navigation-list{
+        height: 95.5%;
+        // background-color: blue;
+        display: flex;
+        flex-direction: column;
+
+        li:last-child{
+          margin-top: auto;
+
+          img {
+            width: 1.3rem;
+            margin-left: 0.25rem;
+          }
+        }
+
+        a{
+          background-color: variables.$bg-link;
+          width: 2.5rem;
+          height: 2.5rem;
+          margin: 0.5rem;
+          padding: 0.55rem;
+          border-radius: 4px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+
+          &.active {
+            background-color: variables.$primary-color;
+            box-shadow: #6359E7 0 0 12px 2px;
+          }
+
+          img {
+            width: 1.4rem;
+          }
+        }
+      }
+    }
+  }
+
+  main{
+    min-height: 100vh;
+    width: 100%;
+    // background-color: red;
+
+    section{
+      background-color: var(--bg-secundary);
+
+      .title{
+        // grid-area: title;
+        border-bottom: 3px solid variables.$bg-primary;
+        height: variables.$title-section-height;
+        display: flex;
+        
+        h1 {
+          backgrsound-color: red;
+          color: variables.$color-text;
+          margin-left: 2rem;
+          font-size: 0.83rem;
+          font-weight: normal;
+          display: flex;
+          align-items: center;
+        }
+
+        img {
+          width: 1.48rem;
+          margin-top: 0.25rem;
+          margin-right: 1.10rem;
+        }
+      }
+
+      .content-wrapper{
+        // background-color: blue;
+        height: calc(100vh - variables.$title-section-height);
+        overflow: auto;
+
+        .item {
+          background-scolor: greenyellow;
+          color: #fff;
+          cursor: pointer;
+          height: 4.708rem;
+          padding: 1rem 0.84rem;
+          padding-right: 2rem;
+          display: flex;
+          align-items: center;
+
+          .picture-wrapper{
+            @include mixins.profilePictureWrapper(2.60rem, 2.60rem);
+
+            img{
+              @include mixins.profilePicture;
+            }
+          }
+
+          .message-data,
+          .contact-data {
+            margin-left: 1rem;
+          }
+          
+          .name{
+            margin-bottom: 0.1rem;
+            font-size: 0.75rem;
+            font-weight: bold;
+          }
+        }
+      }
+    }
+  }
+}
+
+.item{
+  .message-data{
+    display: grid;
+    grid-template-columns: 79% 1fr;
+    grid-template-areas:
+        "name time-message"
+        "message-content message-count"
+    ;
+    justify-content: space-between;
+    position: relative;
+    flex: 1;
+    font-size: 0.875rem;
+
+    .name{
+      grid-area: name;
+    }
+
+    .message-content {
+      grid-area: message-content;
+      backgsround-color: #6359E7;
+      padding-left: 1.875rem;
+      position: relative;
+
+      .message-status {
+        width: 1.375rem;
+        height: 100%;
+        backsground-color: red;
+        left: 0px;
+        bottom: -0.20rem;
+        position: absolute;
+      }
+
+      .visualized {
+        background-image: url('../assets/check-icon.svg');
+        background-size: 100%;
+        background-repeat: no-repeat;
+      }
+    }
+  }
+  
+}
