@@ -40,40 +40,64 @@
     </header>
     
     <main>
-      <section id="message-section">
-        <div class="title">
-          <h1>
-            <img src="./src/assets/message-text-outline.svg" alt="message-icon">
-            Mensagens
-          </h1>
-        </div>
+      <div class="menu">
+        <section id="message-section">
+          <div class="title">
+            <h1>
+              <img src="./src/assets/message-text-outline.svg" alt="message-icon">
+              Mensagens
+            </h1>
+          </div>
 
-        <div class="content-wrapper">
-          <ul id="message-container">
-            <li class="item">
-              <div class="picture-wrapper">
-                <img 
-                  src="https://muramasa.com.br/wp-content/uploads/2022/06/dragon-ball-super-goku-555x555.webp" 
-                  alt="contact profile picture"
-                  class="profile-picture"
-                >
-              </div>
-              <div class="message-data">
-                <p class="name">Goku</p>
-                <p class="message-content">
-                  <span class="message-status visualized"></span>
-                  Contemplem o mago com seus poderes.
-                </p>
-                <p class="time-message">08:40</p>
-                <p class="message-count">+99</p>
+          <div class="content-wrapper">
+            <ul id="message-container">
+              <li class="item">
+                <div class="picture-wrapper">
+                  <img 
+                    src="https://muramasa.com.br/wp-content/uploads/2022/06/dragon-ball-super-goku-555x555.webp" 
+                    alt="contact profile picture"
+                    class="profile-picture"
+                  >
+                </div>
+                <div class="message-data">
+                  <p class="name">Goku</p>
+                  <p class="message-content">
+                    <span class="message-status visualized"></span>
+                    Contemplem o mago com seus poderes.
+                  </p>
+                  <p class="time-message">08:40</p>
+                  <p class="message-count">+99</p>
 
-              </div>
-            </li>
-          </ul>
-        </div>
-      </section>
-      <section id="contact-section"></section>
-      <section id="setting-section"></section>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </section>
+        <section id="contact-section">
+          <div class="title">
+            <h1>
+              <img src="./src/assets/message-text-outline.svg" alt="message-icon">
+              Contatos
+            </h1>
+          </div>
+          <div class="content-wrapper">
+            <ul id="contact-container">
+              <li class="item">
+                <div class="picture-wrapper">
+                  <img src="https://muramasa.com.br/wp-content/uploads/2022/06/dragon-ball-super-goku-555x555.webp" alt="contact profile image image" class="profile-picture">
+                </div>
+                <div class="contact-data">
+                  <p class="name">Goku</p>
+                  <p class="phrase-contact">
+                    Contemplem o mago com seus poderes
+                  </p>
+                </div>
+              </li>
+            </ul>
+          </div>
+        </section>
+        <section id="setting-section" class="active"></section>
+      </div>
     </main>
 
     <script type="module" src="/src/controller/index.js"></script>

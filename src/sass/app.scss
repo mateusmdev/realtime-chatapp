@@ -112,10 +112,25 @@ body{
   main{
     min-height: 100vh;
     width: 100%;
+    display: grid;
+    grid-template-areas: "menu";
     // background-color: red;
 
+    .menu{
+      grid-area: menu;
+      position: relative;
+    }
+
     section{
-      background-color: var(--bg-secundary);
+      background-color: variables.$bg-secundary;
+      position: absolute;
+      width: 100%;
+      top: 0;
+      left: 0;
+
+      &.active{
+        z-index: 1;
+      }
 
       .title{
         // grid-area: title;
@@ -248,15 +263,15 @@ body{
       justify-content: center;
       margin: 0.2rem 0.25rem 0 0;
     }
+  }
 
-    .message-content,
-    .phrase-contact {
-        font-size: 0.83rem;
-        overflow: hidden;
-        text-overflow: ellipsis;
-        white-space: nowrap;
-        padding-top: 0.1rem;
-    }
+  .message-content,
+  .phrase-contact {
+    font-size: 0.83rem;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    padding-top: 0.1rem;
   }
   
 }
