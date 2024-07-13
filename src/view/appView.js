@@ -1,6 +1,6 @@
 import AbstractView from './abstractView'
 import './../sass/app.scss'
-// import './../sass/index.scss'
+
 
 class Index extends AbstractView{
   
