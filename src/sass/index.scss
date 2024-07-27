@@ -1,0 +1,77 @@
+@use 'variables';
+@use 'style';
+@use 'mixins';
+@use 'sass:color';
+
+html,
+body{
+  min-width: 100vw;
+  min-height: 100%;
+}
+
+body{
+  background-image: url(../assets/background-index.png);
+  background-size: cover;
+  background-position: 50% 100%;
+  background-repeat: no-repeat;
+}
+main{
+  min-height: 100vh;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+
+  section.login{
+    max-width: 500px;
+    height: 100% !important;
+    display: flex;
+    justify-content: center;
+    position: relative;
+    flex: 10;
+
+    .login-container{
+      $limit: 70px;
+
+      width: 383px;
+      height: 470px;
+      border-radius: 4px;
+      background-color: variables.$bg-secundary;
+      position: absolute;
+      // top: 60px;
+      top: clamp($limit, 20%, $limit);
+
+      .form-wrapper{
+        position: absolute;
+        bottom: 70px;
+        width: 100%;
+
+        .sign-text{
+          text-align: center;
+          color: variables.$color-text;
+        }
+  
+        form {
+          @include mixins.flexCenter();
+  
+          #submit-btn{
+            cursor: pointer;
+            margin-top: 1rem;
+            background-color: variables.$primary-color;
+            color: variables.$color-text;
+            width: 75%;
+            padding: 0.8rem;
+            border-radius: 4px;
+            outline: none;
+            border: none;
+            transition: 0.3s;
+
+            &:hover{
+              $hover-color: variables.$primary-color;
+              background-color: scale-color($hover-color, $lightness: -5.7%);
+            }
+          }
+        }
+      }
+    }
+  }
+}
