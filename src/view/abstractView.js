@@ -38,7 +38,7 @@ class AbstractView{
 
     const eventList = splitedNames.map(name => {
       return new Promise(function(resolve, reject){
-        element.addEventListener(eventName, e => {
+        element.addEventListener(name, e => {
           eventParams.preventDefault ? e.preventDefault() : null
           fn()
         }, false)
@@ -60,7 +60,8 @@ class AbstractView{
 
     const callback = (element) => {
       splitedNames.forEach(name => {
-        element.addEventListener(name, element, e => {
+        element.addEventListener(name, e => {
+          eventParams.preventDefault ? e.preventDefault() : null
           fn(e)
         })
       })

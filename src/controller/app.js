@@ -9,7 +9,8 @@ class AppController{
 
   async initEvents(){
     const logoutBtn = this.view.el.exitBtn
-
+    const { chatMenuBtn, contactMenuBtn, settingMenuBtn } = this.view.el
+    
     this.view.addEvent(document, {
       eventName: 'DOMContentLoaded',
       fn: () => this.getUserData(),
@@ -18,6 +19,12 @@ class AppController{
     this.view.addEvent(logoutBtn, {
       eventName: 'click',
       fn: () => this.signOut(),
+      preventDefault: true
+    })
+
+    this.view.addEventAll([chatMenuBtn, contactMenuBtn, settingMenuBtn], {
+      eventName: 'click',
+      fn: (e) => this.handleMenuBtnClick(e),
       preventDefault: true
     })
   }
@@ -30,7 +37,6 @@ class AppController{
     }
 
     try {
-      console.log('passou aqui1')
       const response = await axios.get(TOKEN_VALIDATOR, {
         headers: {
         ' Authorization': `Bearer ${acessToken}`
@@ -50,6 +56,11 @@ class AppController{
   signOut(){
     localStorage.clear()
     window.location.href = '/'
+  }
+
+  handleMenuBtnClick(e){
+    console.log(e)
+    this.view.changeSection(e.currentTarget)
   }
 }
 
