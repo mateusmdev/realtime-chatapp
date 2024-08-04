@@ -18,6 +18,27 @@ class App extends AbstractView{
     })
 
   }
+
+  changeSection(button){
+    const { messageSection, contactSection, settingSection } = this.el
+    const dictionary = {
+      'chat-menu-btn': messageSection,
+      'contact-menu-btn': contactSection,
+      'setting-menu-btn': settingSection,
+    }
+
+    const selectedSection = dictionary[button.id] || null
+    if (!selectedSection) return
+
+    const activeSection = document.querySelector('.menu section.active')
+    const activeMenuBtn = document.querySelector('.navigation-link.active')
+
+    activeSection.classList.remove('active')
+    activeMenuBtn.classList.remove('active')
+
+    selectedSection.classList.add('active')
+    button.classList.add('active')
+  }
 }
 
 export default App
