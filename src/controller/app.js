@@ -1,6 +1,7 @@
 import AppView from './../view/appView'
 import axios from 'axios'
 import LocalStorage from '../utils/localStorage'
+import User from '../model/user'
 
 const TOKEN_VALIDATOR = import.meta.env.VITE_TOKEN_VALIDATOR
 
@@ -44,7 +45,9 @@ class AppController{
       });
 
       const { data } = response
-      this.view.setUserContent(data)
+      const user = new User(data);
+      const result = await user.findOrCreate()
+      this.view.setUserContent(result)
 
     } catch (error) {
       localStorage.clear()
