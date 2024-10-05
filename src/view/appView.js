@@ -39,6 +39,16 @@ class App extends AbstractView{
     selectedSection.classList.add('active')
     button.classList.add('active')
   }
+
+  toggleContentScreen(screenName, value){
+    const messageScreen = document.querySelector('.message-screen')
+    messageScreen.classList.toggle
+  }
+  
+  messageScreenToggle(){
+    const contentScreen = document.querySelector('main')
+    contentScreen.classList.toggle('messages')
+  }
 }
 
 export default App
