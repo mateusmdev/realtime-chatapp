@@ -14,14 +14,12 @@ class AbstractView{
       div.innerHTML = `<div data-${element.id}="id"></div>`
       const idCamelCase = Object.keys(div.firstChild.dataset)[0]
       this.el[idCamelCase] = element
-      // console.log(this.el)
     })
   }
 
   _defineEventItems(items, selectorAll = false){
     const isString = typeof items === 'string' || items instanceof String
 
-    // console.log(items)
     if (!isString) return items
 
     const queryFn = selectorAll ? document.querySelectorAll : document.querySelector
@@ -52,7 +50,7 @@ class AbstractView{
   
   async addEventAll(selectedItems, eventParams){
     const { eventName, fn } = eventParams
-    const elements = this._defineEventItems(selectedItems)
+    const elements = this._defineEventItems(selectedItems, true)
     const splitedNames = eventName.split(' ')
 
     const isEmptyArray = Array.isArray(elements) && elements.length === 0
@@ -67,14 +65,14 @@ class AbstractView{
       })
     }
 
-    const eventsList = elements.map(item => {
+    const eventsList = [...elements].map(item => {
+
       return new Promise(function(resolve, reject){
         callback(item)
         resolve()
       })
     })
 
-    // console.log(promises)
     await Promise.all(eventsList)
   }
 

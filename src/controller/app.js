@@ -11,6 +11,7 @@ class AppController{
   async initEvents(){
     const logoutBtn = this.view.el.exitBtn
     const { chatMenuBtn, contactMenuBtn, settingMenuBtn } = this.view.el
+    const { backBtn } = this.view.el
     
     this.view.addEvent(document, {
       eventName: 'DOMContentLoaded',
@@ -26,6 +27,18 @@ class AppController{
     this.view.addEventAll([chatMenuBtn, contactMenuBtn, settingMenuBtn], {
       eventName: 'click',
       fn: (e) => this.handleMenuBtnClick(e),
+      preventDefault: true
+    })
+
+    this.view.addEventAll('.item', {
+      eventName: 'click',
+      fn: (e) => this.handleMessageItem(e),
+      preventDefault: true
+    })
+
+    this.view.addEvent(backBtn, {
+      eventName: 'click',
+      fn: (e) => this.handleMessageItem(e),
       preventDefault: true
     })
   }
@@ -62,8 +75,11 @@ class AppController{
   }
 
   handleMenuBtnClick(e){
-    console.log(e)
     this.view.changeSection(e.currentTarget)
+  }
+
+  handleMessageItem(){
+    this.view.messageScreenToggle()
   }
 }
 
