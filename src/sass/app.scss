@@ -471,7 +471,7 @@ section.message-screen .input-wrapper{
       outline: none;
       overflow: auto;
       max-height: 8rem;
-      color: var(--color-text);
+      color: variables.$color-text;
     }
 
     .placeholder{
@@ -505,6 +505,42 @@ section.message-screen .input-wrapper{
 
     img {
       width: 0.8rem;
+    }
+  }
+}
+
+.overlay-layer {
+  width: 100vw;
+  height: 100vh;
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 10;
+  background-color: variables.$bg-overlay-layer;
+  // filter: blur(15px);
+
+  .add-contact {
+    @include mixins.flexCenter();
+    width: 100%;
+    height: 100%;
+    display: flex;
+
+    .add-contact-component {
+      background-color: variables.$bg-primary;
+      width: 90%;
+      padding: 1rem;
+      color: variables.$color-text;
+      // border: 1px solid red;
+
+      .start {
+        display: flex;
+        justify-content: space-between;
+      }
+
+      #add-contact-btn {
+        color: variables.$primary-color;
+        text-decoration: none;
+      }
     }
   }
 }
