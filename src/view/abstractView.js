@@ -38,7 +38,7 @@ class AbstractView{
       return new Promise(function(resolve, reject){
         element.addEventListener(name, e => {
           eventParams.preventDefault ? e.preventDefault() : null
-          fn()
+          fn(e)
         }, false)
 
         resolve()

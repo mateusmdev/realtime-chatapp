@@ -12,6 +12,8 @@ class AppController{
     const logoutBtn = this.view.el.exitBtn
     const { chatMenuBtn, contactMenuBtn, settingMenuBtn } = this.view.el
     const { backBtn } = this.view.el
+    const { addContactBtn, cancelAddContact } = this.view.el
+    
     
     this.view.addEvent(document, {
       eventName: 'DOMContentLoaded',
@@ -39,6 +41,12 @@ class AppController{
     this.view.addEvent(backBtn, {
       eventName: 'click',
       fn: (e) => this.handleMessageItem(e),
+      preventDefault: true
+    })
+
+    this.view.addEventAll([addContactBtn, cancelAddContact], {
+      eventName: 'click',
+      fn: (e) => this.view.setAddContactModal(e.currentTarget),
       preventDefault: true
     })
   }

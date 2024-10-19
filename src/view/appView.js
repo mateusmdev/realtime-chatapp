@@ -49,6 +49,18 @@ class App extends AbstractView{
     const contentScreen = document.querySelector('main')
     contentScreen.classList.toggle('messages')
   }
+
+  setAddContactModal(element){
+    const { addContactBtn } = this.el
+    const overley = document.querySelector('.overlay-layer .add-contact')
+
+    if (element === addContactBtn){
+      overley.classList.add('overlay-active')
+      return
+    }
+    
+    overley.classList.remove('overlay-active')
+  }
 }
 
 export default App

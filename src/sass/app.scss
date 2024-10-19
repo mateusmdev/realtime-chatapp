@@ -132,6 +132,8 @@ body{
         border-bottom: 3px solid variables.$bg-primary;
         height: variables.$title-section-height;
         display: flex;
+        align-items: center;
+        justify-content: space-between;
         
         h1 {
           color: variables.$color-text;
@@ -142,10 +144,15 @@ body{
           align-items: center;
         }
 
-        img {
+        img,
+        #add-contact-btn {
           width: 1.48rem;
           margin-top: 0.25rem;
           margin-right: 1.10rem;
+        }
+
+        #add-contact-btn img {
+            width: 100%;
         }
       }
 
@@ -510,19 +517,20 @@ section.message-screen .input-wrapper{
 }
 
 .overlay-layer {
-  width: 100vw;
-  height: 100vh;
-  position: fixed;
-  top: 0;
-  left: 0;
-  z-index: 10;
-  background-color: variables.$bg-overlay-layer;
   // filter: blur(15px);
+  
+  .overlay-active {
+    width: 100vw;
+    height: 100vh;
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 10;
+    background-color: variables.$bg-overlay-layer;
+  }
 
   .add-contact {
     @include mixins.flexCenter();
-    width: 100%;
-    height: 100%;
     display: flex;
     transform: translateY(-15%);
 
