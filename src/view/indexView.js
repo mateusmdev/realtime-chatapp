@@ -1,10 +1,10 @@
-import AbstractView from './abstractView'
+import AbstractView from './AbstractView'
 import './../sass/index.scss'
 
-class Index extends AbstractView{
+class IndexView extends AbstractView{
   constructor(){
     super()
   }
 }
 
-export default Index
+export default IndexView

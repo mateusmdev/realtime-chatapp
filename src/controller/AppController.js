@@ -1,7 +1,7 @@
-import AppView from './../view/appView'
+import AppView from './../view/AppView'
 import axios from 'axios'
-import LocalStorage from '../utils/localStorage'
-import User from '../model/user'
+import LocalStorage from '../utils/LocalStorage'
+import User from '../model/User'
 
 const TOKEN_VALIDATOR = import.meta.env.VITE_TOKEN_VALIDATOR
 

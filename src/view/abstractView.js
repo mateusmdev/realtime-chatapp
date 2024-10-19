@@ -1,4 +1,4 @@
-import NotFoundException from "../exception/notFoundException"
+import NotFoundException from "../exception/NotFoundException"
 
 class AbstractView{
   el = {}
