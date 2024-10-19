@@ -536,9 +536,9 @@ section.message-screen .input-wrapper{
   .add-contact {
     @include mixins.flexCenter();
     display: flex;
-    transform: translateY(-15%);
-
+    
     .add-contact-component {
+      transform: translateY(-15%);
       background-color: variables.$bg-primary;
       width: 90%;
       max-width: 26.1875rem;
