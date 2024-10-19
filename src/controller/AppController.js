@@ -1,6 +1,7 @@
-import AppView from './../view/appView'
+import AppView from './../view/AppView'
 import axios from 'axios'
-import LocalStorage from '../utils/localStorage'
+import LocalStorage from '../utils/LocalStorage'
+import User from '../model/User'
 
 const TOKEN_VALIDATOR = import.meta.env.VITE_TOKEN_VALIDATOR
 
@@ -10,6 +11,9 @@ class AppController{
   async initEvents(){
     const logoutBtn = this.view.el.exitBtn
     const { chatMenuBtn, contactMenuBtn, settingMenuBtn } = this.view.el
+    const { backBtn } = this.view.el
+    const { addContactBtn, cancelAddContact } = this.view.el
+    
     
     this.view.addEvent(document, {
       eventName: 'DOMContentLoaded',
@@ -25,6 +29,24 @@ class AppController{
     this.view.addEventAll([chatMenuBtn, contactMenuBtn, settingMenuBtn], {
       eventName: 'click',
       fn: (e) => this.handleMenuBtnClick(e),
+      preventDefault: true
+    })
+
+    this.view.addEventAll('.item', {
+      eventName: 'click',
+      fn: (e) => this.handleMessageItem(e),
+      preventDefault: true
+    })
+
+    this.view.addEvent(backBtn, {
+      eventName: 'click',
+      fn: (e) => this.handleMessageItem(e),
+      preventDefault: true
+    })
+
+    this.view.addEventAll([addContactBtn, cancelAddContact], {
+      eventName: 'click',
+      fn: (e) => this.view.setAddContactModal(e.currentTarget),
       preventDefault: true
     })
   }
@@ -44,7 +66,9 @@ class AppController{
       });
 
       const { data } = response
-      this.view.setUserContent(data)
+      const user = new User(data);
+      const result = await user.findOrCreate()
+      this.view.setUserContent(result)
 
     } catch (error) {
       localStorage.clear()
@@ -59,8 +83,11 @@ class AppController{
   }
 
   handleMenuBtnClick(e){
-    console.log(e)
     this.view.changeSection(e.currentTarget)
+  }
+
+  handleMessageItem(){
+    this.view.messageScreenToggle()
   }
 }
 

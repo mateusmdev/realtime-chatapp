@@ -1,7 +1,7 @@
-import AbstractView from './abstractView'
+import AbstractView from './AbstractView'
 import './../sass/app.scss'
 
-class App extends AbstractView{
+class AppView extends AbstractView{
   
   constructor(){
     super()
@@ -39,6 +39,28 @@ class App extends AbstractView{
     selectedSection.classList.add('active')
     button.classList.add('active')
   }
+
+  toggleContentScreen(screenName, value){
+    const messageScreen = document.querySelector('.message-screen')
+    messageScreen.classList.toggle
+  }
+  
+  messageScreenToggle(){
+    const contentScreen = document.querySelector('main')
+    contentScreen.classList.toggle('messages')
+  }
+
+  setAddContactModal(element){
+    const { addContactBtn } = this.el
+    const overley = document.querySelector('.overlay-layer .add-contact')
+
+    if (element === addContactBtn){
+      overley.classList.add('overlay-active')
+      return
+    }
+    
+    overley.classList.remove('overlay-active')
+  }
 }
 
-export default App
+export default AppView

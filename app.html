@@ -40,6 +40,23 @@
     </header>
     
     <main>
+      <div class="overlay-layer">
+        <div class="add-contact">
+          <div class="add-contact-component">
+            <div class="start">
+              <p>Novo Contato</p>
+              <a href="#" id="cancel-add-contact">
+                <img src="./src/assets/cancel.svg" alt="add contact icon">
+              </a>
+            </div>
+            <div>
+              <input type="text" placeholder="Email do contato" id="contact-input">
+            </div>
+            <a id="add-contact-btn" href="#">Adicionar</a>
+          </div>
+        </div>
+      </div>
+      
       <div class="menu">
         <section id="message-section" class="active">
           <div class="title">
@@ -79,6 +96,9 @@
               <img src="./src/assets/message-text-outline.svg" alt="message-icon">
               Contatos
             </h1>
+            <a href="#" id="add-contact-btn">
+              <img src="./src/assets/add-contact.svg" alt="message-icon">
+            </a>
           </div>
           <div class="content-wrapper">
             <ul id="contact-container">
@@ -139,8 +159,55 @@
           </div>
         </section>
       </div>
+      <div class="app-content">
+        <section class="home"></section>
+        <section class="message-screen">
+          <header>
+            <div class="contact-header">
+              <div class="picture-wrapper">
+                <img src="https://muramasa.com.br/wp-content/uploads/2022/06/dragon-ball-super-goku-555x555.webp" alt="contact profile image image" class="profile-picture">
+              </div>
+              <div class="contact-data">
+                <strong>Patolino</strong>
+                <p>Online</p>
+              </div>
+            </div>
+            <div class="actions">
+              <a href="#">
+                <img src="./src/assets/clip.svg" alt="clip icon">
+              </a>
+              <a href="#">
+                <img src="./src/assets/add-contact.svg" alt="add contact icon">
+              </a>
+
+              <a href="#" id="back-btn">
+                <img src="./src/assets/cancel.svg" alt="add contact icon">
+              </a>
+            </div>
+          </header>
+          <div class="chat">
+              chat-container
+          </div>
+          <div>
+            <div class="input-wrapper">
+              <div id="input">
+                <div class="input-content" contenteditable="true"></div>
+                <p class="placeholder">Digite sua mensagem</p>
+              </div>
+              <div class="message-actions">
+                <a href="#" class="emoji">
+                  <img src="./src/assets/emoji.svg" alt="a .svg emoji icon">
+                </a>
+                <a href="#">
+                  <img src="./src/assets/mic.svg" alt="a .svg microphone icon">
+                </a>
+              </div>
+            </div>
+          </div>
+        </section>
+      </div>
     </main>
 
-    <script type="module" src="/src/controller/app.js"></script>
+    <script type="module" src="/src/controller/AppController.js"></script>
   </body>
 </html>
