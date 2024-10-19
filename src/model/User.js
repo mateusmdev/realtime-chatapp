@@ -1,4 +1,4 @@
-import Firestore from "./../firebase/firestore"
+import Firestore from "./../firebase/Firestore"
 
 class User{
   _path = 'user'

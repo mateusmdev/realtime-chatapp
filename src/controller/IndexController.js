@@ -1,6 +1,6 @@
-import IndexView from './../view/indexView'
-import Authenticator from '../firebase/authenticator'
-import LocalStorage from '../utils/localStorage'
+import IndexView from './../view/IndexView'
+import Authenticator from '../firebase/Authenticator'
+import LocalStorage from '../utils/LocalStorage'
 
 class IndexController{
   view = new IndexView()

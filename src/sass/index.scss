@@ -1,6 +1,6 @@
-@use 'variables';
 @use 'style';
-@use 'mixins';
+@use 'parts/variables';
+@use 'parts/mixins';
 @use 'sass:color';
 
 html,

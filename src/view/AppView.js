@@ -1,7 +1,7 @@
-import AbstractView from './abstractView'
+import AbstractView from './AbstractView'
 import './../sass/app.scss'
 
-class App extends AbstractView{
+class AppView extends AbstractView{
   
   constructor(){
     super()
@@ -63,4 +63,4 @@ class App extends AbstractView{
   }
 }
 
-export default App
+export default AppView
