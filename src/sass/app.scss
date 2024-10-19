@@ -16,7 +16,7 @@
 
   &-thumb {
     background: variables.$primary-color;
-    border-radius: 0px;
+    border-radius: 0;
   }
 
   &-corner {
@@ -223,7 +223,7 @@ body{
       .message-status {
         width: 1.375rem;
         height: 100%;
-        left: 0px;
+        left: 0;
         bottom: -0.20rem;
         position: absolute;
       }
@@ -286,9 +286,9 @@ body{
     #btn-container{
       @include mixins.flexCenter();
       position: absolute;
-      bottom: -5px;
+      bottom: -0.3125rem;
       padding-top: 0.23rem;
-      right: 5px;
+      right: 0.3125rem;
       background-color: variables.$primary-color;
       border-radius: 50%;
       width: 36.461%;
@@ -344,7 +344,7 @@ body{
     }
 
     img{
-      width: 13px;
+      width: 0.8125rem;
       margin-right: 0.55rem;
     }
   }
@@ -358,7 +358,7 @@ main {
       display: initial;
       position: fixed;
       top: 0;
-      left: 0px;
+      left: 0;
       z-index: 1;
     }
   }
@@ -429,15 +429,19 @@ main .app-content {
         position: relative;
         display: flex;
         justify-content: space-between;
-
+        
         img{
           width: 1rem;
           height: 1rem;
         }
 
-        a:nth-child(2) img{
-          width: 1.2rem;
+        a:nth-child(2) {
+          margin-left: 0.35rem;
+          img{
+            width: 1.2rem;
+          }
         }
+
         a:last-child{
           position: absolute;
           right: -2.6rem;
@@ -496,13 +500,13 @@ section.message-screen .input-wrapper{
     margin-left: 0.9rem;
     margin-top: 0.25rem;
     position: absolute;
-    bottom: 15px;
-    right: 15px;
+    bottom: 0.9375rem;
+    right: 0.9375rem;
 
     .emoji {
       position: absolute;
-      right: 38px;
-      bottom: 1px;
+      right: 2.375rem;
+      bottom: 0.0625rem;
       z-index: 1;
 
       img {
@@ -537,7 +541,7 @@ section.message-screen .input-wrapper{
     .add-contact-component {
       background-color: variables.$bg-primary;
       width: 90%;
-      max-width: 419px;
+      max-width: 26.1875rem;
       padding: 1.2rem;
       padding-bottom: 1rem;
       color: variables.$color-text;
@@ -549,7 +553,7 @@ section.message-screen .input-wrapper{
       & p,
       & #contact-input,
       & #add-contact-btn {
-        font-size: 15px;
+        font-size: 0.9375rem;
         color: variables.$color-text;
       }
       
