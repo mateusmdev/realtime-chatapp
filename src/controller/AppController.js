@@ -4,6 +4,7 @@ import LocalStorage from '../utils/LocalStorage'
 import User from '../model/User'
 
 const TOKEN_VALIDATOR = import.meta.env.VITE_TOKEN_VALIDATOR
+const ICON_KEY = import.meta.env.VITE_ICON_KEY
 
 class AppController{
   view = new AppView()
@@ -13,11 +14,12 @@ class AppController{
     const { chatMenuBtn, contactMenuBtn, settingMenuBtn } = this.view.el
     const { backBtn } = this.view.el
     const { addContactBtn, cancelAddContact } = this.view.el
+    const { emojiModalBtn } = this.view.el
     
     
     this.view.addEvent(document, {
       eventName: 'DOMContentLoaded',
-      fn: () => this.getUserData(),
+      fn: () => this.getData(),
     })
 
     this.view.addEvent(logoutBtn, {
@@ -49,6 +51,18 @@ class AppController{
       fn: (e) => this.view.setAddContactModal(e.currentTarget),
       preventDefault: true
     })
+
+    this.view.addEvent(emojiModalBtn, {
+      eventName: 'click',
+      fn: (e) => this.view.toggleEmojiModal(),
+      preventDefault: true
+    })
+    
+  }
+
+  getData(){
+    this.getUserData()
+    this.getIconData()
   }
 
   async getUserData(){
@@ -75,6 +89,22 @@ class AppController{
       window.location.href = '/'
       throw error
     }
+  }
+
+  async getIconData(){
+    let iconList = LocalStorage.getIconList()
+    
+    if (!iconList) {
+      console.log('here')
+      const response = await axios.get(`https://emoji-api.com/emojis?access_key=${ICON_KEY}`);
+      
+      iconList = response.data
+      LocalStorage.setIconList(JSON.stringify(iconList))
+    }
+    
+    if (typeof iconList === 'string') iconList = JSON.parse(iconList)
+
+    this.view.loadEmoji(iconList)
   }
 
   signOut(){
