@@ -90,6 +90,37 @@ main .app-content {
   }
 }
 
+.message-screen .icon-container {
+  // border: 1px solid red;
+  height: 12.5rem;
+  background-color: variables.$bg-secundary;
+  border-bottom: 2.5px solid variables.$bg-primary;;
+  padding: 0.5rem;
+  overflow: none;
+  margin-bottom: -12.5rem;
+
+  #emoji-list{
+    height: 100%;
+    width: 100%;
+    padding: 0.3rem;
+    display: grid;
+    justify-content: center;
+    align-items: center;
+    grid-template-columns: repeat(auto-fill, 24px);
+    gap: 0.75rem;
+    overflow-y: auto;
+    overflow-x: hidden;
+
+      li{
+        cursor: pointer;
+        width: 1.5rem;
+        height: 1.5rem;
+        overflow: hidden;
+        text-align: center;
+      }
+  }
+}
+
 section.message-screen .input-wrapper{
   background-color: variables.$bg-secundary;
   display: flex;

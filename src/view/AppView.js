@@ -61,6 +61,29 @@ class AppView extends AbstractView{
     
     overley.classList.remove('overlay-active')
   }
+
+  loadEmoji(data){
+    const { emojiList } = this.el
+    const emojiPromises = data.map(emoji => {
+      return new Promise(() => {
+        const li = this.createElement('li', emojiList, {
+          'emoji-name': emoji.slug
+        })
+
+        li.textContent = emoji.character
+      })
+    })
+
+    Promise.all(emojiPromises)    
+  }
+
+  toggleEmojiModal(){
+    const { emojiList } = this.el
+    const emojiContainer = emojiList.parentNode
+    console.log(emojiContainer)
+
+    emojiContainer.style.marginBottom = 0
+  }
 }
 
 export default AppView
