@@ -84,6 +84,28 @@ class AppView extends AbstractView{
 
     emojiContainer.style.marginBottom = 0
   }
+
+  toggleMediaBar(isActiveBar = true) {
+    const mediaBar = document.querySelector('.media-bar')
+    if (isActiveBar === true) {
+      mediaBar.classList.add('show-media-bar')
+      return
+    }
+
+    mediaBar.classList.remove('show-media-bar')
+  }
+
+  toggleMediaModal(isShowModal = true) {
+    const { media } = this.el
+    
+    if (isShowModal) {
+      media.classList.add('overlay-active')
+      this.toggleMediaBar(false)
+      return
+    }
+    
+    media.classList.remove('overlay-active')
+  }
 }
 
 export default AppView

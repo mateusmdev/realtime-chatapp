@@ -84,6 +84,43 @@ main .app-content {
       }
     }
 
+    .media-bar {
+      position: absolute;
+      top: 50%;
+      right: -4rem;
+      transform: translateY(-50%);
+      border-radius: 3px;
+      background-color: variables.$bg-secundary;
+      width: 3.3rem;
+      height: 15.625rem;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: space-between;
+      
+      &.show-media-bar {
+        right: 0.75rem;
+      }
+      
+      li, a {
+        width: 100%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex: 1;
+
+        img {
+          width: 42%;
+          height: 42%;
+        }
+      }
+      
+      li:nth-child(3) img {
+        width: 38%;
+        height: 38%;
+      }
+    }
+
     .chat {
       flex: 1;
     }
