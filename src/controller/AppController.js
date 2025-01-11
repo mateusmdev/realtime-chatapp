@@ -15,6 +15,8 @@ class AppController{
     const { backBtn } = this.view.el
     const { addContactBtn, cancelAddContact } = this.view.el
     const { emojiModalBtn } = this.view.el
+    const { attachmentBtn, closeMediaModalBtn} = this.view.el
+    const { takeScreenshotBtn, sendPictureBtn, sendDocumentBtn, sendContactBtn } = this.view.el
     
     
     this.view.addEvent(document, {
@@ -57,7 +59,24 @@ class AppController{
       fn: (e) => this.view.toggleEmojiModal(),
       preventDefault: true
     })
-    
+
+    this.view.addEvent(attachmentBtn, {
+      eventName: 'click',
+      fn: () => this.view.toggleMediaBar(),
+      preventDefault: true
+    })
+
+    this.view.addEventAll([takeScreenshotBtn, sendPictureBtn, sendDocumentBtn, sendContactBtn], {
+      eventName: 'click',
+      fn: () => this.view.toggleMediaModal(),
+      preventDefault: true
+    })
+
+    this.view.addEvent(closeMediaModalBtn, {
+      eventName: 'click',
+      fn: () => this.view.toggleMediaModal(false),
+      preventDefault: true
+    })
   }
 
   getData(){
@@ -116,8 +135,17 @@ class AppController{
     this.view.changeSection(e.currentTarget)
   }
 
-  handleMessageItem(){
+  handleMessageItem(e){
     this.view.messageScreenToggle()
+    const isCorrectTarget = e.currentTarget.id === 'back-btn'
+    
+    if (isCorrectTarget){
+      this.view.toggleMediaModal(false)
+    }
+  }
+
+  handleCloseMediaModal(){
+    this.view.toggleMediaModal()
   }
 }
 
