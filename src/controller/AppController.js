@@ -2,6 +2,9 @@ import AppView from './../view/AppView'
 import axios from 'axios'
 import LocalStorage from '../utils/LocalStorage'
 import User from '../model/User'
+import MediaContext from './../model/MediaContext'
+import MediaFactory from '../model/MediaFactory'
+import MediaDataSingleton from '../model/MediaDataSingleton'
 
 const TOKEN_VALIDATOR = import.meta.env.VITE_TOKEN_VALIDATOR
 const ICON_KEY = import.meta.env.VITE_ICON_KEY
@@ -17,6 +20,7 @@ class AppController{
     const { emojiModalBtn } = this.view.el
     const { attachmentBtn, closeMediaModalBtn} = this.view.el
     const { takeScreenshotBtn, sendPictureBtn, sendDocumentBtn, sendContactBtn } = this.view.el
+    const { uploadFile } = this.view.el
     
     
     this.view.addEvent(document, {
@@ -68,14 +72,20 @@ class AppController{
 
     this.view.addEventAll([takeScreenshotBtn, sendPictureBtn, sendDocumentBtn, sendContactBtn], {
       eventName: 'click',
-      fn: () => this.view.toggleMediaModal(),
+      fn: (e) => this.handleMediaButton(e),
       preventDefault: true
     })
 
     this.view.addEvent(closeMediaModalBtn, {
       eventName: 'click',
-      fn: () => this.view.toggleMediaModal(false),
+      fn: () => this.handleCloseMediaModal(false),
       preventDefault: true
+    })
+
+    this.view.addEvent(uploadFile, {
+      eventName: 'change',
+      fn: (e) => this.handleChangeInputFile(e),
+      preventDefault: false
     })
   }
 
@@ -88,7 +98,7 @@ class AppController{
     const acessToken = LocalStorage.getAcessToken()
 
     if (!acessToken) {
-      window.location.href = '/'
+      // window.location.href = '/'
     }
 
     try {
@@ -105,8 +115,8 @@ class AppController{
 
     } catch (error) {
       localStorage.clear()
-      window.location.href = '/'
-      throw error
+      // window.location.href = '/'
+      // throw error
     }
   }
 
@@ -145,7 +155,44 @@ class AppController{
   }
 
   handleCloseMediaModal(){
-    this.view.toggleMediaModal()
+    this.view.toggleMediaModal(false)
+  }
+
+  handleMediaButton(e) {
+    const { id } = e.currentTarget
+    const { uploadFile } = this.view.el
+    console.log(id, e.target)
+
+    // this.view.toggleMediaModal()
+    if (id === 'send-document-btn') {
+      uploadFile.click()
+      return
+    }
+
+    // const singletonInstance = MediaDataSingleton.getInstance()
+    // singletonInstance.setInputFile(this.view.el.uploadFile)
+    // console.log('aqui: ', this.view.el.uploadFile)
+
+    // const mediaInstance = MediaFactory.getInstance(id)
+    // console.log('SelectedInstancia: ', mediaInstance)
+    // const mediaHandler = new MediaContext(mediaInstance)
+
+    // mediaHandler.execute()
+  }
+
+  handleChangeInputFile(e) {
+    console.log('Event: ', e)
+    console.log('Files: ', e.target.files)
+    const id = 'send-document-btn'
+    const [uploadedFile] = e.target.files
+    // const singletonInstance = MediaDataSingleton.getInstance()
+    // singletonInstance.setFiles(e.target.files)
+
+    const mediaInstance = MediaFactory.getInstance(id)
+    console.log('SelectedInstancia: ', mediaInstance)
+    const mediaHandler = new MediaContext(mediaInstance)
+
+    mediaHandler.execute(uploadedFile)
   }
 }
 
