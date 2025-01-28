@@ -109,7 +109,7 @@ main .app-content {
         justify-content: center;
         flex: 1;
 
-        img {
+        img { 
           width: 42%;
           height: 42%;
         }
@@ -118,6 +118,10 @@ main .app-content {
       li:nth-child(3) img {
         width: 38%;
         height: 38%;
+      }
+
+      li#upload-file-wrapper{
+        display: none;
       }
     }
 

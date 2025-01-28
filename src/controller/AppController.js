@@ -2,6 +2,8 @@ import AppView from './../view/AppView'
 import axios from 'axios'
 import LocalStorage from '../utils/LocalStorage'
 import User from '../model/User'
+import MediaContext from './../model/MediaContext'
+import MediaFactory from '../model/MediaFactory'
 
 const TOKEN_VALIDATOR = import.meta.env.VITE_TOKEN_VALIDATOR
 const ICON_KEY = import.meta.env.VITE_ICON_KEY
@@ -17,6 +19,7 @@ class AppController{
     const { emojiModalBtn } = this.view.el
     const { attachmentBtn, closeMediaModalBtn} = this.view.el
     const { takeScreenshotBtn, sendPictureBtn, sendDocumentBtn, sendContactBtn } = this.view.el
+    const { uploadFile } = this.view.el
     
     
     this.view.addEvent(document, {
@@ -68,14 +71,20 @@ class AppController{
 
     this.view.addEventAll([takeScreenshotBtn, sendPictureBtn, sendDocumentBtn, sendContactBtn], {
       eventName: 'click',
-      fn: () => this.view.toggleMediaModal(),
+      fn: (e) => this.handleMediaButton(e),
       preventDefault: true
     })
 
     this.view.addEvent(closeMediaModalBtn, {
       eventName: 'click',
-      fn: () => this.view.toggleMediaModal(false),
+      fn: () => this.handleCloseMediaModal(false),
       preventDefault: true
+    })
+
+    this.view.addEvent(uploadFile, {
+      eventName: 'change',
+      fn: (e) => this.handleChangeInputFile(e),
+      preventDefault: false
     })
   }
 
@@ -145,6 +154,32 @@ class AppController{
   }
 
   handleCloseMediaModal(){
+    this.view.toggleMediaModal(false)
+  }
+
+  handleMediaButton(e) {
+    const { id } = e.currentTarget
+    const { uploadFile } = this.view.el
+
+    if (id === 'send-document-btn') {
+      uploadFile.click()
+      return
+    }
+  }
+  
+  async handleChangeInputFile(e) {
+    const id = 'send-document-btn'
+    const [uploadedFile] = e.target.files
+    const { pdfArea } = this.view.el
+    
+    const mediaInstance = MediaFactory.getInstance(id)
+    const mediaHandler = new MediaContext(mediaInstance)
+    const uploadData = { 
+      file: uploadedFile,
+      area: pdfArea
+    }
+    
+    await mediaHandler.execute(uploadData)
     this.view.toggleMediaModal()
   }
 }
