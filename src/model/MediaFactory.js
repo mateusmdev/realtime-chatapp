@@ -13,7 +13,6 @@ class MediaFactory {
     }
     
     const selectedMedia = dictionary[mediaId]
-    console.log('SelectedMedia: ', selectedMedia)
     
     const instance = new selectedMedia()
     return instance

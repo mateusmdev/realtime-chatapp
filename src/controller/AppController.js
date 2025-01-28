@@ -4,7 +4,6 @@ import LocalStorage from '../utils/LocalStorage'
 import User from '../model/User'
 import MediaContext from './../model/MediaContext'
 import MediaFactory from '../model/MediaFactory'
-import MediaDataSingleton from '../model/MediaDataSingleton'
 
 const TOKEN_VALIDATOR = import.meta.env.VITE_TOKEN_VALIDATOR
 const ICON_KEY = import.meta.env.VITE_ICON_KEY
@@ -98,7 +97,7 @@ class AppController{
     const acessToken = LocalStorage.getAcessToken()
 
     if (!acessToken) {
-      // window.location.href = '/'
+      window.location.href = '/'
     }
 
     try {
@@ -115,8 +114,8 @@ class AppController{
 
     } catch (error) {
       localStorage.clear()
-      // window.location.href = '/'
-      // throw error
+      window.location.href = '/'
+      throw error
     }
   }
 
@@ -161,38 +160,27 @@ class AppController{
   handleMediaButton(e) {
     const { id } = e.currentTarget
     const { uploadFile } = this.view.el
-    console.log(id, e.target)
 
-    // this.view.toggleMediaModal()
     if (id === 'send-document-btn') {
       uploadFile.click()
       return
     }
-
-    // const singletonInstance = MediaDataSingleton.getInstance()
-    // singletonInstance.setInputFile(this.view.el.uploadFile)
-    // console.log('aqui: ', this.view.el.uploadFile)
-
-    // const mediaInstance = MediaFactory.getInstance(id)
-    // console.log('SelectedInstancia: ', mediaInstance)
-    // const mediaHandler = new MediaContext(mediaInstance)
-
-    // mediaHandler.execute()
   }
-
-  handleChangeInputFile(e) {
-    console.log('Event: ', e)
-    console.log('Files: ', e.target.files)
+  
+  async handleChangeInputFile(e) {
     const id = 'send-document-btn'
     const [uploadedFile] = e.target.files
-    // const singletonInstance = MediaDataSingleton.getInstance()
-    // singletonInstance.setFiles(e.target.files)
-
+    const { pdfArea } = this.view.el
+    
     const mediaInstance = MediaFactory.getInstance(id)
-    console.log('SelectedInstancia: ', mediaInstance)
     const mediaHandler = new MediaContext(mediaInstance)
-
-    mediaHandler.execute(uploadedFile)
+    const uploadData = { 
+      file: uploadedFile,
+      area: pdfArea
+    }
+    
+    await mediaHandler.execute(uploadData)
+    this.view.toggleMediaModal()
   }
 }
 

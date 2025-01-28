@@ -5,8 +5,8 @@ class MediaContext {
     this.strategy = strategy
   }
   
-  execute() {
-    return this.strategy.execute()
+  execute(data) {
+    return this.strategy.execute(data)
   }
 
   setStrate(strategy) {
