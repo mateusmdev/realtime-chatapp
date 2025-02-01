@@ -170,17 +170,19 @@ class AppController{
   async handleChangeInputFile(e) {
     const id = 'send-document-btn'
     const [uploadedFile] = e.target.files
-    const { pdfArea } = this.view.el
+    const { pdfArea, fileArea } = this.view.el
+    const isPdf = uploadedFile.type === 'application/pdf'
     
     const mediaInstance = MediaFactory.getInstance(id)
     const mediaHandler = new MediaContext(mediaInstance)
     const uploadData = { 
       file: uploadedFile,
-      area: pdfArea
+      area: isPdf ? pdfArea : fileArea
     }
-    
+
+    const modalType = isPdf ? 'pdf-preview' : 'documents'
     await mediaHandler.execute(uploadData)
-    this.view.toggleMediaModal()
+    this.view.toggleMediaModal(true, modalType)
   }
 }
 

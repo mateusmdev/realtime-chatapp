@@ -95,16 +95,25 @@ class AppView extends AbstractView{
     mediaBar.classList.remove('show-media-bar')
   }
 
-  toggleMediaModal(isShowModal = true) {
+  toggleMediaModal(isShowModal = true, mediaType = '') {
     const { media } = this.el
+    const modals = [...media.querySelectorAll('.media-type')]
     
     if (isShowModal) {
+      const selectedModal = modals.find(currentModal => {
+        const classes = [...currentModal.classList]
+        return classes.includes(mediaType)
+      })
+
+      selectedModal.style.display = 'flex'
       media.classList.add('overlay-active')
       this.toggleMediaBar(false)
+      
       return
     }
     
     media.classList.remove('overlay-active')
+    modals.forEach(currentModal => currentModal.style.display = 'none')
   }
 }
 
