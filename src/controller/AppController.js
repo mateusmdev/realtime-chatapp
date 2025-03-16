@@ -164,6 +164,8 @@ class AppController{
     if (id === 'send-document-btn') {
       uploadFile.click()
       return
+    }else if (id === 'send-contact-btn') {
+      this.view.toggleMediaModal(true, 'list-contact')
     }
   }
   

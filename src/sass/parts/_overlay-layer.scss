@@ -1,6 +1,6 @@
 @use 'variables';
 @use 'mixins';
-
+@use 'sass:color';
 
 .overlay-layer {
 
@@ -93,7 +93,7 @@
       height: 3.91rem;
       display: flex;
       align-items: center;
-      // justify-content: right;
+      justify-content: right;
       padding: 0 1.5rem;
        
       a {
@@ -110,9 +110,10 @@
       
       .screenshot,
       .pdf-preview,
-      .documents {
+      .documents,
+      .list-contact {
         height: 100%;
-        display: flex;
+        display: none;
         align-items: center;
         justify-content: center;
       }
@@ -186,6 +187,53 @@
             border-radius: 2.5px;
             margin-top: 0.5rem;
             cursor: pointer;
+          }
+        }
+      }
+
+      .list-contact {
+
+        .card {
+          width: 419px;
+          background-color: variables.$bg-primary;
+          margin: 0 1.15rem;
+          margin-top: -7rem;
+          border-radius: 3px;
+
+          .header {
+            padding: 1.2rem 1.1rem;
+            border-bottom: 2px solid variables.$bg-secundary;
+
+            p {
+              color: rgba(255, 255, 255, 0.7);
+              font-size: 0.9rem;
+            }
+          }
+
+          ul {
+            overflow: auto;
+            height: 192px;
+
+            li {
+              display: flex;
+              align-items: center;
+              cursor: pointer;
+              
+              &:hover {
+                background-color: color.scale(variables.$bg-primary, $lightness: -15%);
+              }
+
+              .picture-wrapper {
+                @include mixins.profilePictureWrapper(2.80rem, 2.80rem, hidden);
+                margin: 0.6rem 0.8rem;
+              }
+
+              span {
+                color: #fff;
+                font-size: 0.9rem;
+                font-weight: 500;
+              }
+            }
           }
         }
       }
