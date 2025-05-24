@@ -25,7 +25,7 @@ class AppController{
     
     this.view.addEvent(document, {
       eventName: 'DOMContentLoaded',
-      fn: () => this.getData(),
+      fn: () => this.initApp(),
     })
 
     this.view.addEvent(logoutBtn, {
@@ -89,10 +89,11 @@ class AppController{
     })
   }
 
-  getData(){
+  initApp(){
     this.view.state.blockMedia = BLOCK_MEDIA || true
     // this.getUserData()
     this.getIconData()
+    this.view.initLayout()
   }
 
   async getUserData(){
@@ -122,18 +123,22 @@ class AppController{
   }
 
   async getIconData(){
-    let iconList = LocalStorage.getIconList()
-    
-    if (!iconList) {
-      console.log('here')
-      const response = await axios.get(`https://emoji-api.com/emojis?access_key=${ICON_KEY}`);
-      
-      iconList = response.data
-      LocalStorage.setIconList(JSON.stringify(iconList))
-    }
-    
+    let iconList = LocalStorage.getIconList() ?? []
     if (typeof iconList === 'string') iconList = JSON.parse(iconList)
 
+    const isEmpty = !Array.isArray(iconList) || iconList.length < 1
+    
+    if (isEmpty) {
+      try {
+        const response = await axios.get(`https://emoji-api.com/emojis?access_key=${ICON_KEY}`);
+        
+        iconList = response.data || []
+        LocalStorage.setIconList(JSON.stringify(iconList))
+      } catch (error) {
+        iconList = []
+      }
+    }
+    
     this.view.loadEmoji(iconList)
   }
 

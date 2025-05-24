@@ -10,6 +10,7 @@ class AppView extends AbstractView{
   _initState() {
     return {
       blockMedia: true,
+      isIconListBlock: true,
     }
   }
 
@@ -22,7 +23,9 @@ class AppView extends AbstractView{
     [...profilePictures].forEach(picture => {
       picture.src = data.picture
     })
+  }
 
+  initLayout(){
     if (this.state.blockMedia === true) {
       const { takeScreenshotBtn, sendPictureBtn, sendDocumentBtn } = this.el
 
@@ -33,9 +36,19 @@ class AppView extends AbstractView{
         element.style.cursor = 'not-allowed'
         element.disabled = true
       })
-
     }
 
+    if (this.state.isIconListBlock === true) {
+      console.log('passou 3')
+      console.log(this.state.isIconListBlock)
+      const { emojiModalBtn } = this.el
+
+      emojiModalBtn.style.visibility = 'hidden'
+      emojiModalBtn.style.opacity = '0'
+      emojiModalBtn.style.display = 'none'
+
+      emojiModalBtn.disabled = true
+    }
   }
 
   changeSection(button){
@@ -82,6 +95,12 @@ class AppView extends AbstractView{
   }
 
   loadEmoji(data){
+
+    if (!data || data?.length < 1) {
+      this.state.isIconListBlock = true
+      return
+    }
+
     const { emojiList } = this.el
     const emojiPromises = data.map(emoji => {
       return new Promise(() => {
@@ -92,11 +111,16 @@ class AppView extends AbstractView{
         li.textContent = emoji.character
       })
     })
-
+    
+    this.state.isIconListBlock = false
     Promise.all(emojiPromises)    
   }
 
   toggleEmojiModal(){
+    if (this.state.isIconListBlock === true) {
+      return
+    }
+
     const { emojiList } = this.el
     const emojiContainer = emojiList.parentNode
     console.log(emojiContainer)
