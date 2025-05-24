@@ -7,6 +7,7 @@ import MediaFactory from '../model/MediaFactory'
 
 const TOKEN_VALIDATOR = import.meta.env.VITE_TOKEN_VALIDATOR
 const ICON_KEY = import.meta.env.VITE_ICON_KEY
+const BLOCK_MEDIA = import.meta.env.BLOCK_MEDIA
 
 class AppController{
   view = new AppView()
@@ -89,6 +90,7 @@ class AppController{
   }
 
   getData(){
+    this.view.state.blockMedia = BLOCK_MEDIA || true
     // this.getUserData()
     this.getIconData()
   }
@@ -161,11 +163,40 @@ class AppController{
     const { id } = e.currentTarget
     const { uploadFile } = this.view.el
 
-    if (id === 'send-document-btn') {
-      uploadFile.click()
-      return
-    }else if (id === 'send-contact-btn') {
-      this.view.toggleMediaModal(true, 'list-contact')
+    const blockMessage = () => {
+      alert('This feature is not allowed on my server. Run the project on your machine and enable it for use.')
+    }
+
+    switch(id) {
+      case 'send-contact-btn':
+        this.view.toggleMediaModal(true, 'list-contact')
+        break
+
+      case 'send-document-btn':
+        if (this.view.state.blockMedia === true) {
+          blockMessage()
+          return
+        }
+
+        uploadFile.click()
+        break
+
+
+      case 'take-screenshot-btn':
+        if (this.view.state.blockMedia === true) {
+          blockMessage()
+          return
+        }
+
+        break
+        
+        case 'send-picture-btn':
+          if (this.view.state.blockMedia === true) {
+            blockMessage()
+            return
+          }
+
+          break
     }
   }
   

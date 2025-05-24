@@ -8,7 +8,9 @@ class AppView extends AbstractView{
   }
 
   _initState() {
-    return {}
+    return {
+      blockMedia: true,
+    }
   }
 
   setUserContent(data){
@@ -20,6 +22,19 @@ class AppView extends AbstractView{
     [...profilePictures].forEach(picture => {
       picture.src = data.picture
     })
+
+    if (this.state.blockMedia === true) {
+      const { takeScreenshotBtn, sendPictureBtn, sendDocumentBtn } = this.el
+
+      const blockedElements = [takeScreenshotBtn, sendPictureBtn, sendDocumentBtn];
+      
+      blockedElements.forEach(element => {
+        element.style.opacity = '0.3'
+        element.style.cursor = 'not-allowed'
+        element.disabled = true
+      })
+
+    }
 
   }
 
