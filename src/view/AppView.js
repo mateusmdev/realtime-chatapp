@@ -7,6 +7,10 @@ class AppView extends AbstractView{
     super()
   }
 
+  _initState() {
+    return {}
+  }
+
   setUserContent(data){
     if (!data) return
 
