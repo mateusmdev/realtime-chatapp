@@ -11,6 +11,8 @@ class AppView extends AbstractView{
     return {
       blockMedia: true,
       isIconListBlock: true,
+      isEmojiModalOpen: false,
+      isMediaBarOpen: false,
     }
   }
 
@@ -39,8 +41,6 @@ class AppView extends AbstractView{
     }
 
     if (this.state.isIconListBlock === true) {
-      console.log('passou 3')
-      console.log(this.state.isIconListBlock)
       const { emojiModalBtn } = this.el
 
       emojiModalBtn.style.visibility = 'hidden'
@@ -49,6 +49,17 @@ class AppView extends AbstractView{
 
       emojiModalBtn.disabled = true
     }
+  }
+
+  closeConcorrentModal() {
+    const event = new CustomEvent('closeModal', {
+      bubbles: false,
+      cancelable: true,
+      composed: false
+    })
+
+    const { messageScreen } = this.el
+    messageScreen.dispatchEvent(event)
   }
 
   changeSection(button){
@@ -120,22 +131,30 @@ class AppView extends AbstractView{
     if (this.state.isIconListBlock === true) {
       return
     }
-
+    
+    if (this.state.isMediaBarOpen  === true) {
+      this.closeConcorrentModal()
+    }
+    
     const { emojiList } = this.el
     const emojiContainer = emojiList.parentNode
-    console.log(emojiContainer)
-
-    emojiContainer.style.marginBottom = 0
+    
+    this.state.isEmojiModalOpen = !this.state.isEmojiModalOpen
+    
+    emojiContainer.style.marginBottom = this.state.isEmojiModalOpen ? 'initial' : '-12.5rem'
   }
-
-  toggleMediaBar(isActiveBar = true) {
-    const mediaBar = document.querySelector('.media-bar')
-    if (isActiveBar === true) {
-      mediaBar.classList.add('show-media-bar')
-      return
+  
+  toggleMediaBar() {
+    if (this.state.isEmojiModalOpen === true) {
+      this.closeConcorrentModal()
     }
 
-    mediaBar.classList.remove('show-media-bar')
+    const mediaBar = document.querySelector('.media-bar')
+    const state = this.state.isMediaBarOpen
+    const toggleMethod = state ? mediaBar.classList.remove : mediaBar.classList.add
+    
+    toggleMethod.call(mediaBar.classList, 'show-media-bar')
+    this.state.isMediaBarOpen = !this.state.isMediaBarOpen
   }
 
   toggleMediaModal(isShowModal = true, mediaType = '') {
@@ -157,6 +176,28 @@ class AppView extends AbstractView{
     
     media.classList.remove('overlay-active')
     modals.forEach(currentModal => currentModal.style.display = 'none')
+  }
+
+  async setDefaultMode(e) {
+    const classList =['icon-container', 'media-bar']
+
+    const result = classList.some(item => {
+      const contain = e.target.classList.contains(item)
+
+      return contain
+    })
+
+    if (result === true) return;
+  
+    if (this.state.isMediaBarOpen === true) {
+      this.toggleMediaBar()
+      return
+    }
+
+    if (this.state.isEmojiModalOpen === true) {
+      this.toggleEmojiModal()
+      return
+    }     
   }
 }
 

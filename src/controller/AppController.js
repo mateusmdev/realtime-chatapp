@@ -21,6 +21,9 @@ class AppController{
     const { attachmentBtn, closeMediaModalBtn} = this.view.el
     const { takeScreenshotBtn, sendPictureBtn, sendDocumentBtn, sendContactBtn } = this.view.el
     const { uploadFile } = this.view.el
+    const { messageScreen } = this.view.el
+    const { emojiList } = this.view.el
+    const { mediaBar } = this.view.el
     
     
     this.view.addEvent(document, {
@@ -61,19 +64,22 @@ class AppController{
     this.view.addEvent(emojiModalBtn, {
       eventName: 'click',
       fn: (e) => this.view.toggleEmojiModal(),
-      preventDefault: true
+      preventDefault: true,
+      stopPropagation: true
     })
 
     this.view.addEvent(attachmentBtn, {
       eventName: 'click',
       fn: () => this.view.toggleMediaBar(),
-      preventDefault: true
+      preventDefault: true,
+      stopPropagation: true
     })
 
     this.view.addEventAll([takeScreenshotBtn, sendPictureBtn, sendDocumentBtn, sendContactBtn], {
       eventName: 'click',
       fn: (e) => this.handleMediaButton(e),
-      preventDefault: true
+      preventDefault: true,
+      stopPropagation: true
     })
 
     this.view.addEvent(closeMediaModalBtn, {
@@ -86,6 +92,34 @@ class AppController{
       eventName: 'change',
       fn: (e) => this.handleChangeInputFile(e),
       preventDefault: false
+    })
+
+    this.view.addEvent(messageScreen, {
+      eventName: 'click closeModal',
+      fn: (e) => this.view.setDefaultMode(e),
+      preventDefault: false,
+      stopPropagation: true
+    })
+    
+    this.view.addEvent(mediaBar, {
+      eventName: 'click',
+      fn: (e) => e.stopPropagation(),
+      preventDefault: false,
+    })
+
+    this.view.addEvent(emojiList, {
+      eventName: 'click',
+      fn: (e) => {
+        // console.log('Target', e.target)
+        // console.log('Current Target', e.currentTarget)
+
+        if (e.target === e.currentTarget) return
+
+        const iconElement = e.target
+        // console.log(iconElement.innerText)
+      },
+      preventDefault: false,
+      stopPropagation: true
     })
   }
 
@@ -221,6 +255,7 @@ class AppController{
     const modalType = isPdf ? 'pdf-preview' : 'documents'
     await mediaHandler.execute(uploadData)
     this.view.toggleMediaModal(true, modalType)
+    this.view.setDefaultMode()
   }
 }
 
