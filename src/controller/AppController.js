@@ -7,6 +7,7 @@ import MediaFactory from '../model/MediaFactory'
 
 const TOKEN_VALIDATOR = import.meta.env.VITE_TOKEN_VALIDATOR
 const ICON_KEY = import.meta.env.VITE_ICON_KEY
+const BLOCK_MEDIA = import.meta.env.BLOCK_MEDIA
 
 class AppController{
   view = new AppView()
@@ -20,11 +21,14 @@ class AppController{
     const { attachmentBtn, closeMediaModalBtn} = this.view.el
     const { takeScreenshotBtn, sendPictureBtn, sendDocumentBtn, sendContactBtn } = this.view.el
     const { uploadFile } = this.view.el
+    const { messageScreen } = this.view.el
+    const { emojiList } = this.view.el
+    const { mediaBar } = this.view.el
     
     
     this.view.addEvent(document, {
       eventName: 'DOMContentLoaded',
-      fn: () => this.getData(),
+      fn: () => this.initApp(),
     })
 
     this.view.addEvent(logoutBtn, {
@@ -60,19 +64,22 @@ class AppController{
     this.view.addEvent(emojiModalBtn, {
       eventName: 'click',
       fn: (e) => this.view.toggleEmojiModal(),
-      preventDefault: true
+      preventDefault: true,
+      stopPropagation: true
     })
 
     this.view.addEvent(attachmentBtn, {
       eventName: 'click',
       fn: () => this.view.toggleMediaBar(),
-      preventDefault: true
+      preventDefault: true,
+      stopPropagation: true
     })
 
     this.view.addEventAll([takeScreenshotBtn, sendPictureBtn, sendDocumentBtn, sendContactBtn], {
       eventName: 'click',
       fn: (e) => this.handleMediaButton(e),
-      preventDefault: true
+      preventDefault: true,
+      stopPropagation: true
     })
 
     this.view.addEvent(closeMediaModalBtn, {
@@ -86,11 +93,41 @@ class AppController{
       fn: (e) => this.handleChangeInputFile(e),
       preventDefault: false
     })
+
+    this.view.addEvent(messageScreen, {
+      eventName: 'click closeModal',
+      fn: (e) => this.view.setDefaultMode(e),
+      preventDefault: false,
+      stopPropagation: true
+    })
+    
+    this.view.addEvent(mediaBar, {
+      eventName: 'click',
+      fn: (e) => e.stopPropagation(),
+      preventDefault: false,
+    })
+
+    this.view.addEvent(emojiList, {
+      eventName: 'click',
+      fn: (e) => {
+        // console.log('Target', e.target)
+        // console.log('Current Target', e.currentTarget)
+
+        if (e.target === e.currentTarget) return
+
+        const iconElement = e.target
+        // console.log(iconElement.innerText)
+      },
+      preventDefault: false,
+      stopPropagation: true
+    })
   }
 
-  getData(){
-    this.getUserData()
+  initApp(){
+    this.view.state.blockMedia = BLOCK_MEDIA || true
+    // this.getUserData()
     this.getIconData()
+    this.view.initLayout()
   }
 
   async getUserData(){
@@ -120,18 +157,22 @@ class AppController{
   }
 
   async getIconData(){
-    let iconList = LocalStorage.getIconList()
-    
-    if (!iconList) {
-      console.log('here')
-      const response = await axios.get(`https://emoji-api.com/emojis?access_key=${ICON_KEY}`);
-      
-      iconList = response.data
-      LocalStorage.setIconList(JSON.stringify(iconList))
-    }
-    
+    let iconList = LocalStorage.getIconList() ?? []
     if (typeof iconList === 'string') iconList = JSON.parse(iconList)
 
+    const isEmpty = !Array.isArray(iconList) || iconList.length < 1
+    
+    if (isEmpty) {
+      try {
+        const response = await axios.get(`https://emoji-api.com/emojis?access_key=${ICON_KEY}`);
+        
+        iconList = response.data || []
+        LocalStorage.setIconList(JSON.stringify(iconList))
+      } catch (error) {
+        iconList = []
+      }
+    }
+    
     this.view.loadEmoji(iconList)
   }
 
@@ -161,11 +202,40 @@ class AppController{
     const { id } = e.currentTarget
     const { uploadFile } = this.view.el
 
-    if (id === 'send-document-btn') {
-      uploadFile.click()
-      return
-    }else if (id === 'send-contact-btn') {
-      this.view.toggleMediaModal(true, 'list-contact')
+    const blockMessage = () => {
+      alert('This feature is not allowed on my server. Run the project on your machine and enable it for use.')
+    }
+
+    switch(id) {
+      case 'send-contact-btn':
+        this.view.toggleMediaModal(true, 'list-contact')
+        break
+
+      case 'send-document-btn':
+        if (this.view.state.blockMedia === true) {
+          blockMessage()
+          return
+        }
+
+        uploadFile.click()
+        break
+
+
+      case 'take-screenshot-btn':
+        if (this.view.state.blockMedia === true) {
+          blockMessage()
+          return
+        }
+
+        break
+        
+        case 'send-picture-btn':
+          if (this.view.state.blockMedia === true) {
+            blockMessage()
+            return
+          }
+
+          break
     }
   }
   
@@ -185,6 +255,7 @@ class AppController{
     const modalType = isPdf ? 'pdf-preview' : 'documents'
     await mediaHandler.execute(uploadData)
     this.view.toggleMediaModal(true, modalType)
+    this.view.setDefaultMode()
   }
 }
 

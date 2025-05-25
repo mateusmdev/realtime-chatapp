@@ -7,6 +7,15 @@ class AppView extends AbstractView{
     super()
   }
 
+  _initState() {
+    return {
+      blockMedia: true,
+      isIconListBlock: true,
+      isEmojiModalOpen: false,
+      isMediaBarOpen: false,
+    }
+  }
+
   setUserContent(data){
     if (!data) return
 
@@ -16,7 +25,41 @@ class AppView extends AbstractView{
     [...profilePictures].forEach(picture => {
       picture.src = data.picture
     })
+  }
 
+  initLayout(){
+    if (this.state.blockMedia === true) {
+      const { takeScreenshotBtn, sendPictureBtn, sendDocumentBtn } = this.el
+
+      const blockedElements = [takeScreenshotBtn, sendPictureBtn, sendDocumentBtn];
+      
+      blockedElements.forEach(element => {
+        element.style.opacity = '0.3'
+        element.style.cursor = 'not-allowed'
+        element.disabled = true
+      })
+    }
+
+    if (this.state.isIconListBlock === true) {
+      const { emojiModalBtn } = this.el
+
+      emojiModalBtn.style.visibility = 'hidden'
+      emojiModalBtn.style.opacity = '0'
+      emojiModalBtn.style.display = 'none'
+
+      emojiModalBtn.disabled = true
+    }
+  }
+
+  closeConcorrentModal() {
+    const event = new CustomEvent('closeModal', {
+      bubbles: false,
+      cancelable: true,
+      composed: false
+    })
+
+    const { messageScreen } = this.el
+    messageScreen.dispatchEvent(event)
   }
 
   changeSection(button){
@@ -63,6 +106,12 @@ class AppView extends AbstractView{
   }
 
   loadEmoji(data){
+
+    if (!data || data?.length < 1) {
+      this.state.isIconListBlock = true
+      return
+    }
+
     const { emojiList } = this.el
     const emojiPromises = data.map(emoji => {
       return new Promise(() => {
@@ -73,26 +122,39 @@ class AppView extends AbstractView{
         li.textContent = emoji.character
       })
     })
-
+    
+    this.state.isIconListBlock = false
     Promise.all(emojiPromises)    
   }
 
   toggleEmojiModal(){
-    const { emojiList } = this.el
-    const emojiContainer = emojiList.parentNode
-    console.log(emojiContainer)
-
-    emojiContainer.style.marginBottom = 0
-  }
-
-  toggleMediaBar(isActiveBar = true) {
-    const mediaBar = document.querySelector('.media-bar')
-    if (isActiveBar === true) {
-      mediaBar.classList.add('show-media-bar')
+    if (this.state.isIconListBlock === true) {
       return
     }
+    
+    if (this.state.isMediaBarOpen  === true) {
+      this.closeConcorrentModal()
+    }
+    
+    const { emojiList } = this.el
+    const emojiContainer = emojiList.parentNode
+    
+    this.state.isEmojiModalOpen = !this.state.isEmojiModalOpen
+    
+    emojiContainer.style.marginBottom = this.state.isEmojiModalOpen ? 'initial' : '-12.5rem'
+  }
+  
+  toggleMediaBar() {
+    if (this.state.isEmojiModalOpen === true) {
+      this.closeConcorrentModal()
+    }
 
-    mediaBar.classList.remove('show-media-bar')
+    const mediaBar = document.querySelector('.media-bar')
+    const state = this.state.isMediaBarOpen
+    const toggleMethod = state ? mediaBar.classList.remove : mediaBar.classList.add
+    
+    toggleMethod.call(mediaBar.classList, 'show-media-bar')
+    this.state.isMediaBarOpen = !this.state.isMediaBarOpen
   }
 
   toggleMediaModal(isShowModal = true, mediaType = '') {
@@ -114,6 +176,28 @@ class AppView extends AbstractView{
     
     media.classList.remove('overlay-active')
     modals.forEach(currentModal => currentModal.style.display = 'none')
+  }
+
+  async setDefaultMode(e) {
+    const classList =['icon-container', 'media-bar']
+
+    const result = classList.some(item => {
+      const contain = e.target.classList.contains(item)
+
+      return contain
+    })
+
+    if (result === true) return;
+  
+    if (this.state.isMediaBarOpen === true) {
+      this.toggleMediaBar()
+      return
+    }
+
+    if (this.state.isEmojiModalOpen === true) {
+      this.toggleEmojiModal()
+      return
+    }     
   }
 }
 
