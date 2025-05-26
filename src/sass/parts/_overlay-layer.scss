@@ -1,18 +1,31 @@
 @use 'variables';
 @use 'mixins';
-
+@use 'sass:color';
 
 .overlay-layer {
-  // filter: blur(15px);
+
+  position: relative;
+  // position: fixed;
   
   .overlay-active {
+    z-index: 10;
+    background-color: variables.$bg-overlay-layer;
+  }
+  
+  .add-contact.overlay-active {
     width: 100vw;
     height: 100vh;
     position: fixed;
     top: 0;
     left: 0;
-    z-index: 10;
-    background-color: variables.$bg-overlay-layer;
+  }
+  
+  #media.overlay-active {
+    position: fixed;
+    right: 0;
+    bottom: 0;
+    width: 100%;
+    height: calc(100% - 4.875rem);
   }
 
   .add-contact {
@@ -24,12 +37,10 @@
       background-color: variables.$bg-primary;
       width: 90%;
       max-width: 26.1875rem;
-      padding: 1.2rem;
-      padding-bottom: 1rem;
       color: variables.$color-text;
       display: flex;
       flex-direction: column;
-      border-radius: 4px;
+      border-radius: 3px;
       // border: 1px solid red;
       
       & p,
@@ -43,7 +54,9 @@
         display: flex;
         justify-content: space-between;
         align-items: center;
+        padding: 1.2rem 1.1rem;
         // border: 1px solid red;
+        border-bottom: 2px solid variables.$bg-secundary;
 
         #cancel-add-contact {
           width: 17px;
@@ -54,25 +67,185 @@
           }
         }
       }
-      
-      #contact-input {
-        background-color: variables.$bg-secundary;
-        border: none;
-        outline: none;
-        border-radius: 3px;
-        padding: 0.4rem 0.5rem;
-        width: 100%;
-        margin: 1rem 0;
+
+      .body {
+        padding: 1rem 1.2rem;
+        padding-top: 0.4rem;
+        display: flex;
+        flex-direction: column;
+
+        #contact-input {
+          background-color: variables.$bg-secundary;
+          border: none;
+          outline: none;
+          border-radius: 3px;
+          padding: 0.4rem 0.5rem;
+          width: 100%;
+          margin: 1rem 0;
+        }
+        
+        #add-contact-btn {
+          color: variables.$primary-color;
+          text-decoration: none;
+          margin: 0.4rem 0;
+          margin-right: 0;
+          margin-left: auto;
+          display: inline-block;
+        }
+
       }
+    }
+  }
+  #media {
+    .top-bar {
+      background-color: variables.$primary-color;
+      height: 3.91rem;
+      display: flex;
+      align-items: center;
+      justify-content: right;
+      padding: 0 1.5rem;
+       
+      a {
+        margin-top: 0.35rem;
+        img {
+          width: 1rem;
+          height: 1rem;
+        }
+      }
+    }
+
+    .media-content {
+      height: calc(100% - 3.91rem);
       
-      #add-contact-btn {
-        color: variables.$primary-color;
-        text-decoration: none;
-        margin-right: 0;
-        margin-left: auto;
-        margin-top: 0.8rem;
+      .screenshot,
+      .pdf-preview,
+      .documents,
+      .list-contact {
+        height: 100%;
+        display: none;
+        align-items: center;
+        justify-content: center;
       }
 
+      .screenshot {
+        .box-components {
+          border: 1px solid red;
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+
+          .screen-wrapper {
+            border: 1px solid red;
+          }
+
+          #take-screenshot-btn {
+            background-color: variables.$primary-color;
+            padding: 0.4rem 0.5rem;
+            color: variables.$color-text;
+            border-radius: 2px;
+            text-decoration: none;
+            margin-top: 1rem;
+          }
+        }
+      }
+
+      .pdf-preview {
+        padding: 1rem;
+        #pdf{
+          width: fit-content;
+          height: 100%;
+          .pdf-wrapper {
+            height: 100%;
+            canvas {
+              width: 100%;
+              max-height: 100%;
+            }
+          }
+        }
+      }
+
+      .documents{
+        #file-area {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          
+          .upload-file {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+
+            img {
+              width: 45%;
+            }
+
+            p {
+              color: white;
+              font-size: 0.8rem;
+              margin: 1.3rem 0;
+              font-weight: normal;
+            }
+          }
+
+          button {
+            background-color: variables.$primary-color;
+            color: variables.$color-text;
+            outline: none;
+            border: none;
+            padding: 0.43rem 1.7rem;
+            border-radius: 2.5px;
+            margin-top: 0.5rem;
+            cursor: pointer;
+          }
+        }
+      }
+
+      .list-contact {
+
+        .card {
+          width: 419px;
+          background-color: variables.$bg-primary;
+          margin: 0 1.15rem;
+          margin-top: -7rem;
+          border-radius: 3px;
+
+          .header {
+            padding: 1.2rem 1.1rem;
+            border-bottom: 2px solid variables.$bg-secundary;
+
+            p {
+              color: rgba(255, 255, 255, 0.7);
+              font-size: 0.9rem;
+            }
+          }
+
+          ul {
+            overflow: auto;
+            height: 192px;
+
+            li {
+              display: flex;
+              align-items: center;
+              cursor: pointer;
+              
+              &:hover {
+                background-color: color.scale(variables.$bg-primary, $lightness: -15%);
+              }
+
+              .picture-wrapper {
+                @include mixins.profilePictureWrapper(2.80rem, 2.80rem, hidden);
+                margin: 0.6rem 0.8rem;
+              }
+
+              span {
+                color: #fff;
+                font-size: 0.9rem;
+                font-weight: 500;
+              }
+            }
+          }
+        }
+      }
     }
   }
 }

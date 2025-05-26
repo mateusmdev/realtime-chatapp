@@ -9,6 +9,14 @@ class LocalStorage{
   static setAcessToken(data){
     localStorage.setItem(KEY, data)
   }
+
+  static getIconList(){
+    return localStorage.getItem('icon-list')
+  }
+
+  static setIconList(data){
+    localStorage.setItem('icon-list', data)
+  }
 }
 
 export default LocalStorage

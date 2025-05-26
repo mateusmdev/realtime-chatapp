@@ -2,9 +2,15 @@ import NotFoundException from "./../exception/NotFoundException"
 
 class AbstractView{
   el = {}
+  state = {}
 
   constructor(){
     this._loadElements()
+    this.state = this._initState()
+  }
+
+  _initState() {
+    return {}
   }
 
   _loadElements(){
@@ -38,6 +44,7 @@ class AbstractView{
       return new Promise(function(resolve, reject){
         element.addEventListener(name, e => {
           eventParams.preventDefault ? e.preventDefault() : null
+          eventParams.stopPropagation ? e.stopPropagation() : null
           fn(e)
         }, false)
 
@@ -60,6 +67,7 @@ class AbstractView{
       splitedNames.forEach(name => {
         element.addEventListener(name, e => {
           eventParams.preventDefault ? e.preventDefault() : null
+          eventParams.stopPropagation ? e.stopPropagation() : null
           fn(e)
         })
       })

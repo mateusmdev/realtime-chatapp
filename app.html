@@ -49,10 +49,59 @@
                 <img src="./src/assets/cancel.svg" alt="add contact icon">
               </a>
             </div>
-            <div>
+            <div class="body">
               <input type="text" placeholder="Email do contato" id="contact-input">
+              <a id="add-contact-btn" href="#">Adicionar</a>
             </div>
-            <a id="add-contact-btn" href="#">Adicionar</a>
+          </div>
+        </div>
+        <div id="media">
+          <div class="top-bar">
+            <a href="#" id="close-media-modal-btn" title="Close Modal">
+              <img src="./src/assets/cancel.svg" alt="close media modal">
+            </a>
+          </div>
+          <div class="media-content">
+            <!-- <div class="screenshot media-type">
+              <div class="box-components">
+                <div class="screen-wrapper">
+                  <canvas id="screenshot-area"></canvas>
+                </div>
+                <a href="#" id="take-screenshot-btn">Take Screenshot</a>
+              </div>
+            </div> -->
+
+            <div class="pdf-preview media-type">
+              <div id="pdf">
+                <div class="pdf-wrapper">
+                  <canvas id="pdf-area"></canvas>
+                </div>
+              </div>
+            </div>
+            <div class="documents media-type">
+              <div id="file-area">
+                <div class="upload-file">
+                  <img src="./src/assets/file-icon.svg" alt="file icon">
+                  <p>Document.pdf</p>
+                </div>
+                <button>Enviar</button>
+              </div>
+            </div>
+            <div class="list-contact media-type">
+              <div class="card">
+                <div class="header">
+                  <p>Contato</p>
+                </div>
+                <ul>
+                  <li>
+                    <div class="picture-wrapper">
+                      <img class="profile-picture" src="https://i.pinimg.com/474x/aa/67/b0/aa67b0bc9197a661b9c6c67c94c0a55b.jpg" alt="contact picure">
+                    </div>
+                    <span>Patolino</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -96,7 +145,7 @@
               <img src="./src/assets/message-text-outline.svg" alt="message-icon">
               Contatos
             </h1>
-            <a href="#" id="add-contact-btn">
+            <a href="#" id="add-contact-btn" title="Add Contact">
               <img src="./src/assets/add-contact.svg" alt="message-icon">
             </a>
           </div>
@@ -161,7 +210,7 @@
       </div>
       <div class="app-content">
         <section class="home"></section>
-        <section class="message-screen">
+        <section class="message-screen" id="message-screen">
           <header>
             <div class="contact-header">
               <div class="picture-wrapper">
@@ -173,29 +222,57 @@
               </div>
             </div>
             <div class="actions">
-              <a href="#">
+              <a href="#" id="attachment-btn">
                 <img src="./src/assets/clip.svg" alt="clip icon">
               </a>
               <a href="#">
                 <img src="./src/assets/add-contact.svg" alt="add contact icon">
               </a>
 
-              <a href="#" id="back-btn">
+              <a href="#" id="back-btn" title="Close Chat">
                 <img src="./src/assets/cancel.svg" alt="add contact icon">
               </a>
             </div>
           </header>
+          <ul class="media-bar" id="media-bar">
+            <li>
+              <a href="#" id="take-screenshot-btn">
+                <img src="./src/assets/camera-action-icon.svg" alt="camera icon" title="Tirar Foto">
+              </a>
+            </li>
+            <li>
+              <a href="#" id="send-picture-btn">
+                <img src="./src/assets/picture-icon.svg" alt="picture icon" title="Enviar Imagem">
+              </a>
+            </li>
+            <li>
+              <a href="#" id="send-document-btn" title="Enviar Documento">
+                <img src="./src/assets/document-icon.svg" alt="document icon">
+              </a>
+            </li>
+            <li>
+              <a href="#" id="send-contact-btn" title="Enviar Contato">
+                <img src="./src/assets/contact-action-icon.svg" alt="contact icon">
+              </a>
+            </li>
+            <li id="upload-file-wrapper">
+              <input id="upload-file" type="file">
+            </li>
+          </ul>
           <div class="chat">
               chat-container
           </div>
           <div>
+            <div class="icon-container">
+              <ul id="emoji-list"></ul>
+            </div>
             <div class="input-wrapper">
               <div id="input">
                 <div class="input-content" contenteditable="true"></div>
                 <p class="placeholder">Digite sua mensagem</p>
               </div>
               <div class="message-actions">
-                <a href="#" class="emoji">
+                <a href="#" class="emoji" id="emoji-modal-btn">
                   <img src="./src/assets/emoji.svg" alt="a .svg emoji icon">
                 </a>
                 <a href="#">
