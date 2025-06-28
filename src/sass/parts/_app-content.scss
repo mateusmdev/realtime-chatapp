@@ -152,7 +152,7 @@ main .app-content {
             color: white;
             padding: 0.5rem 0.7rem;
             border-radius: 0.55rem;
-
+            
             word-wrap: break-word;
             word-break: break-all;
             hyphens: auto;
@@ -165,6 +165,51 @@ main .app-content {
           }
           
           .user .text {
+            background-color: variables.$primary-color;
+            margin-left: auto;
+            margin-right: 0.7rem;
+          }
+          
+          .file {
+            background-color: color.scale(variables.$bg-secundary, $lightness: 1%);
+            margin-right: auto;
+            margin-left: 0.7rem;
+            width: 245px;
+            border-radius: 0.35rem;
+            padding: 0.75rem 0.7rem;
+            display: flex;
+            
+            div {
+              display: flex;
+              align-items: center;
+              flex: 1;
+              overflow: hidden;
+              
+              .file-img {
+                width: 22px;
+                margin-right: 0.5rem;
+              }
+              
+              .file-name {
+                font-size: 0.82rem;
+                color: white;
+                max-width: 82%;
+                overflow: hidden;
+                text-overflow: ellipsis
+              }
+            }
+            
+            .dowload-btn {
+              margin-left: auto;
+              margin-right: 0.25rem;
+              
+              img {
+                width: 20px;
+              }
+            }
+          }
+          
+          .user .file {
             background-color: variables.$primary-color;
             margin-left: auto;
             margin-right: 0.7rem;
