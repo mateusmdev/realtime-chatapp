@@ -214,6 +214,56 @@ main .app-content {
             margin-left: auto;
             margin-right: 0.7rem;
           }
+          
+          .contact-attachment {
+            background-color: color.scale(variables.$bg-secundary, $lightness: 1%);
+            width: 250px;
+            margin-right: auto;
+            margin-left: 0.7rem;
+            border-radius: 0.40rem;
+            overflow: hidden;
+            
+            .detail {
+              display: flex;
+              padding: 0.7rem 0.7rem;
+              align-items: center;
+              border-bottom: 1px solid variables.$bg-primary;
+              
+              .picture-wrapper {
+                @include mixins.profilePictureWrapper(2.35rem, 2.35rem, hidden);
+                margin-right: 0.7rem;
+              }
+              
+              .contact-name {
+                color: white;
+                font-weight: bold;
+                font-size: 0.78rem;
+              }
+            }
+            
+            .send-message {
+              color: white;
+              text-decoration: none;
+              display: flex;
+              justify-content: center;
+              padding: 0.5rem;
+              
+              span {
+                font-weight: 300 !important;
+                font-size: 0.8rem;
+              }
+            }
+          }
+          
+          .user .contact-attachment {
+            background-color: variables.$primary-color;
+            margin-left: auto;
+            margin-right: 0.7rem;
+
+            .detail {
+              border-bottom: 1px solid variables.$bg-secundary;
+            }
+          }
         }
       }
     }
