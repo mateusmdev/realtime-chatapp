@@ -330,6 +330,43 @@ main .app-content {
             margin-left: auto;
             margin-right: 0.7rem;
           }
+
+          .picture {
+            cursor: pointer;
+            border: 3px solid color.scale(variables.$bg-secundary, $lightness: 1%);
+            margin-right: auto;
+            margin-left: 0.7rem;
+            padding: 0;
+            border-radius: 0.40rem;
+            width: 250px;
+            height: fit-content;
+            overflow: hidden;
+            
+            .image-area {
+              position: relative;
+              background-color: #D9D9D9;
+              padding: 0px 0px 56.25%;
+              aspect-ratio: 1;
+
+
+              img {
+                position: absolute;
+                top: 0;
+                left: 0;
+                bottom: 0;
+                right: 0;
+                width: 100%;
+                height: 100%;
+                object-fit: cover;
+              }
+            }
+          }
+
+          .user .picture {
+            border: 3px solid variables.$primary-color;
+            margin-left: auto;
+            margin-right: 0.7rem;
+          }
         }
       }
     }
@@ -337,7 +374,6 @@ main .app-content {
 }
 
 .message-screen .icon-container {
-  // border: 1px solid red;
   height: 12.5rem;
   background-color: variables.$bg-secundary;
   border-bottom: 2.5px solid variables.$bg-primary;;
