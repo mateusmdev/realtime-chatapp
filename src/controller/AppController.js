@@ -7,7 +7,7 @@ import MediaFactory from '../model/MediaFactory'
 
 const TOKEN_VALIDATOR = import.meta.env.VITE_TOKEN_VALIDATOR
 const ICON_KEY = import.meta.env.VITE_ICON_KEY
-const BLOCK_MEDIA = import.meta.env.BLOCK_MEDIA
+const BLOCK_MEDIA = import.meta.env.VITE_BLOCK_MEDIA
 
 class AppController{
   view = new AppView()
@@ -125,6 +125,14 @@ class AppController{
 
   initApp(){
     this.view.state.blockMedia = BLOCK_MEDIA || true
+    console.log(this.view.state.blockMedia)
+    console.log(typeof this.view.state.blockMedia)
+    console.log(typeof BLOCK_MEDIA)
+    
+    if (typeof this.view.state.blockMedia === 'string') {
+      console.log('entrou no if')
+      this.view.state.blockMedia = JSON.parse(this.view.state.blockMedia)
+    }
     // this.getUserData()
     this.getIconData()
     this.view.initLayout()

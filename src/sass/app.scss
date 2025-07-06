@@ -109,9 +109,32 @@ body{
     grid-template-areas: "menu";
     // background-color: red;
 
+    @media screen and (min-width: 850px) {
+      & {
+        grid-template-columns: 24.82rem auto;
+      }
+
+      &, &.messages {
+        grid-template-areas: "menu conversation";
+      }
+    }
+    
     .menu{
       grid-area: menu;
       position: relative;
+      
+      // section {
+      //   grid-template-areas:
+      //       "title"
+      //       "content-wrapper"
+      //   ;
+      // }
+
+      // position: absolute;
+      // top: 0;
+      // left: 0;
+      // width: 100%;
+      // z-index: 30;
     }
 
     section{
@@ -126,7 +149,7 @@ body{
       }
 
       .title{
-        // grid-area: title;
+        grid-area: title;
         border-bottom: 3px solid variables.$bg-primary;
         height: variables.$title-section-height;
         display: flex;
@@ -157,6 +180,7 @@ body{
       .content-wrapper{
         height: calc(100vh - variables.$title-section-height);
         overflow: auto;
+        grid-area: content-wrapper;
 
         .item {
           color: #fff;
@@ -280,6 +304,16 @@ main {
       top: 0;
       left: 0;
       z-index: 2;
+      grid-area: conversation;
+
+      @media screen and (min-width: 850px) {
+        & {
+          width: calc(100% - 29.8rem);
+          height: 100%;
+          left: initial;
+          right: 0;
+        }
+      }
     }
   }
 

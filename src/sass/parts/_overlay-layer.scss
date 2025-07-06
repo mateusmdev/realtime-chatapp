@@ -10,6 +10,12 @@
   .overlay-active {
     z-index: 10;
     background-color: variables.$bg-overlay-layer;
+    
+    @media screen and (min-width: 850px) {
+      & {
+        width: calc(100% - 29.8rem);
+      }
+    }
   }
   
   .add-contact.overlay-active {
@@ -18,6 +24,7 @@
     position: fixed;
     top: 0;
     left: 0;
+    display: flex;
   }
   
   #media.overlay-active {
@@ -26,11 +33,21 @@
     bottom: 0;
     width: 100%;
     height: calc(100% - 4.875rem);
+
+    .top-bar {
+      display: flex;
+    }
+
+    @media screen and (min-width: 850px) {
+      & {
+        width: calc(100% - 29.8rem);
+      }
+    }
   }
 
   .add-contact {
     @include mixins.flexCenter();
-    display: flex;
+    display: none;
     
     .add-contact-component {
       transform: translateY(-15%);
@@ -100,10 +117,10 @@
     .top-bar {
       background-color: variables.$primary-color;
       height: 3.91rem;
-      display: flex;
       align-items: center;
       justify-content: right;
       padding: 0 1.5rem;
+      display: none;
        
       a {
         margin-top: 0.35rem;
