@@ -90,19 +90,31 @@ class AppView extends AbstractView{
   
   messageScreenToggle(){
     const contentScreen = document.querySelector('main')
+    const homeScreen = document.querySelector('main section.home')
+    const messageScreen = document.querySelector('main section.message-screen')
+
     contentScreen.classList.toggle('messages')
+
+    if (contentScreen.classList.contains('messages')) {
+      messageScreen.classList.remove('hidden')
+      homeScreen.classList.add('hidden')
+      
+      return
+    }
+
+    messageScreen.classList.add('hidden')
+    homeScreen.classList.remove('hidden')
   }
 
   setAddContactModal(element){
-    const { addContactBtn } = this.el
-    const overley = document.querySelector('.overlay-layer .add-contact')
+    const { addContactBtn, addContactSection } = this.el
 
     if (element === addContactBtn){
-      overley.classList.add('overlay-active')
+      addContactSection.classList.add('overlay-active')
       return
     }
     
-    overley.classList.remove('overlay-active')
+    addContactSection.classList.remove('overlay-active')
   }
 
   loadEmoji(data){

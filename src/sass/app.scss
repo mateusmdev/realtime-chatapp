@@ -38,16 +38,15 @@ body{
   min-height: 100%;
   display: grid;
   grid-template-columns: 5rem 1fr;
+  overflow: hidden;
   
   header{
     background: variables.$bg-primary;
     min-height: 100%;
-    // width: 5rem;
     display: grid;
     grid-template-columns: auto;
     justify-content: center;
     align-content: space-between;
-    // justify-content: space-between;
 
     .user-picture-wrapper{
       @include mixins.profilePictureWrapper(3.125rem, 3.125rem, hidden);
@@ -63,8 +62,6 @@ body{
     nav{
       min-height: calc(100vh - 3.125rem - 2.25rem - 4.375rem);
       height: calc(100% - 3.125rem - 2.25rem - 4.375rem);
-      // background-color: blue;
-      // display: flex;
 
       .navigation-list{
         height: 95.5%;
@@ -107,11 +104,105 @@ body{
     width: 100%;
     display: grid;
     grid-template-areas: "menu";
-    // background-color: red;
 
+    @media screen and (min-width: 850px) {
+      & {
+        grid-template-columns: 24.82rem auto;
+        grid-template-areas: "menu home-screen";
+      }
+      
+      &.messages {
+        grid-template-areas: "menu conversation";
+      }
+    }
+    
     .menu{
       grid-area: menu;
       position: relative;
+      height: 100vh;
+
+      #add-contact-section {
+        height: 100%;
+        background: none;
+        
+        &.overlay-active {
+          z-index: 2;
+
+          .add-contact {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            background-color: variables.$bg-overlay-layer;
+          }
+        }
+
+        .add-contact {
+          @include mixins.flexCenter();
+          display: none;
+          
+          .add-contact-component {
+            transform: translateY(-15%);
+            background-color: variables.$bg-primary;
+            width: 90%;
+            max-width: 26.1875rem;
+            color: variables.$color-text;
+            display: flex;
+            flex-direction: column;
+            border-radius: 3px;
+            
+            & p,
+            & #contact-input,
+            & #insert-contact-btn {
+              font-size: 0.9375rem;
+              color: variables.$color-text;
+            }
+            
+            .start {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              padding: 1.2rem 1.1rem;
+              border-bottom: 2px solid variables.$bg-secundary;
+      
+              #cancel-add-contact {
+                width: 1.063rem;
+                height: 1.063rem;
+                
+                img{
+                  width: 100%;
+                }
+              }
+            }
+      
+            .body {
+              padding: 1rem 1.2rem;
+              padding-top: 0.4rem;
+              display: flex;
+              flex-direction: column;
+      
+              #contact-input {
+                background-color: variables.$bg-secundary;
+                border: none;
+                outline: none;
+                border-radius: 3px;
+                padding: 0.4rem 0.5rem;
+                width: 100%;
+                margin: 1rem 0;
+              }
+              
+              #insert-contact-btn {
+                color: variables.$primary-color;
+                text-decoration: none;
+                margin: 0.4rem 0;
+                margin-right: 0;
+                margin-left: auto;
+                display: inline-block;
+              }
+      
+            }
+          }
+        }
+      }
     }
 
     section{
@@ -126,7 +217,7 @@ body{
       }
 
       .title{
-        // grid-area: title;
+        grid-area: title;
         border-bottom: 3px solid variables.$bg-primary;
         height: variables.$title-section-height;
         display: flex;
@@ -157,6 +248,7 @@ body{
       .content-wrapper{
         height: calc(100vh - variables.$title-section-height);
         overflow: auto;
+        grid-area: content-wrapper;
 
         .item {
           color: #fff;
@@ -269,19 +361,57 @@ body{
 }
 
 main {
+  position: relative;
+  
   &.messages {
-    position: relative;
-    
-    .app-content{
-      width: 100%;
-      height: 100%;
-      display: initial;
-      position: fixed;
-      top: 0;
-      left: 0;
+    .app-content {
+      grid-area: conversation;
       z-index: 2;
+
+      section.message-screen {
+        display: flex;
+      }
+      
+      section.home {
+        display: none;
+      }
     }
   }
+  
+  .app-content{
+    grid-area: home-screen;
+    width: 100%;
+    height: 100%;
+    display: initial;
+    position: fixed;
+    top: 0;
+    left: 0;
+    
+    @media screen and (min-width: 850px) {
+      & {
+        z-index: 2;
+        width: calc(100% - 29.8rem);
+        height: 100%;
+        left: initial;
+        right: 0;
+      }
+    }
+    
+    section.home {
+      display: flex;
+    }
+    
+    section.message-screen {
+      display: none;
+    }
 
-  &.home-screen {}
+    section.hidden {
+      display: none;
+      width: 0;
+      height: 0;
+      overflow: hidden;
+      opacity: 0;
+      visibility: hidden;
+    }
+  }
 }
