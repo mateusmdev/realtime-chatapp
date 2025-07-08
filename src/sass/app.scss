@@ -43,12 +43,10 @@ body{
   header{
     background: variables.$bg-primary;
     min-height: 100%;
-    // width: 5rem;
     display: grid;
     grid-template-columns: auto;
     justify-content: center;
     align-content: space-between;
-    // justify-content: space-between;
 
     .user-picture-wrapper{
       @include mixins.profilePictureWrapper(3.125rem, 3.125rem, hidden);
@@ -64,8 +62,6 @@ body{
     nav{
       min-height: calc(100vh - 3.125rem - 2.25rem - 4.375rem);
       height: calc(100% - 3.125rem - 2.25rem - 4.375rem);
-      // background-color: blue;
-      // display: flex;
 
       .navigation-list{
         height: 95.5%;
@@ -108,7 +104,6 @@ body{
     width: 100%;
     display: grid;
     grid-template-areas: "menu";
-    // background-color: red;
 
     @media screen and (min-width: 850px) {
       & {
@@ -154,7 +149,6 @@ body{
             display: flex;
             flex-direction: column;
             border-radius: 3px;
-            // border: 1px solid red;
             
             & p,
             & #contact-input,
@@ -168,12 +162,11 @@ body{
               justify-content: space-between;
               align-items: center;
               padding: 1.2rem 1.1rem;
-              // border: 1px solid red;
               border-bottom: 2px solid variables.$bg-secundary;
       
               #cancel-add-contact {
-                width: 17px;
-                height: 17px;
+                width: 1.063rem;
+                height: 1.063rem;
                 
                 img{
                   width: 100%;
@@ -210,19 +203,6 @@ body{
           }
         }
       }
-
-      // section {
-      //   grid-template-areas:
-      //       "title"
-      //       "content-wrapper"
-      //   ;
-      // }
-
-      // position: absolute;
-      // top: 0;
-      // left: 0;
-      // width: 100%;
-      // z-index: 30;
     }
 
     section{

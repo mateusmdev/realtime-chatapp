@@ -3,9 +3,7 @@
 @use 'sass:color';
 
 .overlay-layer {
-
   position: relative;
-  // position: fixed;
   
   .overlay-active {
     z-index: 10;
@@ -143,7 +141,7 @@
       .list-contact {
 
         .card {
-          width: 419px;
+          width: 26.188rem;
           background-color: variables.$bg-primary;
           margin: 0 1.15rem;
           margin-top: -7rem;
@@ -161,7 +159,7 @@
 
           ul {
             overflow: auto;
-            height: 192px;
+            height: 12rem;
 
             li {
               display: flex;
