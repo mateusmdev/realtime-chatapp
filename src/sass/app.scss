@@ -124,7 +124,93 @@ body{
     .menu{
       grid-area: menu;
       position: relative;
+      height: 100vh;
+
+      #add-contact-section {
+        height: 100%;
+        background: none;
+        
+        &.overlay-active {
+          z-index: 2;
+
+          .add-contact {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            background-color: variables.$bg-overlay-layer;
+          }
+        }
+
+        .add-contact {
+          @include mixins.flexCenter();
+          display: none;
+          
+          .add-contact-component {
+            transform: translateY(-15%);
+            background-color: variables.$bg-primary;
+            width: 90%;
+            max-width: 26.1875rem;
+            color: variables.$color-text;
+            display: flex;
+            flex-direction: column;
+            border-radius: 3px;
+            // border: 1px solid red;
+            
+            & p,
+            & #contact-input,
+            & #add-contact-btn {
+              font-size: 0.9375rem;
+              color: variables.$color-text;
+            }
+            
+            .start {
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+              padding: 1.2rem 1.1rem;
+              // border: 1px solid red;
+              border-bottom: 2px solid variables.$bg-secundary;
       
+              #cancel-add-contact {
+                width: 17px;
+                height: 17px;
+                
+                img{
+                  width: 100%;
+                }
+              }
+            }
+      
+            .body {
+              padding: 1rem 1.2rem;
+              padding-top: 0.4rem;
+              display: flex;
+              flex-direction: column;
+      
+              #contact-input {
+                background-color: variables.$bg-secundary;
+                border: none;
+                outline: none;
+                border-radius: 3px;
+                padding: 0.4rem 0.5rem;
+                width: 100%;
+                margin: 1rem 0;
+              }
+              
+              #add-contact-btn {
+                color: variables.$primary-color;
+                text-decoration: none;
+                margin: 0.4rem 0;
+                margin-right: 0;
+                margin-left: auto;
+                display: inline-block;
+              }
+      
+            }
+          }
+        }
+      }
+
       // section {
       //   grid-template-areas:
       //       "title"
