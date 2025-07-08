@@ -158,7 +158,7 @@ body{
             
             & p,
             & #contact-input,
-            & #add-contact-btn {
+            & #insert-contact-btn {
               font-size: 0.9375rem;
               color: variables.$color-text;
             }
@@ -197,7 +197,7 @@ body{
                 margin: 1rem 0;
               }
               
-              #add-contact-btn {
+              #insert-contact-btn {
                 color: variables.$primary-color;
                 text-decoration: none;
                 margin: 0.4rem 0;

@@ -107,15 +107,14 @@ class AppView extends AbstractView{
   }
 
   setAddContactModal(element){
-    const { addContactBtn } = this.el
-    const overley = document.querySelector('.overlay-layer .add-contact')
+    const { addContactBtn, addContactSection } = this.el
 
     if (element === addContactBtn){
-      overley.classList.add('overlay-active')
+      addContactSection.classList.add('overlay-active')
       return
     }
     
-    overley.classList.remove('overlay-active')
+    addContactSection.classList.remove('overlay-active')
   }
 
   loadEmoji(data){
