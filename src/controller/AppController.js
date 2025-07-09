@@ -123,7 +123,7 @@ class AppController{
     })
   }
 
-  initApp(){
+  async initApp(){
     this.view.state.blockMedia = BLOCK_MEDIA || true
     
     if (typeof this.view.state.blockMedia === 'string') {
@@ -131,7 +131,7 @@ class AppController{
     }
     
     // this.getUserData()
-    this.getIconData()
+    await this.getIconData()
     this.view.initLayout()
   }
 

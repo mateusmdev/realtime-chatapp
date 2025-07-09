@@ -28,6 +28,7 @@ class AppView extends AbstractView{
   }
 
   initLayout(){
+    console.log('aqui')
     if (this.state.blockMedia === true) {
       const { takeScreenshotBtn, sendPictureBtn, sendDocumentBtn } = this.el
 
@@ -49,6 +50,10 @@ class AppView extends AbstractView{
 
       emojiModalBtn.disabled = true
     }
+
+    const { splashScreen } = this.el
+    splashScreen.remove()
+    console.log('here')
   }
 
   closeConcorrentModal() {
