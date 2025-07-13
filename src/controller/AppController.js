@@ -7,7 +7,7 @@ import MediaFactory from '../model/MediaFactory'
 
 const TOKEN_VALIDATOR = import.meta.env.VITE_TOKEN_VALIDATOR
 const ICON_KEY = import.meta.env.VITE_ICON_KEY
-const BLOCK_MEDIA = import.meta.env.BLOCK_MEDIA
+const BLOCK_MEDIA = import.meta.env.VITE_BLOCK_MEDIA
 
 class AppController{
   view = new AppView()
@@ -110,23 +110,25 @@ class AppController{
     this.view.addEvent(emojiList, {
       eventName: 'click',
       fn: (e) => {
-        // console.log('Target', e.target)
-        // console.log('Current Target', e.currentTarget)
 
         if (e.target === e.currentTarget) return
 
         const iconElement = e.target
-        // console.log(iconElement.innerText)
       },
       preventDefault: false,
       stopPropagation: true
     })
   }
 
-  initApp(){
-    this.view.state.blockMedia = BLOCK_MEDIA || true
+  async initApp(){
+    this.view.state.blockMedia = BLOCK_MEDIA || false
+    
+    if (typeof this.view.state.blockMedia === 'string') {
+      this.view.state.blockMedia = JSON.parse(this.view.state.blockMedia)
+    }
+    
     // this.getUserData()
-    this.getIconData()
+    await this.getIconData()
     this.view.initLayout()
   }
 

@@ -3,21 +3,17 @@
 @use 'sass:color';
 
 .overlay-layer {
-
   position: relative;
-  // position: fixed;
   
   .overlay-active {
     z-index: 10;
     background-color: variables.$bg-overlay-layer;
-  }
-  
-  .add-contact.overlay-active {
-    width: 100vw;
-    height: 100vh;
-    position: fixed;
-    top: 0;
-    left: 0;
+    
+    @media screen and (min-width: 850px) {
+      & {
+        width: calc(100% - 29.8rem);
+      }
+    }
   }
   
   #media.overlay-active {
@@ -26,84 +22,26 @@
     bottom: 0;
     width: 100%;
     height: calc(100% - 4.875rem);
-  }
 
-  .add-contact {
-    @include mixins.flexCenter();
-    display: flex;
-    
-    .add-contact-component {
-      transform: translateY(-15%);
-      background-color: variables.$bg-primary;
-      width: 90%;
-      max-width: 26.1875rem;
-      color: variables.$color-text;
+    .top-bar {
       display: flex;
-      flex-direction: column;
-      border-radius: 3px;
-      // border: 1px solid red;
-      
-      & p,
-      & #contact-input,
-      & #add-contact-btn {
-        font-size: 0.9375rem;
-        color: variables.$color-text;
-      }
-      
-      .start {
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        padding: 1.2rem 1.1rem;
-        // border: 1px solid red;
-        border-bottom: 2px solid variables.$bg-secundary;
+    }
 
-        #cancel-add-contact {
-          width: 17px;
-          height: 17px;
-          
-          img{
-            width: 100%;
-          }
-        }
-      }
-
-      .body {
-        padding: 1rem 1.2rem;
-        padding-top: 0.4rem;
-        display: flex;
-        flex-direction: column;
-
-        #contact-input {
-          background-color: variables.$bg-secundary;
-          border: none;
-          outline: none;
-          border-radius: 3px;
-          padding: 0.4rem 0.5rem;
-          width: 100%;
-          margin: 1rem 0;
-        }
-        
-        #add-contact-btn {
-          color: variables.$primary-color;
-          text-decoration: none;
-          margin: 0.4rem 0;
-          margin-right: 0;
-          margin-left: auto;
-          display: inline-block;
-        }
-
+    @media screen and (min-width: 850px) {
+      & {
+        width: calc(100% - 29.8rem);
       }
     }
   }
+
   #media {
     .top-bar {
       background-color: variables.$primary-color;
       height: 3.91rem;
-      display: flex;
       align-items: center;
       justify-content: right;
       padding: 0 1.5rem;
+      display: none;
        
       a {
         margin-top: 0.35rem;
@@ -203,7 +141,7 @@
       .list-contact {
 
         .card {
-          width: 419px;
+          width: 26.188rem;
           background-color: variables.$bg-primary;
           margin: 0 1.15rem;
           margin-top: -7rem;
@@ -221,7 +159,7 @@
 
           ul {
             overflow: auto;
-            height: 192px;
+            height: 12rem;
 
             li {
               display: flex;
