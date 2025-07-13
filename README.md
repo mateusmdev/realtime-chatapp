@@ -1,39 +1,38 @@
 # realtime-chatapp
 
+- [English](README.md) | [Portuguese](README.pt-br.md)
+
 ## Tabela de Conteúdo
 - [Overview](#overview)
-  - [Ferramentas](#ferramentas-utilizadas)
-- [Documentação](#documentação)
-  - [Instalação](#instalação)
+  - [Tools](#tools)
+- [Documentation](#documentation)
+  - [Installation](#installation)
     - [Docker](#docker)
     - [Node.js](#nodejs)
-  - [Uso](uso)
+  - [Usage](#usage)
 
 ## Overview
 
-Uma aplicação web de conversação em tempo real, semelhante ao WhatsApp, Telegram ou Discord, com um design próprio e diversas features. Além da conversa por texto, permite o envio de anexos como imagens, arquivos, contatos, pre-visualização de arquivos pdf, mas também aúdios e o uso de emojis. O projeto também tem recursos de autenticação com o Google, adição e gerenciamente de diversos contatos e alteração da imagem de perfil e adaptabilidade (responsibidade) em diferentes dispositivos, tanto em aparelhos mobile quanto desktop. Toda a resposta e o estado da aplicação tem feedback em tempo real, como um chat deve ser.
+A real-time web chat application, similar to WhatsApp, Telegram, or Discord, with its own design and several features. In addition to text messaging, it allows the sending of attachments such as images, files, contacts, PDF file previews, audios, and the use of emojis. The project also includes Google authentication, management of multiple contacts, profile image changes, and adaptability on different devices, both mobile and desktop. All responses and the application's state provide real-time feedback.
 
 <blockquote>
-<p dir="auto">Este projeto está em desenvolvimento e ainda não foi concluído.
-Atualmente, apenas o frontend, alguns dados simulados e pequenas features no backend com o Firebase.
-Estou sempre trabalhando e features novas nesse projeto em meu tempo livre</p>
+<p dir="auto">This project is under development and is not yet complete. Currently, only the frontend, some simulated data, and small features in the backend using Firebase are implemented. I am always working on new features for this project in my free time.</p>
 </blockquote>
 
-Um resumo do projeto:
+A summary of the project:
 <ul>
-  <li>Atualização e feedback em tempo real</li>
-  <li>Troca de mensagens por texto</li>
-  <li>Permite o envio de audio</li>
-  <li>Permite o uso de emojis</li>
-  <li>Permite o envio de anexos como: arquivos, imagens, contato</li>
-  <li>Pre-visualização de arquivo pdf com o PDF.js</li>
-  <li>Autenticação com o Google</li>
-  <li>Permite o envio de anexos como: arquivos, imagens, contato</li>
-  <li>Design responsivo, adaptável em celular e desktop</li>
-  <li>Utilização de docker para a portabilidade em diferentes ambientes</li>
+  <li>Real-time updates and feedback</li>
+  <li>Text message exchange</li>
+  <li>Audio sending feature</li>
+  <li>Emojis usage</li>
+  <li>Attachment sending, including files, images, contacts</li>
+  <li>PDF file preview using PDF.js</li>
+  <li>Google authentication</li>
+  <li>Responsive design, adaptable on both mobile and desktop devices</li>
+  <li>Docker for portability across different environments</li>
 </ul>
 
-### Ferramentas utilizadas
+### Tools Used
 <ul>
   <li>Javascript</li>
   <li>Node.js</li>
@@ -41,29 +40,29 @@ Um resumo do projeto:
   <li>PDF.js</li>
   <li>Docker</li>
   <li>HTML</li>
-  <li>Pre-processador SASS (Syntactically Awesome Style Sheets)</li>
+  <li>SASS Pre-processor (Syntactically Awesome Style Sheets)</li>
   <li>Axios</li>
   <li>Vite</li>
   <li>Dotenv (.env)</li>
-  <li>NPM (Gerenciador de dependências)</li>
+  <li>NPM (Package Manager)</li>
 </ul>
 
-## Documentação
+## Documentation
 
-### Instalação
+### Installation
 
-Após clonar o repositório, execute os passos abaixo para completar a instalação do projeto:
+After cloning the repository, follow the steps below to complete the installation of the project:
 
-Entre dentro do diretório do projeto, abra o terminal e execute os comandos, conforme uma das maneiras listadas abaixo (Docker ou Node.js), para baixar as dependências necessárias e executar o projeto corretamente.
+Navigate to the project directory, open the terminal, and run the commands as per one of the methods listed below (Docker or Node.js) to install the necessary dependencies and run the project properly.
 
-Feito isso, escolha um dos passos de instalação abaixo para continuar a configuração do projeto.
+Once done, choose one of the installation steps to continue setting up the project.
 
 #### Docker
 
 ```
 sudo docker build -t chat .
 ```
-  Após o docker terminar de construir a imagem, execute o comando:
+  After the Docker image has been built, run the following command:
   
 ```
 sudo docker run -dp 5173:5173 chat
@@ -71,21 +70,21 @@ sudo docker run -dp 5173:5173 chat
 
 #### Node.js
 
-Instale as dependencias necessárias com o comando abaixo:
+Install the necessary dependencies with the following command:
 
 ```javascript
 npm install
 ```
 
-Execute o comando a seguir para iniciar a API
+Then, run the following command to start the API:
 
 ```javascript
 npm run dev
 ```
-### Uso
+### Usage
 
-Se configurado corretamente, conforme uma das maneiras mostradas acima e tudo ocorrer conforme o planejado, então o projeto estará pronto para execução.
-Acesse um dos seguintes endereços em seu navegador para visualizar o projeto:
+If configured correctly, following either of the methods above, and everything goes as planned, the project will be ready to run.
+Access one of the following URLs in your browser to view the project:
 
-Página Inicial (login) - <a>http://localhost:5173</a> </br>
-Página principal (chat) - <a>http://localhost:5173/app</a>
+Login page: - <a>http://localhost:5173</a> </br>
+Main chat page: - <a>http://localhost:5173/app</a>
