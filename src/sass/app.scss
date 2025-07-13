@@ -190,6 +190,12 @@ body{
         
         &.overlay-active {
           z-index: 2;
+          position: fixed;
+          left: 0;
+
+          @media screen and (min-width: 850px) {
+            width: 477.11px;
+          }
 
           .add-contact {
             width: 100%;
