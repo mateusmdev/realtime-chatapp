@@ -13,6 +13,8 @@
 
 ## Overview
 
+Preview: <a href="https://myrealtimechat.vercel.app/app">https://myrealtimechat.vercel.app/app</a>
+
 A real-time web chat application, similar to WhatsApp, Telegram, or Discord, with its own design and several features. In addition to text messaging, it allows the sending of attachments such as images, files, contacts, PDF file previews, audios, and the use of emojis. The project also includes Google authentication, management of multiple contacts, profile image changes, and adaptability on different devices, both mobile and desktop. All responses and the application's state provide real-time feedback.
 
 <blockquote>
