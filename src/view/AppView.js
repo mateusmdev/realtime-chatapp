@@ -9,7 +9,7 @@ class AppView extends AbstractView{
 
   _initState() {
     return {
-      blockMedia: true,
+      blockMedia: false,
       isIconListBlock: true,
       isEmojiModalOpen: false,
       isMediaBarOpen: false,
@@ -28,7 +28,6 @@ class AppView extends AbstractView{
   }
 
   initLayout(){
-    console.log('aqui')
     if (this.state.blockMedia === true) {
       const { takeScreenshotBtn, sendPictureBtn, sendDocumentBtn } = this.el
 

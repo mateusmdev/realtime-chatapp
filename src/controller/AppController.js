@@ -110,13 +110,10 @@ class AppController{
     this.view.addEvent(emojiList, {
       eventName: 'click',
       fn: (e) => {
-        // console.log('Target', e.target)
-        // console.log('Current Target', e.currentTarget)
 
         if (e.target === e.currentTarget) return
 
         const iconElement = e.target
-        // console.log(iconElement.innerText)
       },
       preventDefault: false,
       stopPropagation: true
@@ -124,7 +121,7 @@ class AppController{
   }
 
   async initApp(){
-    this.view.state.blockMedia = BLOCK_MEDIA || true
+    this.view.state.blockMedia = BLOCK_MEDIA || false
     
     if (typeof this.view.state.blockMedia === 'string') {
       this.view.state.blockMedia = JSON.parse(this.view.state.blockMedia)
