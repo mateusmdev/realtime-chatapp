@@ -350,6 +350,13 @@ body{
             font-size: 0.75rem;
             font-weight: bold;
           }
+
+          .contact-data {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            width: 100%;
+          }
         }
       }
     }

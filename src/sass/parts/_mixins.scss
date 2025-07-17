@@ -6,7 +6,7 @@
 }
 
 @mixin profilePictureWrapper($width, $height, $overflow: hidden) {
-  width: $width;
+  min-width: $width;
   height: $height;
   overflow: $overflow;
 }
