@@ -113,6 +113,7 @@ body{
 
     .user-picture-wrapper{
       @include mixins.profilePictureWrapper(3.125rem, 3.125rem, hidden);
+      width: 3.125rem;
       margin: 1.125rem auto;
       border-radius: 4px;
       position: relative;
@@ -190,6 +191,12 @@ body{
         
         &.overlay-active {
           z-index: 2;
+          position: fixed;
+          left: 0;
+
+          @media screen and (min-width: 850px) {
+            width: 477.11px;
+          }
 
           .add-contact {
             width: 100%;
@@ -343,6 +350,13 @@ body{
             margin-bottom: 0.1rem;
             font-size: 0.75rem;
             font-weight: bold;
+          }
+
+          .contact-data {
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+            width: 100%;
           }
         }
       }

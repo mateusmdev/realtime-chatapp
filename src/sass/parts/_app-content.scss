@@ -142,6 +142,7 @@ main .app-content {
       
       &.show-media-bar {
         right: 0.75rem;
+        z-index: 5;
       }
       
       li, a {
