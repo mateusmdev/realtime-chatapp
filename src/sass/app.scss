@@ -113,6 +113,7 @@ body{
 
     .user-picture-wrapper{
       @include mixins.profilePictureWrapper(3.125rem, 3.125rem, hidden);
+      width: 3.125rem;
       margin: 1.125rem auto;
       border-radius: 4px;
       position: relative;
