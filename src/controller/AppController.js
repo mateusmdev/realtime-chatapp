@@ -147,7 +147,11 @@ class AppController{
       });
 
       const { data } = response
-      const user = new User(data);
+      const user = new User({
+        ...data,
+        profilePicture: data.picture,
+        about: 'I am using Realtime Chat App',
+      });
       const result = await user.findOrCreate()
       this.view.setUserContent(result)
 
