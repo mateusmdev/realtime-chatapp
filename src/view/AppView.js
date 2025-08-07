@@ -20,11 +20,16 @@ class AppView extends AbstractView{
     if (!data) return
 
     const profilePictures = document.querySelectorAll('.profile-picture')
+    const { userNameContent, userAboutContent, userEmailContent } = this.el
 
     document.title = data.name;
     [...profilePictures].forEach(picture => {
-      picture.src = data.picture
+      picture.src = data.profilePicture ?? data.picture
     })
+
+    userNameContent.innerText = data.name
+    userAboutContent.innerText = data.about
+    userEmailContent.innerText = data.email
   }
 
   initLayout(){
