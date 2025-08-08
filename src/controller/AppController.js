@@ -24,6 +24,8 @@ class AppController{
     const { messageScreen } = this.view.el
     const { emojiList } = this.view.el
     const { mediaBar } = this.view.el
+    const { userNameContent, userAboutContent } = this.view.el
+    const { changeImgBtn, profileImageFile } = this.view.el
     
     
     this.view.addEvent(document, {
@@ -118,6 +120,23 @@ class AppController{
       preventDefault: false,
       stopPropagation: true
     })
+    
+    this.view.addEventAll([userNameContent, userAboutContent], {
+      eventName: 'keypress blur',
+      fn: (e) => this.view.setUserContent(e)
+    })
+
+    this.view.addEvent(changeImgBtn, {
+      eventName: 'click',
+      fn: (e) => profileImageFile.click(),
+      preventDefault: true,
+    })
+
+    this.view.addEvent(profileImageFile, {
+      eventName: 'change',
+      fn: (e) => this.handleProfileImageFile(e),
+      preventDefault: false
+    })
   }
 
   async initApp(){
@@ -153,7 +172,7 @@ class AppController{
         about: 'I am using Realtime Chat App',
       });
       const result = await user.findOrCreate()
-      this.view.setUserContent(result)
+      this.view.loadUserContent(result)
 
     } catch (error) {
       localStorage.clear()
@@ -262,6 +281,16 @@ class AppController{
     await mediaHandler.execute(uploadData)
     this.view.toggleMediaModal(true, modalType)
     this.view.setDefaultMode()
+  }
+
+  async handleProfileImageFile(e) {
+    const [uploadedFile] = e.target.files
+    const imageUrl = URL.createObjectURL(uploadedFile)
+    const profilePictures = document.querySelectorAll('.profile-picture');
+
+    [...profilePictures].forEach(picture => {
+      picture.src = imageUrl
+    })
   }
 }
 

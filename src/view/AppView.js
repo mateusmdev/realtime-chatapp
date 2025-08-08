@@ -16,7 +16,7 @@ class AppView extends AbstractView{
     }
   }
 
-  setUserContent(data){
+  loadUserContent(data){
     if (!data) return
 
     const profilePictures = document.querySelectorAll('.profile-picture')
@@ -57,7 +57,6 @@ class AppView extends AbstractView{
 
     const { splashScreen } = this.el
     splashScreen.remove()
-    console.log('here')
   }
 
   closeConcorrentModal() {
@@ -219,6 +218,17 @@ class AppView extends AbstractView{
       this.toggleEmojiModal()
       return
     }     
+  }
+
+  async setUserContent(event) {
+    if (event.type === 'keypress' && event.key === 'Enter') {
+      event.preventDefault()
+      event.target.blur()
+
+      return
+    }
+
+    //Code to makes changes in firebase comes here
   }
 }
 
