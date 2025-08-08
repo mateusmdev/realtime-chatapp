@@ -24,6 +24,7 @@ class AppController{
     const { messageScreen } = this.view.el
     const { emojiList } = this.view.el
     const { mediaBar } = this.view.el
+    const { userNameContent, userAboutContent } = this.view.el
     
     
     this.view.addEvent(document, {
@@ -118,6 +119,11 @@ class AppController{
       preventDefault: false,
       stopPropagation: true
     })
+    
+    this.view.addEventAll([userNameContent, userAboutContent], {
+      eventName: 'keypress blur',
+      fn: (e) => this.view.setUserContent(e)
+    })
   }
 
   async initApp(){
@@ -153,7 +159,7 @@ class AppController{
         about: 'I am using Realtime Chat App',
       });
       const result = await user.findOrCreate()
-      this.view.setUserContent(result)
+      this.view.loadUserContent(result)
 
     } catch (error) {
       localStorage.clear()
