@@ -25,9 +25,16 @@
       width: 36.461%;
       height: 35.56%;
 
-      img{
-        width: 58%;
-        height: 58%;
+      a {
+        img{
+          width: 58%;
+          height: 58%;
+        }
+
+      }
+      
+      #profile-image-file {
+        display: none;
       }
     }
   }

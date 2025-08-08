@@ -25,6 +25,7 @@ class AppController{
     const { emojiList } = this.view.el
     const { mediaBar } = this.view.el
     const { userNameContent, userAboutContent } = this.view.el
+    const { changeImgBtn, profileImageFile } = this.view.el
     
     
     this.view.addEvent(document, {
@@ -123,6 +124,18 @@ class AppController{
     this.view.addEventAll([userNameContent, userAboutContent], {
       eventName: 'keypress blur',
       fn: (e) => this.view.setUserContent(e)
+    })
+
+    this.view.addEvent(changeImgBtn, {
+      eventName: 'click',
+      fn: (e) => profileImageFile.click(),
+      preventDefault: true,
+    })
+
+    this.view.addEvent(profileImageFile, {
+      eventName: 'change',
+      fn: (e) => this.handleProfileImageFile(e),
+      preventDefault: false
     })
   }
 
@@ -268,6 +281,16 @@ class AppController{
     await mediaHandler.execute(uploadData)
     this.view.toggleMediaModal(true, modalType)
     this.view.setDefaultMode()
+  }
+
+  async handleProfileImageFile(e) {
+    const [uploadedFile] = e.target.files
+    const imageUrl = URL.createObjectURL(uploadedFile)
+    const profilePictures = document.querySelectorAll('.profile-picture');
+
+    [...profilePictures].forEach(picture => {
+      picture.src = imageUrl
+    })
   }
 }
 

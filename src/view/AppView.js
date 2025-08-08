@@ -57,7 +57,6 @@ class AppView extends AbstractView{
 
     const { splashScreen } = this.el
     splashScreen.remove()
-    console.log('here')
   }
 
   closeConcorrentModal() {
