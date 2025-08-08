@@ -13,6 +13,7 @@ class AppView extends AbstractView{
       isIconListBlock: true,
       isEmojiModalOpen: false,
       isMediaBarOpen: false,
+      placeholderText: 'Digite sua mensagem'
     }
   }
 
@@ -54,6 +55,8 @@ class AppView extends AbstractView{
 
       emojiModalBtn.disabled = true
     }
+
+    placeholder.innerText = this.state.placeholderText
 
     const { splashScreen } = this.el
     splashScreen.remove()
@@ -229,6 +232,13 @@ class AppView extends AbstractView{
     }
 
     //Code to makes changes in firebase comes here
+  }
+
+  async toggleMessagePlaceholder(event) {
+    const { inputContent, placeholder } = this.el
+    const message = inputContent.innerText.trim()
+    
+    placeholder.innerText = message.length < 1 ? this.state.placeholderText : ''
   }
 }
 

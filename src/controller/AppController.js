@@ -26,6 +26,7 @@ class AppController{
     const { mediaBar } = this.view.el
     const { userNameContent, userAboutContent } = this.view.el
     const { changeImgBtn, profileImageFile } = this.view.el
+    const { inputContent, placeholder } = this.view.el
     
     
     this.view.addEvent(document, {
@@ -135,6 +136,12 @@ class AppController{
     this.view.addEvent(profileImageFile, {
       eventName: 'change',
       fn: (e) => this.handleProfileImageFile(e),
+      preventDefault: false
+    })
+
+    this.view.addEvent(inputContent, {
+      eventName: 'keyup',
+      fn: (e) => this.view.toggleMessagePlaceholder(e),
       preventDefault: false
     })
   }
