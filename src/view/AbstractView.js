@@ -86,7 +86,12 @@ class AbstractView{
 
   createElement(name, parent, attributes = {}){
     const element = document.createElement(name)
-    Object.keys(attributes).forEach(attr => element[attr] = attributes[attr])
+
+    Object.keys(attributes).forEach(attr => { 
+      element[attr] = attributes[attr]
+      element.setAttribute(attr, attributes[attr])
+    })
+    
     parent.appendChild(element)
 
     return element

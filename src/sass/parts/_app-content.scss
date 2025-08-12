@@ -488,8 +488,25 @@ section.message-screen .input-wrapper{
       }
     }
 
-    img {
-      width: 0.8rem;
+    #microphone-btn {
+      img {
+        width: 0.8rem;
+      }
+    }
+    
+    #send-btn {
+      left: 0.2rem;
+      position: relative;
+
+      img {
+        width: 1.13rem;
+      }
+    }
+
+    .hidden {
+      display: none;
+      opacity: 0;
+      visibility: hidden;
     }
   }
 }

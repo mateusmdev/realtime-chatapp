@@ -137,12 +137,13 @@ class AppView extends AbstractView{
 
     const { emojiList } = this.el
     const emojiPromises = data.map(emoji => {
-      return new Promise(() => {
+      return new Promise((resolve, reject) => {
         const li = this.createElement('li', emojiList, {
           'emoji-name': emoji.slug
         })
 
         li.textContent = emoji.character
+        resolve()
       })
     })
     
@@ -235,10 +236,18 @@ class AppView extends AbstractView{
   }
 
   async toggleMessagePlaceholder(event) {
-    const { inputContent, placeholder } = this.el
+    const { inputContent, placeholder, microphoneBtn, sendBtn } = this.el
     const message = inputContent.innerText.trim()
-    
-    placeholder.innerText = message.length < 1 ? this.state.placeholderText : ''
+
+    if (message.length < 1) {
+      placeholder.innerText = this.state.placeholderText
+      microphoneBtn.classList.remove('hidden')
+      sendBtn.classList.add('hidden')
+    } else {
+      placeholder.innerText = ''
+      microphoneBtn.classList.add('hidden')
+      sendBtn.classList.remove('hidden')   
+    }
   }
 }
 
