@@ -91,9 +91,11 @@ class AbstractView{
       element[attr] = attributes[attr]
       element.setAttribute(attr, attributes[attr])
     })
-    
-    parent.appendChild(element)
 
+    if (parent != null) {
+      parent.appendChild(element) 
+    }
+    
     return element
   }
 }

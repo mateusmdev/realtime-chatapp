@@ -66,7 +66,7 @@ class AppController{
 
     this.view.addEvent(emojiModalBtn, {
       eventName: 'click',
-      fn: (e) => this.view.toggleEmojiModal(),
+      fn: (event) => this.view.toggleEmojiModal(event),
       preventDefault: true,
       stopPropagation: true
     })
@@ -112,12 +112,7 @@ class AppController{
 
     this.view.addEvent(emojiList, {
       eventName: 'click',
-      fn: (e) => {
-
-        if (e.target === e.currentTarget) return
-
-        const iconElement = e.target
-      },
+      fn: (event) => this.view.addEmoji(event),
       preventDefault: false,
       stopPropagation: true
     })
@@ -179,6 +174,12 @@ class AppController{
       },
       preventDefault: true
     })
+
+    this.view.addEvent(inputContent, {
+      eventName: 'mouseup',
+      fn: (event) => this.view.setSelection(event),
+      preventDefault: false
+    })
   }
 
   async initApp(){
@@ -190,7 +191,7 @@ class AppController{
     
     // this.getUserData()
     await this.getIconData()
-    this.view.initLayout()
+    await this.view.initLayout()
   }
 
   async getUserData(){
