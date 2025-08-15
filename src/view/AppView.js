@@ -13,6 +13,8 @@ class AppView extends AbstractView{
       isIconListBlock: true,
       isEmojiModalOpen: false,
       isMediaBarOpen: false,
+      placeholderText: 'Digite sua mensagem',
+      range: null
     }
   }
 
@@ -54,6 +56,8 @@ class AppView extends AbstractView{
 
       emojiModalBtn.disabled = true
     }
+
+    placeholder.innerText = this.state.placeholderText
 
     const { splashScreen } = this.el
     splashScreen.remove()
@@ -134,12 +138,13 @@ class AppView extends AbstractView{
 
     const { emojiList } = this.el
     const emojiPromises = data.map(emoji => {
-      return new Promise(() => {
+      return new Promise((resolve, reject) => {
         const li = this.createElement('li', emojiList, {
           'emoji-name': emoji.slug
         })
 
         li.textContent = emoji.character
+        resolve()
       })
     })
     
@@ -198,11 +203,17 @@ class AppView extends AbstractView{
     modals.forEach(currentModal => currentModal.style.display = 'none')
   }
 
-  async setDefaultMode(e) {
+  async setDefaultMode(event) {
+    const { inputContent, placeholder } = this.el
+
+    const IsIgnoredElements = event.target === inputContent || event.target === placeholder
+
+    if (IsIgnoredElements === true) return
+
     const classList =['icon-container', 'media-bar']
 
     const result = classList.some(item => {
-      const contain = e.target.classList.contains(item)
+      const contain = event.target.classList.contains(item)
 
       return contain
     })
@@ -229,6 +240,54 @@ class AppView extends AbstractView{
     }
 
     //Code to makes changes in firebase comes here
+  }
+
+  async toggleMessagePlaceholder(event) {
+    const { inputContent, placeholder, microphoneBtn, sendBtn } = this.el
+    const message = inputContent.innerText.trim()
+
+    if (message.length < 1) {
+      placeholder.innerText = this.state.placeholderText
+      microphoneBtn.classList.remove('hidden')
+      sendBtn.classList.add('hidden')
+    } else {
+      placeholder.innerText = ''
+      microphoneBtn.classList.add('hidden')
+      sendBtn.classList.remove('hidden')   
+    }
+  }
+
+  async addEmoji(event) {
+    if (event.target !== event.currentTarget) {
+      const { inputContent } = this.el
+      const emoji = event.target
+      const textNode = document.createTextNode(emoji.innerText)
+
+      if (!this.state.range) {
+          inputContent.focus();
+          return;
+      }
+
+      const selection = window.getSelection()
+      selection.removeAllRanges();
+      selection.addRange(this.state.range)
+
+      const range = selection.getRangeAt(0)
+      range.deleteContents()
+
+      range.insertNode(textNode)
+      range.setStartAfter(textNode)
+      range.collapse(true)
+
+      this.state.range = range.cloneRange()
+    }
+  }
+
+  async setSelection(event) {
+    const selection = window.getSelection();
+    if (selection.rangeCount > 0) {
+        this.state.range = selection.getRangeAt(0).cloneRange();
+    }
   }
 }
 

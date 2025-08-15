@@ -26,6 +26,7 @@ class AppController{
     const { mediaBar } = this.view.el
     const { userNameContent, userAboutContent } = this.view.el
     const { changeImgBtn, profileImageFile } = this.view.el
+    const { inputContent, placeholder, sendBtn } = this.view.el
     
     
     this.view.addEvent(document, {
@@ -65,7 +66,7 @@ class AppController{
 
     this.view.addEvent(emojiModalBtn, {
       eventName: 'click',
-      fn: (e) => this.view.toggleEmojiModal(),
+      fn: (event) => this.view.toggleEmojiModal(event),
       preventDefault: true,
       stopPropagation: true
     })
@@ -111,12 +112,7 @@ class AppController{
 
     this.view.addEvent(emojiList, {
       eventName: 'click',
-      fn: (e) => {
-
-        if (e.target === e.currentTarget) return
-
-        const iconElement = e.target
-      },
+      fn: (event) => this.view.addEmoji(event),
       preventDefault: false,
       stopPropagation: true
     })
@@ -137,6 +133,53 @@ class AppController{
       fn: (e) => this.handleProfileImageFile(e),
       preventDefault: false
     })
+
+    this.view.addEvent(inputContent, {
+      eventName: 'keyup',
+      fn: (e) => this.view.toggleMessagePlaceholder(e),
+      preventDefault: false
+    })
+
+    this.view.addEvent(inputContent, {
+      eventName: 'keypress',
+      fn: (e) => this.handleSendMessage(e),
+      preventDefault: false
+    })
+
+    this.view.addEvent(sendBtn, {
+      eventName: 'click',
+      fn: (e) => {
+        const { messageList, inputContent } = this.view.el
+        const messageLength = inputContent.innerText.trim().length
+
+        if (messageLength > 0) {
+          const message = this.view.createElement('li', messageList, {
+            class: 'message user',
+          })
+  
+          const content = this.view.createElement('div', message, {
+            class: 'content text',
+            innerText: inputContent.innerText
+          })
+  
+          const event = new CustomEvent('keyup', {
+            bubbles: false,
+            cancelable: true,
+            composed: false
+          })
+  
+          inputContent.textContent = ''
+          inputContent.dispatchEvent(event)
+        }
+      },
+      preventDefault: true
+    })
+
+    this.view.addEvent(inputContent, {
+      eventName: 'mouseup',
+      fn: (event) => this.view.setSelection(event),
+      preventDefault: false
+    })
   }
 
   async initApp(){
@@ -148,7 +191,7 @@ class AppController{
     
     // this.getUserData()
     await this.getIconData()
-    this.view.initLayout()
+    await this.view.initLayout()
   }
 
   async getUserData(){
@@ -291,6 +334,19 @@ class AppController{
     [...profilePictures].forEach(picture => {
       picture.src = imageUrl
     })
+  }
+
+  async handleSendMessage(event) {
+    const isModifiedPressed = event.shiftKey  === true || event.ctrlKey === true
+    const keyPressed = event.key === 'Enter' ?? event.code === 'Enter'
+    
+    if (keyPressed === true && !isModifiedPressed === true) {
+      event.preventDefault()
+      const { sendBtn } = this.view.el
+      sendBtn.click()
+
+      return
+    }
   }
 }
 

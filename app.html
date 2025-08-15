@@ -473,15 +473,18 @@
             </div>
             <div class="input-wrapper">
               <div id="input">
-                <div class="input-content" contenteditable="true"></div>
-                <p class="placeholder">Digite sua mensagem</p>
+                <div id="input-content" class="input-content" contenteditable="true"></div>
+                <p id="placeholder" class="placeholder">Digite sua mensagem</p>
               </div>
               <div class="message-actions">
                 <a href="#" class="emoji" id="emoji-modal-btn">
                   <img src="./src/assets/emoji.svg" alt="a .svg emoji icon">
                 </a>
-                <a href="#">
+                <a href="#" id="microphone-btn">
                   <img src="./src/assets/mic.svg" alt="a .svg microphone icon">
+                </a>
+                <a href="#" id="send-btn" class="hidden">
+                  <img src="./src/assets/send-icon.svg" alt="a 'send' icon">
                 </a>
               </div>
             </div>
