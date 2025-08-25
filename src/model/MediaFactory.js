@@ -7,7 +7,7 @@ class MediaFactory {
   static getInstance(mediaId) {
     const dictionary = {
       'take-screenshot-btn': null,
-      'send-picture-btn': null,
+      'send-picture-btn': RenderImage,
       'send-document-btn': DocumentHandler,
       'send-contact-btn': null,
     }

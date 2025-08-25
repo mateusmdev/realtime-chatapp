@@ -14,7 +14,6 @@ class DocumentHandler extends IMediaStrategy{
     
     if (file.type === 'application/pdf'){
       await this.readPdf(data)
-      console.log('here')
       return
     }
     
@@ -22,7 +21,7 @@ class DocumentHandler extends IMediaStrategy{
   }
 
   previewFile(data){
-
+    
   }
   
   async readPdf(data) {

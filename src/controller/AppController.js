@@ -270,6 +270,8 @@ class AppController{
     const { id } = e.currentTarget
     const { uploadFile } = this.view.el
 
+    this.view.state.mediaButtonId = id
+
     const blockMessage = () => {
       alert('This feature is not allowed on my server. Run the project on your machine and enable it for use.')
     }
@@ -303,26 +305,51 @@ class AppController{
             return
           }
 
+          uploadFile.click()
           break
     }
   }
   
   async handleChangeInputFile(e) {
-    const id = 'send-document-btn'
+    const id = this.view.state.mediaButtonId
     const [uploadedFile] = e.target.files
-    const { pdfArea, fileArea } = this.view.el
+    const { pdfArea, fileArea, sentImagePreview, sentImageName } = this.view.el
+
+    if (!uploadedFile) alert('Could not open this file.')
+
     const isPdf = uploadedFile.type === 'application/pdf'
-    
+    const componentData = {} 
+
+    if (uploadedFile.type.startsWith('image/') && id === 'send-document-btn') {
+      componentData.selectedArea = fileArea
+      componentData.modalClass = 'documents'
+      
+    } else if (uploadedFile.type.startsWith('image/') && id === 'send-picture-btn') {
+      componentData.selectedArea = {
+        image: sentImagePreview,
+        name: sentImageName
+      }
+
+      componentData.modalClass = 'image-preview'
+      
+    } else if (isPdf) {
+      componentData.selectedArea = pdfArea
+      componentData.modalClass = 'pdf-preview'
+      
+    } else {
+      componentData.selectedArea = fileArea
+      componentData.modalClass = 'documents'
+    }
+
     const mediaInstance = MediaFactory.getInstance(id)
     const mediaHandler = new MediaContext(mediaInstance)
     const uploadData = { 
       file: uploadedFile,
-      area: isPdf ? pdfArea : fileArea
+      area: componentData.selectedArea
     }
 
-    const modalType = isPdf ? 'pdf-preview' : 'documents'
     await mediaHandler.execute(uploadData)
-    this.view.toggleMediaModal(true, modalType)
+    this.view.toggleMediaModal(true, componentData.modalClass)
     this.view.setDefaultMode()
   }
 

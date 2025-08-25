@@ -56,6 +56,7 @@
       height: calc(100% - 3.91rem);
       
       .screenshot,
+      .image-preview,
       .pdf-preview,
       .documents,
       .list-contact {
@@ -83,6 +84,31 @@
             border-radius: 2px;
             text-decoration: none;
             margin-top: 1rem;
+          }
+        }
+      }
+
+      .image-preview {
+
+        #preview-content {
+
+          .image-wrapper {
+            max-width: 80%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: auto;
+
+            img {
+              width: 100%;
+              height: 100%;
+            }
+
+            p {
+              margin-top: 1rem;
+              color: variables.$color-text;
+              text-align: center;
+            }
           }
         }
       }
