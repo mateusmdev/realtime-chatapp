@@ -14,7 +14,8 @@ class AppView extends AbstractView{
       isEmojiModalOpen: false,
       isMediaBarOpen: false,
       placeholderText: 'Digite sua mensagem',
-      range: null
+      range: null,
+      mediaButtonId: null,
     }
   }
 
