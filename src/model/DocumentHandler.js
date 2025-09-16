@@ -10,18 +10,10 @@ class DocumentHandler extends IMediaStrategy{
   
   async execute(data) {
     const { file } = data 
-    console.log(data)
     
     if (file.type === 'application/pdf'){
       await this.readPdf(data)
-      return
     }
-    
-    this.previewFile(data)
-  }
-
-  previewFile(data){
-    
   }
   
   async readPdf(data) {

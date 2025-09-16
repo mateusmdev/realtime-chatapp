@@ -348,8 +348,11 @@ class AppController{
       area: componentData.selectedArea
     }
 
-    await mediaHandler.execute(uploadData)
-    this.view.toggleMediaModal(true, componentData.modalClass)
+    if (mediaInstance != null) {
+      await mediaHandler.execute(uploadData)
+    }
+
+    await this.view.toggleMediaModal(true, componentData.modalClass)
     this.view.setDefaultMode()
   }
 
