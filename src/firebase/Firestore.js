@@ -1,5 +1,5 @@
 import firebaseConfig from "./firebaseConfig"
-import { getFirestore, getDocs, collection, addDoc, query, where } from 'firebase/firestore'
+import { getFirestore, getDocs, collection, addDoc, query, where, getDoc, doc, setDoc } from 'firebase/firestore'
 
 class Firestore{
     _instance = null
@@ -19,7 +19,7 @@ class Firestore{
             const collectionNames = path.split('/')
             const mainRef = collectionNames.shift()
             const deepRef = collection(this._db, mainRef, ...collectionNames)
-            const isEmpty = !whereParam || (whereParam && where.length < 1)
+            const isEmpty = !whereParam || (whereParam && whereParam.length < 1)
             const condition = isEmpty ? null : where(...whereParam)
             const queryResult = query(deepRef, condition)
             const result = await getDocs(queryResult)
@@ -29,11 +29,22 @@ class Firestore{
         }
     }
 
-    async save(data, collectionName){
+    async save(data, collectionName, documentId){
         try {
             const collectionRef = collection(this._db, collectionName)
-            const document = await addDoc(collectionRef, data)
-            return document.data()
+            
+            if (documentId) {
+                const document = doc(collectionRef, documentId)
+                await setDoc(document, data)
+                const docSnap = await getDoc(document)
+                return docSnap.data()
+                
+            } else {
+                const document = await addDoc(collectionRef, data)
+                const docSnap = await getDoc(document)
+                return docSnap.data()
+            }
+            
         } catch (error) {
             throw error
         }
