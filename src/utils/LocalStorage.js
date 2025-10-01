@@ -17,6 +17,15 @@ class LocalStorage{
   static setIconList(data){
     localStorage.setItem('icon-list', data)
   }
+  
+  static getUserData() {
+    return localStorage.getItem('user-data')
+  }
+
+  static setUserData(data) {
+    localStorage.setItem('user-data', data)
+  }
+
 }
 
 export default LocalStorage

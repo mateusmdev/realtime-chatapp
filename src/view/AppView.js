@@ -22,7 +22,7 @@ class AppView extends AbstractView{
   loadUserContent(data){
     if (!data) return
 
-    const profilePictures = document.querySelectorAll('.profile-picture')
+    const profilePictures = document.querySelectorAll('.profile-picture.user-picture')
     const { userNameContent, userAboutContent, userEmailContent } = this.el
 
     document.title = data.name;
@@ -240,7 +240,28 @@ class AppView extends AbstractView{
       return
     }
 
-    //Code to makes changes in firebase comes here
+    if (event.type === 'blur') {
+
+      const target = event.target
+      const fieldName = target.id.split('-')[1]
+
+      const customEvent = new CustomEvent('saveData', {
+        bubbles: false,
+        cancelable: true,
+        composed: false,
+        detail: {
+          changes: {
+            name: target.id === 'user-name-content',
+            about: target.id === 'user-about-content',
+          },
+          value: target.innerText,
+          fieldName: fieldName,
+
+        }
+      })
+
+      target.dispatchEvent(customEvent)
+    }
   }
 
   async toggleMessagePlaceholder(event) {

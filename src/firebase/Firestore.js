@@ -1,5 +1,5 @@
 import firebaseConfig from "./firebaseConfig"
-import { getFirestore, getDocs, collection, addDoc, query, where, getDoc, doc, setDoc } from 'firebase/firestore'
+import { getFirestore, getDocs, collection, addDoc, query, where, getDoc, doc, setDoc, onSnapshot } from 'firebase/firestore'
 
 class Firestore{
     _instance = null
@@ -48,6 +48,12 @@ class Firestore{
         } catch (error) {
             throw error
         }
+    }
+
+    async onSnapshot(collectionName, documentId, callback) {
+        const document = doc(this._db, collectionName, documentId)
+        const listener = onSnapshot(document, callback)
+        return listener
     }
 
     async update(){

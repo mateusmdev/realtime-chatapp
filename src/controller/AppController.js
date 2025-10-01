@@ -180,6 +180,12 @@ class AppController{
       fn: (event) => this.view.setSelection(event),
       preventDefault: false
     })
+
+    this.view.addEventAll([userNameContent, userAboutContent], {
+      eventName: 'saveData',
+      fn: async (event) => this.handleUpdateUserData(event),
+      preventDefault: true
+    })
   }
 
   async initApp(){
@@ -209,6 +215,7 @@ class AppController{
       });
 
       const { data } = response
+
       const user = new User({
         ...data,
         profilePicture: data.picture,
@@ -216,6 +223,11 @@ class AppController{
       });
       const result = await user.findOrCreate()
       this.view.loadUserContent(result)
+      
+      await user.onSnapshot(() => {
+        LocalStorage.setUserData(JSON.stringify(user.data))
+        this.view.loadUserContent(user.data)
+      })
 
     } catch (error) {
       localStorage.clear()
@@ -376,6 +388,32 @@ class AppController{
       sendBtn.click()
 
       return
+    }
+  }
+
+  async handleUpdateUserData(event) {
+    const changesValues = Object.values(event.detail.changes)
+    const userData = JSON.parse(LocalStorage.getUserData())
+    const { fieldName, value }= event.detail
+
+    const wasModified = changesValues.some(currentValue => {
+      if (currentValue === true && userData[fieldName] !== value) {
+        return true
+      }
+
+      return false
+    })
+    
+    if (wasModified) {
+      const { changes, value } = event.detail
+
+      const user = new User({
+        ...userData,
+        name: changes.name ? value : userData.name,
+        about: changes.about ? value : userData.about,
+      })
+  
+      await user.save()
     }
   }
 }

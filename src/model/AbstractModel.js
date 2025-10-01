@@ -5,6 +5,7 @@ class AbstractModel {
     _primaryKeyProp
     _firestore = Firestore.instance
     _path = null
+    _listener = null
 
     constructor(data = {}, documentName, primaryKeyProp) {
       this._data = data
@@ -27,6 +28,26 @@ class AbstractModel {
       }
 
       return null
+    }
+
+    async save() {
+      const document = await this._firestore.save(this._data, this._path, this._data[this._primaryKeyProp])
+      return document
+    }
+
+    async onSnapshot(callback) {
+      this._listener = this._firestore.onSnapshot(this._path, this._data[this._primaryKeyProp], doc => {
+        
+        if (!callback || typeof callback !== 'function') throw new Error(`You must pass a callback function when calling 'onSnapshot'`)
+        console.log(doc.data())
+
+        this._data = doc.data()
+        
+          
+        callback(doc)
+      })
+      
+      return this._listener
     }
 
     get data() {
