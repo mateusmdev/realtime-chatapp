@@ -15,9 +15,10 @@ class AbstractModel {
       // if (this._path == null) throw new Error(`The model's name needs to be defined in the child class.`)
     }
 
-    async getDocument() {
+    async getDocument(data) {
+      const userData = data || this._data
       const documentPath = this._path
-      const whereCondition = [`${this._primaryKeyProp}`, '==', this._data[this._primaryKeyProp]]
+      const whereCondition = [`${this._primaryKeyProp}`, '==', userData[this._primaryKeyProp]]
       const query = await this._firestore.findDocs(documentPath, whereCondition)
       const docs = await query.docs
       const isExist = docs && docs.length > 0

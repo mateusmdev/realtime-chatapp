@@ -35,6 +35,29 @@ class AppView extends AbstractView{
     userEmailContent.innerText = data.email
   }
 
+  loadContacts(list) {
+    const { contactContainer } = this.el
+    const baseItem = contactContainer.querySelector('.item')
+    this.el.contactContainer.innerHTML = ''
+
+    
+    if (list?.length < 1) return
+    
+    list.forEach(dataItem => {
+      const item = baseItem.cloneNode(true)
+      
+      const profile = item.querySelector('.picture-wrapper img')
+      const name = item.querySelector('.name')
+      const about = item.querySelector('.phrase-contact')
+      
+      profile.src = dataItem.profilePicture ?? dataItem.picture
+      name.innerText = dataItem.name
+      about.innerText = dataItem.about
+
+      contactContainer.appendChild(item)
+    })
+  }
+
   initLayout(){
     if (this.state.blockMedia === true) {
       const { takeScreenshotBtn, sendPictureBtn, sendDocumentBtn } = this.el
@@ -127,6 +150,7 @@ class AppView extends AbstractView{
       return
     }
     
+    this.el.contactInput.innerHTML = ''
     addContactSection.classList.remove('overlay-active')
   }
 

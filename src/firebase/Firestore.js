@@ -34,14 +34,14 @@ class Firestore{
             const collectionRef = collection(this._db, collectionName)
             
             if (documentId) {
-                const document = doc(collectionRef, documentId)
-                await setDoc(document, data)
-                const docSnap = await getDoc(document)
+                const documentRef = doc(collectionRef, documentId)
+                await setDoc(documentRef, data)
+                const docSnap = await getDoc(documentRef)
                 return docSnap.data()
                 
             } else {
-                const document = await addDoc(collectionRef, data)
-                const docSnap = await getDoc(document)
+                const documentRef = await addDoc(collectionRef, data)
+                const docSnap = await getDoc(documentRef)
                 return docSnap.data()
             }
             
@@ -51,8 +51,8 @@ class Firestore{
     }
 
     async onSnapshot(collectionName, documentId, callback) {
-        const document = doc(this._db, collectionName, documentId)
-        const listener = onSnapshot(document, callback)
+        const documentRef = doc(this._db, collectionName, documentId)
+        const listener = onSnapshot(documentRef, callback)
         return listener
     }
 

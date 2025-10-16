@@ -27,6 +27,7 @@ class AppController{
     const { userNameContent, userAboutContent } = this.view.el
     const { changeImgBtn, profileImageFile } = this.view.el
     const { inputContent, placeholder, sendBtn } = this.view.el
+    const { insertContactBtn, contactInput } = this.view.el
     
     
     this.view.addEvent(document, {
@@ -183,7 +184,13 @@ class AppController{
 
     this.view.addEventAll([userNameContent, userAboutContent], {
       eventName: 'saveData',
-      fn: async (event) => this.handleUpdateUserData(event),
+      fn: (event) => this.handleUpdateUserData(event),
+      preventDefault: true
+    })
+
+    this.view.addEvent(insertContactBtn, {
+      eventName: 'click',
+      fn: (event) => this.handleAddContact(event),
       preventDefault: true
     })
   }
@@ -221,13 +228,16 @@ class AppController{
         profilePicture: data.picture,
         about: 'I am using Realtime Chat App',
       });
-      const result = await user.findOrCreate()
-      this.view.loadUserContent(result)
+
+      await user.findOrCreate()
+      const contacts = await user.getContacts()
       
       await user.onSnapshot(() => {
         LocalStorage.setUserData(JSON.stringify(user.data))
         this.view.loadUserContent(user.data)
       })
+
+      await this.view.loadContacts(contacts)
 
     } catch (error) {
       localStorage.clear()
@@ -415,6 +425,34 @@ class AppController{
   
       await user.save()
     }
+  }
+
+  async handleAddContact(event) {
+    const value = this.view.el.contactInput.value
+    const userData = JSON.parse(LocalStorage.getUserData())
+
+    if (value.trim() === '' || value.trim() === userData.email) return
+
+    const contact = new User({ email : contactInput.value })
+    const result = await contact.getDocument()
+
+    if (result !== null) {
+      try {
+        const user = new User( userData )
+        await user.saveContact({ 
+          email : result.email,
+          profilePicture: result.profilePicture,
+          picture: result.picture,
+          about: result.about,
+          name: result.name
+        })
+
+      } catch (error) {
+        throw error
+      }
+    }
+
+    this.view.setAddContactModal(this.view.el.cancelAddContact)
   }
 }
 
