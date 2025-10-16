@@ -202,7 +202,7 @@ class AppController{
       this.view.state.blockMedia = JSON.parse(this.view.state.blockMedia)
     }
     
-    // this.getUserData()
+    this.getUserData()
     await this.getIconData()
     await this.view.initLayout()
   }
@@ -276,8 +276,8 @@ class AppController{
   }
 
   handleMessageItem(e){
-    this.view.messageScreenToggle()
     const isCorrectTarget = e.currentTarget.id === 'back-btn'
+    this.view.toggleMessageScreen(!isCorrectTarget)
     
     if (isCorrectTarget){
       this.view.toggleMediaModal(false)

@@ -124,22 +124,22 @@ class AppView extends AbstractView{
     messageScreen.classList.toggle
   }
   
-  messageScreenToggle(){
+  toggleMessageScreen(open = true){
     const contentScreen = document.querySelector('main')
     const homeScreen = document.querySelector('main section.home')
     const messageScreen = document.querySelector('main section.message-screen')
-
-    contentScreen.classList.toggle('messages')
-
-    if (contentScreen.classList.contains('messages')) {
+    
+    if (open === true) {
       messageScreen.classList.remove('hidden')
       homeScreen.classList.add('hidden')
+      contentScreen.classList.add('messages')
       
       return
     }
-
+    
     messageScreen.classList.add('hidden')
     homeScreen.classList.remove('hidden')
+    contentScreen.classList.remove('messages')
   }
 
   setAddContactModal(element){
