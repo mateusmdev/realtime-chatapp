@@ -35,7 +35,7 @@ class AppView extends AbstractView{
     userEmailContent.innerText = data.email
   }
 
-  loadContacts(list) {
+  loadContacts(list, options = {}) {
     const { contactContainer } = this.el
     const baseItem = contactContainer.querySelector('.item')
     this.el.contactContainer.innerHTML = ''
@@ -53,9 +53,31 @@ class AppView extends AbstractView{
       profile.src = dataItem.profilePicture ?? dataItem.picture
       name.innerText = dataItem.name
       about.innerText = dataItem.about
+      
+      const callbackParam = {
+        profileImage: dataItem.profilePicture ?? dataItem.picture,
+        name: dataItem.name
+      } 
+
+      this.addEvent(item, {
+        eventName: 'click',
+        fn: event => options.handleCallback(event, callbackParam),
+        preventDefault: true
+      })
 
       contactContainer.appendChild(item)
     })
+  }
+
+  updateMessageScreen(data) {
+    const { messageScreen } = this.el
+    const { profileImage, name } = data
+    
+    const userName = messageScreen.querySelector('.contact-data .name')
+    const image = messageScreen.querySelector('.picture-wrapper img')
+
+    userName.innerText = name
+    image.src = profileImage
   }
 
   initLayout(){

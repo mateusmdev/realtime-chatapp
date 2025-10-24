@@ -237,7 +237,11 @@ class AppController{
         this.view.loadUserContent(user.data)
       })
 
-      await this.view.loadContacts(contacts)
+      const options = {
+        handleCallback: this.handleContactItem.bind(this)
+      }
+
+      await this.view.loadContacts(contacts, options)
 
     } catch (error) {
       localStorage.clear()
@@ -273,6 +277,16 @@ class AppController{
 
   handleMenuBtnClick(e){
     this.view.changeSection(e.currentTarget)
+  }
+  
+  handleContactItem(e, data) {
+    const isCorrectTarget = e.currentTarget.id === 'back-btn'
+    this.view.updateMessageScreen(data)
+    this.view.toggleMessageScreen(!isCorrectTarget)
+    
+    if (isCorrectTarget){
+      this.view.toggleMediaModal(false)
+    }
   }
 
   handleMessageItem(e){
