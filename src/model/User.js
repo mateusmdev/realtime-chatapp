@@ -1,54 +1,44 @@
-import Firestore from "./../firebase/Firestore"
+import AbstractModel from "./AbstractModel"
 
-class User{
-  _path = 'user'
-  _firestore = Firestore.instance
-
+class User extends AbstractModel {
+  
   constructor(data = {}){
-    this._data = data
-  }
-
-  async getDocuments(path){
-    try {
-      const docs = this._firestore.findDocs(path, whereParams = [])
-      return docs
-    } catch (error) {
-      throw error
-    }
+    super(data, 'user', 'email')
   }
 
   async findOrCreate(){
-      const documentPath = `${this._path}`
-      const whereCondition = ['id', '==', this._data.id]
-      const query = await this._firestore.findDocs(documentPath, whereCondition)
-      const docs = await query.docs
-      const isExist = docs && docs.length > 0
 
-      if (isExist){
-        const [document] = docs
-        return document.data() 
+      let document = await this.getDocument(this._data)
+      
+      if (!document) {
+        document = await this._firestore.save(this._data, this._path, this._data[this._primaryKeyProp])
       }
 
-      const result = await this._firestore.save(this._data, this._path)
-      return result
+      return document
+  }
+
+  async saveContact(contactData) {
+    const documentPath = `${this._path}/${this._data[this._primaryKeyProp]}/contacts`
+    const documentRef = await this._firestore.save(contactData, documentPath, contactData[this._primaryKeyProp])
+    
+    return documentRef
+  }
+
+  async getContacts() {
+    const documentPath = `${this._path}/${this._data[this._primaryKeyProp]}/contacts`
+    const query = await this._firestore.findDocs(documentPath)
+    const docs = await query.docs
+
+    if (docs?.length > 0){
+      const data = docs.map(currentDoc => currentDoc.data())
+      return data
+    }
+
+    return []
   }
 
   async delete(){
 
-  }
-
-  get data(){
-    return this._data
-  }
-
-  getAttribute(name){
-    return this._data[name]
-  }
-
-  setAttribute(name, value){
-    if (name === 'id') throw Error('Não é permitido alterar essa valor')
-
-    this._data[name] = value
   }
 
 }

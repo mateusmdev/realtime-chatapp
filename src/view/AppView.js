@@ -22,7 +22,7 @@ class AppView extends AbstractView{
   loadUserContent(data){
     if (!data) return
 
-    const profilePictures = document.querySelectorAll('.profile-picture')
+    const profilePictures = document.querySelectorAll('.profile-picture.user-picture')
     const { userNameContent, userAboutContent, userEmailContent } = this.el
 
     document.title = data.name;
@@ -33,6 +33,51 @@ class AppView extends AbstractView{
     userNameContent.innerText = data.name
     userAboutContent.innerText = data.about
     userEmailContent.innerText = data.email
+  }
+
+  loadContacts(list, options = {}) {
+    const { contactContainer } = this.el
+    const baseItem = contactContainer.querySelector('.item')
+    this.el.contactContainer.innerHTML = ''
+
+    
+    if (list?.length < 1) return
+    
+    list.forEach(dataItem => {
+      const item = baseItem.cloneNode(true)
+      
+      const profile = item.querySelector('.picture-wrapper img')
+      const name = item.querySelector('.name')
+      const about = item.querySelector('.phrase-contact')
+      
+      profile.src = dataItem.profilePicture ?? dataItem.picture
+      name.innerText = dataItem.name
+      about.innerText = dataItem.about
+      
+      const callbackParam = {
+        profileImage: dataItem.profilePicture ?? dataItem.picture,
+        name: dataItem.name
+      } 
+
+      this.addEvent(item, {
+        eventName: 'click',
+        fn: event => options.handleCallback(event, callbackParam),
+        preventDefault: true
+      })
+
+      contactContainer.appendChild(item)
+    })
+  }
+
+  updateMessageScreen(data) {
+    const { messageScreen } = this.el
+    const { profileImage, name } = data
+    
+    const userName = messageScreen.querySelector('.contact-data .name')
+    const image = messageScreen.querySelector('.picture-wrapper img')
+
+    userName.innerText = name
+    image.src = profileImage
   }
 
   initLayout(){
@@ -101,22 +146,22 @@ class AppView extends AbstractView{
     messageScreen.classList.toggle
   }
   
-  messageScreenToggle(){
+  toggleMessageScreen(open = true){
     const contentScreen = document.querySelector('main')
     const homeScreen = document.querySelector('main section.home')
     const messageScreen = document.querySelector('main section.message-screen')
-
-    contentScreen.classList.toggle('messages')
-
-    if (contentScreen.classList.contains('messages')) {
+    
+    if (open === true) {
       messageScreen.classList.remove('hidden')
       homeScreen.classList.add('hidden')
+      contentScreen.classList.add('messages')
       
       return
     }
-
+    
     messageScreen.classList.add('hidden')
     homeScreen.classList.remove('hidden')
+    contentScreen.classList.remove('messages')
   }
 
   setAddContactModal(element){
@@ -127,6 +172,7 @@ class AppView extends AbstractView{
       return
     }
     
+    this.el.contactInput.innerHTML = ''
     addContactSection.classList.remove('overlay-active')
   }
 
@@ -240,7 +286,28 @@ class AppView extends AbstractView{
       return
     }
 
-    //Code to makes changes in firebase comes here
+    if (event.type === 'blur') {
+
+      const target = event.target
+      const fieldName = target.id.split('-')[1]
+
+      const customEvent = new CustomEvent('saveData', {
+        bubbles: false,
+        cancelable: true,
+        composed: false,
+        detail: {
+          changes: {
+            name: target.id === 'user-name-content',
+            about: target.id === 'user-about-content',
+          },
+          value: target.innerText,
+          fieldName: fieldName,
+
+        }
+      })
+
+      target.dispatchEvent(customEvent)
+    }
   }
 
   async toggleMessagePlaceholder(event) {

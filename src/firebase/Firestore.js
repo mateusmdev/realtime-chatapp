@@ -1,5 +1,5 @@
 import firebaseConfig from "./firebaseConfig"
-import { getFirestore, getDocs, collection, addDoc, query, where } from 'firebase/firestore'
+import { getFirestore, getDocs, collection, addDoc, query, where, getDoc, doc, setDoc, onSnapshot } from 'firebase/firestore'
 
 class Firestore{
     _instance = null
@@ -19,7 +19,7 @@ class Firestore{
             const collectionNames = path.split('/')
             const mainRef = collectionNames.shift()
             const deepRef = collection(this._db, mainRef, ...collectionNames)
-            const isEmpty = !whereParam || (whereParam && where.length < 1)
+            const isEmpty = !whereParam || (whereParam && whereParam.length < 1)
             const condition = isEmpty ? null : where(...whereParam)
             const queryResult = query(deepRef, condition)
             const result = await getDocs(queryResult)
@@ -29,14 +29,31 @@ class Firestore{
         }
     }
 
-    async save(data, collectionName){
+    async save(data, collectionName, documentId){
         try {
             const collectionRef = collection(this._db, collectionName)
-            const document = await addDoc(collectionRef, data)
-            return document.data()
+            
+            if (documentId) {
+                const documentRef = doc(collectionRef, documentId)
+                await setDoc(documentRef, data)
+                const docSnap = await getDoc(documentRef)
+                return docSnap.data()
+                
+            } else {
+                const documentRef = await addDoc(collectionRef, data)
+                const docSnap = await getDoc(documentRef)
+                return docSnap.data()
+            }
+            
         } catch (error) {
             throw error
         }
+    }
+
+    async onSnapshot(collectionName, documentId, callback) {
+        const documentRef = doc(this._db, collectionName, documentId)
+        const listener = onSnapshot(documentRef, callback)
+        return listener
     }
 
     async update(){

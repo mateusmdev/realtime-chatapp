@@ -27,6 +27,7 @@ class AppController{
     const { userNameContent, userAboutContent } = this.view.el
     const { changeImgBtn, profileImageFile } = this.view.el
     const { inputContent, placeholder, sendBtn } = this.view.el
+    const { insertContactBtn, contactInput } = this.view.el
     
     
     this.view.addEvent(document, {
@@ -180,6 +181,18 @@ class AppController{
       fn: (event) => this.view.setSelection(event),
       preventDefault: false
     })
+
+    this.view.addEventAll([userNameContent, userAboutContent], {
+      eventName: 'saveData',
+      fn: (event) => this.handleUpdateUserData(event),
+      preventDefault: true
+    })
+
+    this.view.addEvent(insertContactBtn, {
+      eventName: 'click',
+      fn: (event) => this.handleAddContact(event),
+      preventDefault: true
+    })
   }
 
   async initApp(){
@@ -189,7 +202,7 @@ class AppController{
       this.view.state.blockMedia = JSON.parse(this.view.state.blockMedia)
     }
     
-    // this.getUserData()
+    this.getUserData()
     await this.getIconData()
     await this.view.initLayout()
   }
@@ -209,13 +222,26 @@ class AppController{
       });
 
       const { data } = response
+
       const user = new User({
         ...data,
         profilePicture: data.picture,
         about: 'I am using Realtime Chat App',
       });
-      const result = await user.findOrCreate()
-      this.view.loadUserContent(result)
+
+      await user.findOrCreate()
+      const contacts = await user.getContacts()
+      
+      await user.onSnapshot(() => {
+        LocalStorage.setUserData(JSON.stringify(user.data))
+        this.view.loadUserContent(user.data)
+      })
+
+      const options = {
+        handleCallback: this.handleContactItem.bind(this)
+      }
+
+      await this.view.loadContacts(contacts, options)
 
     } catch (error) {
       localStorage.clear()
@@ -252,10 +278,20 @@ class AppController{
   handleMenuBtnClick(e){
     this.view.changeSection(e.currentTarget)
   }
+  
+  handleContactItem(e, data) {
+    const isCorrectTarget = e.currentTarget.id === 'back-btn'
+    this.view.updateMessageScreen(data)
+    this.view.toggleMessageScreen(!isCorrectTarget)
+    
+    if (isCorrectTarget){
+      this.view.toggleMediaModal(false)
+    }
+  }
 
   handleMessageItem(e){
-    this.view.messageScreenToggle()
     const isCorrectTarget = e.currentTarget.id === 'back-btn'
+    this.view.toggleMessageScreen(!isCorrectTarget)
     
     if (isCorrectTarget){
       this.view.toggleMediaModal(false)
@@ -377,6 +413,60 @@ class AppController{
 
       return
     }
+  }
+
+  async handleUpdateUserData(event) {
+    const changesValues = Object.values(event.detail.changes)
+    const userData = JSON.parse(LocalStorage.getUserData())
+    const { fieldName, value }= event.detail
+
+    const wasModified = changesValues.some(currentValue => {
+      if (currentValue === true && userData[fieldName] !== value) {
+        return true
+      }
+
+      return false
+    })
+    
+    if (wasModified) {
+      const { changes, value } = event.detail
+
+      const user = new User({
+        ...userData,
+        name: changes.name ? value : userData.name,
+        about: changes.about ? value : userData.about,
+      })
+  
+      await user.save()
+    }
+  }
+
+  async handleAddContact(event) {
+    const value = this.view.el.contactInput.value
+    const userData = JSON.parse(LocalStorage.getUserData())
+
+    if (value.trim() === '' || value.trim() === userData.email) return
+
+    const contact = new User({ email : contactInput.value })
+    const result = await contact.getDocument()
+
+    if (result !== null) {
+      try {
+        const user = new User( userData )
+        await user.saveContact({ 
+          email : result.email,
+          profilePicture: result.profilePicture,
+          picture: result.picture,
+          about: result.about,
+          name: result.name
+        })
+
+      } catch (error) {
+        throw error
+      }
+    }
+
+    this.view.setAddContactModal(this.view.el.cancelAddContact)
   }
 }
 
