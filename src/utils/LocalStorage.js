@@ -26,6 +26,18 @@ class LocalStorage{
     localStorage.setItem('user-data', data)
   }
 
+  static getUserPreferences() {
+    return localStorage.getItem('user-preferences')
+  }
+
+  static setUserPreferences(data) {
+    localStorage.setItem('user-preferences', data)
+  }
+
+  static clearSession() {
+    localStorage.removeItem(KEY)
+    localStorage.removeItem('user-data')
+  }
 }
 
 export default LocalStorage

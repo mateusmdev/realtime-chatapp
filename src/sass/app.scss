@@ -29,6 +29,7 @@
 
 .profile-picture{
   @include mixins.profilePicture;
+  transition: 0.4s;
 }
 
 html,

@@ -16,6 +16,7 @@ class AppView extends AbstractView{
       placeholderText: 'Digite sua mensagem',
       range: null,
       mediaButtonId: null,
+      appStyle: 'circle',
     }
   }
 
@@ -80,7 +81,7 @@ class AppView extends AbstractView{
     image.src = profileImage
   }
 
-  initLayout(){
+  initLayout(preferences = {}){
     if (this.state.blockMedia === true) {
       const { takeScreenshotBtn, sendPictureBtn, sendDocumentBtn } = this.el
 
@@ -104,8 +105,13 @@ class AppView extends AbstractView{
     }
 
     placeholder.innerText = this.state.placeholderText
-
+    
+    const { appStyle } = preferences
     const { splashScreen } = this.el
+
+    this.state.appStyle = appStyle ?? this.state.appStyle
+    
+    this.setAppStyle()
     splashScreen.remove()
   }
 
@@ -356,6 +362,26 @@ class AppView extends AbstractView{
     if (selection.rangeCount > 0) {
         this.state.range = selection.getRangeAt(0).cloneRange();
     }
+  }
+
+  setAppStyle() {
+    const { btnContainer } = this.el
+    const profilePicure = document.querySelectorAll('.profile-picture')
+    const button = document.querySelector('.custom-toggle-button')
+    const appStyle = this.state.appStyle
+
+    button.style.marginLeft = appStyle === 'circle' ? '-63%' : '63%';
+
+    [...profilePicure].forEach(item => {
+      const radius = this.state.appStyle === 'circle' ? '50%' : '5px'
+      item.style.borderRadius = radius
+    })
+
+    if (this.state.appStyle === 'circle') {
+      btnContainer.classList.remove('square-position')
+    } else {
+      btnContainer.classList.add('square-position')
+    } 
   }
 }
 
