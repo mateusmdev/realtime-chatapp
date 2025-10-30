@@ -83,9 +83,9 @@ class AppView extends AbstractView{
 
   initLayout(preferences = {}){
     if (this.state.blockMedia === true) {
-      const { takeScreenshotBtn, sendPictureBtn, sendDocumentBtn } = this.el
+      const { takePhotoBtn, sendPictureBtn, sendDocumentBtn } = this.el
 
-      const blockedElements = [takeScreenshotBtn, sendPictureBtn, sendDocumentBtn];
+      const blockedElements = [takePhotoBtn, sendPictureBtn, sendDocumentBtn];
       
       blockedElements.forEach(element => {
         element.style.opacity = '0.3'

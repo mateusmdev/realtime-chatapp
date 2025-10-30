@@ -55,7 +55,7 @@
     .media-content {
       height: calc(100% - 3.91rem);
       
-      .screenshot,
+      .take-photo,
       .image-preview,
       .pdf-preview,
       .documents,
@@ -66,24 +66,43 @@
         justify-content: center;
       }
 
-      .screenshot {
+      .take-photo {
         .box-components {
-          border: 1px solid red;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
+          padding: 0;
+          border-radius: 0.40rem;
+          width: clamp(15.625rem, 75%, 35.375rem);
+          height: fit-content;
 
           .screen-wrapper {
-            border: 1px solid red;
+            position: relative;
+            background-color: #D9D9D9;
+            padding: 0 0 56.25% 0;
+            margin: 0;
+
+            canvas, video {
+              position: absolute;
+              top: 0;
+              left: 0;
+              bottom: 0;
+              right: 0;
+              width: 100%;
+              height: 100%;
+            }
           }
 
-          #take-screenshot-btn {
-            background-color: variables.$primary-color;
-            padding: 0.4rem 0.5rem;
-            color: variables.$color-text;
-            border-radius: 2px;
-            text-decoration: none;
-            margin-top: 1rem;
+          div {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+
+            #take-photo-action-btn {
+              background-color: variables.$primary-color;
+              padding: 0.4rem 0.5rem;
+              color: variables.$color-text;
+              border-radius: 0.188rem;
+              text-decoration: none;
+              margin-top: 1rem;
+            }
           }
         }
       }

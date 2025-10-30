@@ -19,7 +19,7 @@ class AppController{
     const { addContactBtn, cancelAddContact } = this.view.el
     const { emojiModalBtn } = this.view.el
     const { attachmentBtn, closeMediaModalBtn} = this.view.el
-    const { takeScreenshotBtn, sendPictureBtn, sendDocumentBtn, sendContactBtn } = this.view.el
+    const { takePhotoBtn, sendPictureBtn, sendDocumentBtn, sendContactBtn } = this.view.el
     const { uploadFile } = this.view.el
     const { messageScreen } = this.view.el
     const { emojiList } = this.view.el
@@ -28,6 +28,7 @@ class AppController{
     const { changeImgBtn, profileImageFile } = this.view.el
     const { inputContent, placeholder, sendBtn } = this.view.el
     const { insertContactBtn, contactInput } = this.view.el
+    const { takePhotoActionBtn } = this.view.el
     
     
     this.view.addEvent(document, {
@@ -79,7 +80,7 @@ class AppController{
       stopPropagation: true
     })
 
-    this.view.addEventAll([takeScreenshotBtn, sendPictureBtn, sendDocumentBtn, sendContactBtn], {
+    this.view.addEventAll([takePhotoBtn, sendPictureBtn, sendDocumentBtn, sendContactBtn], {
       eventName: 'click',
       fn: (e) => this.handleMediaButton(e),
       preventDefault: true,
@@ -198,6 +199,14 @@ class AppController{
       eventName: 'click',
       fn: (event) => this.handleToggleStyle(event),
       preventDefault: false,
+    })
+
+    this.view.addEvent(takePhotoActionBtn, {
+      eventName: 'click',
+      fn: async (event) => {
+        //It is necessary to implement this feature.
+      },
+      preventDefault: true,
     })
   }
 
@@ -335,12 +344,13 @@ class AppController{
         break
 
 
-      case 'take-screenshot-btn':
+      case 'take-photo-btn':
         if (this.view.state.blockMedia === true) {
           blockMessage()
           return
         }
 
+        this.view.toggleMediaModal(true, 'take-photo')
         break
         
         case 'send-picture-btn':
