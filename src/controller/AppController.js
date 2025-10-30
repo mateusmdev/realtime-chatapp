@@ -193,6 +193,12 @@ class AppController{
       fn: (event) => this.handleAddContact(event),
       preventDefault: true
     })
+
+    this.view.addEvent('.custom-input button', {
+      eventName: 'click',
+      fn: (event) => this.handleToggleStyle(event),
+      preventDefault: false,
+    })
   }
 
   async initApp(){
@@ -201,10 +207,12 @@ class AppController{
     if (typeof this.view.state.blockMedia === 'string') {
       this.view.state.blockMedia = JSON.parse(this.view.state.blockMedia)
     }
+
+    const preferences = JSON.parse(LocalStorage.getUserPreferences()) || {}
     
     this.getUserData()
     await this.getIconData()
-    await this.view.initLayout()
+    await this.view.initLayout(preferences)
   }
 
   async getUserData(){
@@ -271,7 +279,7 @@ class AppController{
   }
 
   signOut(){
-    localStorage.clear()
+    LocalStorage.clearSession()
     window.location.href = '/'
   }
 
@@ -467,6 +475,21 @@ class AppController{
     }
 
     this.view.setAddContactModal(this.view.el.cancelAddContact)
+  }
+
+  async handleToggleStyle(event) {
+    let preferences = JSON.parse(LocalStorage.getUserPreferences()) ?? {}
+
+    const appStyle = this.view.state.appStyle === 'circle' ? 'square' : 'circle'
+    this.view.state.appStyle = appStyle
+    
+    preferences = {
+      ...preferences,
+      appStyle: this.view.state.appStyle
+    }
+    
+    LocalStorage.setUserPreferences(JSON.stringify(preferences))
+    this.view.setAppStyle()
   }
 }
 

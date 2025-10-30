@@ -8,7 +8,6 @@
   height: 100%;
 
   .change-image{
-    width: 56%;
     max-width: 12.3583125rem;
     margin: 0 auto 2.3rem auto;
     text-align: center;
@@ -26,8 +25,14 @@
       right: 0.3125rem;
       background-color: variables.$primary-color;
       border-radius: 50%;
-      width: 36.461%;
-      height: 35.56%;
+      min-width: 36.461%;
+      aspect-ratio: 1;
+      transition: 0.4s;
+
+      &.square-position {
+        bottom: -1.188rem;
+        right:  -0.875rem;
+      }
 
       a {
         img{
@@ -66,6 +71,48 @@
         p{
           border-bottom: 1px solid white;
           width: fit-content;
+        }
+      }
+
+      #user-style {
+        display: flex;
+        align-items: center;
+
+        .custom-input {
+          border: 1px solid variables.$primary-color;
+          border-radius: 3.125rem;
+          width: 4.188rem;
+          height: 1.875rem;
+          padding: 0.2rem 0.2rem;
+          margin: 0 0.5rem;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          position: relative;
+
+          .marking {
+            background-color: variables.$primary-color;
+            min-width: 62%;
+            height: 0.313rem;
+            position: absolute;
+            z-index: -1;
+            border-radius: 0.938rem;
+          }
+          
+          .custom-toggle-button {
+            background-color: variables.$primary-color;
+            height: 1.25rem;
+            min-width: 1.25rem;
+            border-radius: 50%;
+            border: none;
+            outline: none;
+            cursor: pointer;
+            transition: 0.45s;
+          }
+        }
+
+        input {
+          margin-bottom: 0.1rem;
         }
       }
   
