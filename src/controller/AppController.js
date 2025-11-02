@@ -4,6 +4,7 @@ import LocalStorage from '../utils/LocalStorage'
 import User from '../model/User'
 import MediaContext from './../model/MediaContext'
 import MediaFactory from '../model/MediaFactory'
+import Camera from '../model/Camera'
 
 const TOKEN_VALIDATOR = import.meta.env.VITE_TOKEN_VALIDATOR
 const ICON_KEY = import.meta.env.VITE_ICON_KEY
@@ -204,7 +205,24 @@ class AppController{
     this.view.addEvent(takePhotoActionBtn, {
       eventName: 'click',
       fn: async (event) => {
-        //It is necessary to implement this feature.
+        const { photoArea, videoArea } = this.view.el
+        const camera = Camera.getInstance()
+        const photoSettings = {
+          mimeType: 'image/png',
+          origin: videoArea,
+          width: videoArea.videoWidth,
+          height: videoArea.videoHeight,
+          renderArea: photoArea
+        }
+
+        const result = camera.takePhoto(photoSettings)
+        camera.stop()
+        
+        this.view.state.isVideoRecording = false
+        this.view.state.isPhotoAreaVisible = true
+      
+        this.view.togglePhotoArea()
+        
       },
       preventDefault: true,
     })
@@ -317,9 +335,20 @@ class AppController{
 
   handleCloseMediaModal(){
     this.view.toggleMediaModal(false)
+
+    if (this.view.state.isVideoRecording) {
+      const camera = Camera.getInstance()
+      camera.stop()
+
+      this.view.state.isVideoRecording = false
+    }
+
+    this.view.state.isPhotoAreaVisible = false
+    this.view.clearPhotoArea()
+    this.view.togglePhotoArea()
   }
 
-  handleMediaButton(e) {
+  async handleMediaButton(e) {
     const { id } = e.currentTarget
     const { uploadFile } = this.view.el
 
@@ -351,6 +380,7 @@ class AppController{
         }
 
         this.view.toggleMediaModal(true, 'take-photo')
+        await this.openCamera()
         break
         
         case 'send-picture-btn':
@@ -500,6 +530,29 @@ class AppController{
     
     LocalStorage.setUserPreferences(JSON.stringify(preferences))
     this.view.setAppStyle()
+  }
+
+  async openCamera() {
+    const camera = Camera.getInstance()
+
+    if (!camera.isSupported()) {
+      alert("Your browser does not support camera access or the page is not using HTTPS.")
+      return
+    }
+
+    try {
+      if (!this.view.state.isVideoRecording) {
+        const { videoArea } = this.view.el
+
+        videoArea.srcObject = await camera.getStream()
+        videoArea.play()
+
+        this.view.state.isVideoRecording = true
+      }
+
+    } catch (error) {
+      console.error("An error occurred while trying to access the camera")
+    }    
   }
 }
 

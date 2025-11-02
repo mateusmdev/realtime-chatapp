@@ -17,6 +17,8 @@ class AppView extends AbstractView{
       range: null,
       mediaButtonId: null,
       appStyle: 'circle',
+      isVideoRecording: false,
+      isPhotoAreaVisible: false,
     }
   }
 
@@ -382,6 +384,24 @@ class AppView extends AbstractView{
     } else {
       btnContainer.classList.add('square-position')
     } 
+  }
+
+  togglePhotoArea() {
+    const { photoArea, videoArea } = this.el
+    const state = this.state.isPhotoAreaVisible
+
+    videoArea.style.zIndex = state === false ? '1' : 'initial'
+    photoArea.style.zIndex = state === true ? '1' : 'initial'
+  }
+  
+  clearPhotoArea() {
+    const { photoArea } = this.el
+    const doesClearReact = this.state.isPhotoAreaVisible || this.isVideoRecording === false
+
+    if (doesClearReact === true) {
+      const context = photoArea.getContext('2d')
+      context.clearRect(0, 0, photoArea.width, photoArea.height)
+    }
   }
 }
 
