@@ -29,7 +29,7 @@ class AppController{
     const { changeImgBtn, profileImageFile } = this.view.el
     const { inputContent, placeholder, sendBtn } = this.view.el
     const { insertContactBtn, contactInput } = this.view.el
-    const { takePhotoActionBtn } = this.view.el
+    const { takePhotoActionBtn, repeatTakePhoto } = this.view.el
     
     
     this.view.addEvent(document, {
@@ -222,10 +222,28 @@ class AppController{
         this.view.state.isPhotoAreaVisible = true
       
         this.view.togglePhotoArea()
+        this.view.togglePhotoAction()
         
       },
       preventDefault: true,
     })
+
+    this.view.addEvent(repeatTakePhoto, {
+      eventName: 'click',
+      fn: async (event) => {
+        // const { photoArea, videoArea } = this.view.el
+        this.view.state.isVideoRecording = true
+        this.view.state.isPhotoAreaVisible = false
+        
+        this.view.togglePhotoArea()
+        this.view.togglePhotoAction()
+
+        await this.openCamera()
+      },
+      preventDefault: true,
+    })
+
+
   }
 
   async initApp(){

@@ -39,12 +39,29 @@
       background-color: variables.$primary-color;
       height: 3.91rem;
       align-items: center;
-      justify-content: right;
+      position: relative;
       padding: 0 1.5rem;
       display: none;
+
+      a#repeat-take-photo {
+        display: flex;
+        align-items: center;
+        text-decoration: none;
+        color: variables.$color-text;
+        display: none;
+
+        img {
+          margin-right: 0.5rem;
+          width: 1rem;
+          height: 1rem;
+        }
+      }
        
-      a {
+      a#close-media-modal-btn {
         margin-top: 0.35rem;
+        position: absolute;
+        right: 1.5rem;
+
         img {
           width: 1rem;
           height: 1rem;
@@ -97,6 +114,7 @@
             display: flex;
             justify-content: center;
             align-items: center;
+            position: relative;
 
             #take-photo-action-btn {
               background-color: variables.$primary-color;
@@ -105,6 +123,30 @@
               border-radius: 0.188rem;
               text-decoration: none;
               margin-top: 1rem;
+            }
+            
+            #send-photo-action-btn {
+              background-color: variables.$primary-color;
+              border-radius: 50%;
+              border: none;
+              outline: none;
+              cursor: pointer;
+              padding: 0.7rem;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              position: absolute;
+              top: -1.563rem;
+              width: 3.125rem;
+              height: 3.125rem;
+              z-index: 2;
+              display: none;
+
+              img {
+                margin-left: 0.28rem;
+                width: 90%;
+                height: 100%;
+              }
             }
           }
         }

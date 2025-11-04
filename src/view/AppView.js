@@ -389,9 +389,18 @@ class AppView extends AbstractView{
   togglePhotoArea() {
     const { photoArea, videoArea } = this.el
     const state = this.state.isPhotoAreaVisible
-
+    
     videoArea.style.zIndex = state === false ? '1' : 'initial'
     photoArea.style.zIndex = state === true ? '1' : 'initial'
+  }
+  
+  togglePhotoAction() {
+    const { takePhotoActionBtn, sendPhotoActionBtn, repeatTakePhoto } = this.el
+    const state = this.state.isPhotoAreaVisible
+
+    takePhotoActionBtn.style.visibility = state === true ? 'hidden' : 'initial'
+    sendPhotoActionBtn.style.display = state === false ? 'none' : 'initial'
+    repeatTakePhoto.style.display = state === false ? 'none' : 'flex'
   }
   
   clearPhotoArea() {
