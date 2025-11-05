@@ -1,9 +1,10 @@
 class Camera {
 
-    stream = null
-    static _instance = null
+  stream = null
+  static _instance = null
 
   constructor() {
+
   }
 
   static getInstance(mediaId) {
@@ -41,11 +42,11 @@ class Camera {
 
   stop() {
     if (this.stream !== null) {
-        this.stream.getTracks().forEach(track => {
-            track.stop()
-        })
+      this.stream.getTracks().forEach(track => {
+        track.stop()
+      })
 
-        this.stream = null
+      this.stream = null
     }
   }
 }

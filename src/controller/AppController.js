@@ -204,46 +204,15 @@ class AppController{
 
     this.view.addEvent(takePhotoActionBtn, {
       eventName: 'click',
-      fn: async (event) => {
-        const { photoArea, videoArea } = this.view.el
-        const camera = Camera.getInstance()
-        const photoSettings = {
-          mimeType: 'image/png',
-          origin: videoArea,
-          width: videoArea.videoWidth,
-          height: videoArea.videoHeight,
-          renderArea: photoArea
-        }
-
-        const result = camera.takePhoto(photoSettings)
-        camera.stop()
-        
-        this.view.state.isVideoRecording = false
-        this.view.state.isPhotoAreaVisible = true
-      
-        this.view.togglePhotoArea()
-        this.view.togglePhotoAction()
-        
-      },
+      fn: async (event) => this.takePhotoActionBtn(event),
       preventDefault: true,
     })
 
     this.view.addEvent(repeatTakePhoto, {
       eventName: 'click',
-      fn: async (event) => {
-        // const { photoArea, videoArea } = this.view.el
-        this.view.state.isVideoRecording = true
-        this.view.state.isPhotoAreaVisible = false
-        
-        this.view.togglePhotoArea()
-        this.view.togglePhotoAction()
-
-        await this.openCamera()
-      },
+      fn: async (event) => this.handleRepeatTakePhoto(event),
       preventDefault: true,
     })
-
-
   }
 
   async initApp(){
@@ -571,6 +540,37 @@ class AppController{
     } catch (error) {
       console.error("An error occurred while trying to access the camera")
     }    
+  }
+
+  async handleRepeatTakePhoto() {
+    this.view.state.isPhotoAreaVisible = false
+        
+    this.view.clearPhotoArea()
+    this.view.togglePhotoArea()
+    this.view.togglePhotoAction()
+
+    await this.openCamera()
+  }
+
+  async takePhotoActionBtn() {
+    const { photoArea, videoArea } = this.view.el
+    const camera = Camera.getInstance()
+    const photoSettings = {
+      mimeType: 'image/png',
+      origin: videoArea,
+      width: videoArea.videoWidth,
+      height: videoArea.videoHeight,
+      renderArea: photoArea
+    }
+
+    const result = camera.takePhoto(photoSettings)
+    camera.stop()
+    
+    this.view.state.isVideoRecording = false
+    this.view.state.isPhotoAreaVisible = true
+  
+    this.view.togglePhotoArea()
+    this.view.togglePhotoAction()
   }
 }
 
