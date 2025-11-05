@@ -17,6 +17,8 @@ class AppView extends AbstractView{
       range: null,
       mediaButtonId: null,
       appStyle: 'circle',
+      isVideoRecording: false,
+      isPhotoAreaVisible: false,
     }
   }
 
@@ -83,9 +85,9 @@ class AppView extends AbstractView{
 
   initLayout(preferences = {}){
     if (this.state.blockMedia === true) {
-      const { takeScreenshotBtn, sendPictureBtn, sendDocumentBtn } = this.el
+      const { takePhotoBtn, sendPictureBtn, sendDocumentBtn } = this.el
 
-      const blockedElements = [takeScreenshotBtn, sendPictureBtn, sendDocumentBtn];
+      const blockedElements = [takePhotoBtn, sendPictureBtn, sendDocumentBtn];
       
       blockedElements.forEach(element => {
         element.style.opacity = '0.3'
@@ -382,6 +384,30 @@ class AppView extends AbstractView{
     } else {
       btnContainer.classList.add('square-position')
     } 
+  }
+
+  togglePhotoArea() {
+    const { photoArea, videoArea } = this.el
+    const state = this.state.isPhotoAreaVisible
+    
+    videoArea.style.zIndex = state === false ? '1' : 'initial'
+    photoArea.style.zIndex = state === true ? '1' : 'initial'
+  }
+  
+  togglePhotoAction() {
+    const { takePhotoActionBtn, sendPhotoActionBtn, repeatTakePhoto } = this.el
+    const state = this.state.isPhotoAreaVisible
+
+    takePhotoActionBtn.style.visibility = state === true ? 'hidden' : 'initial'
+    sendPhotoActionBtn.style.display = state === false ? 'none' : 'initial'
+    repeatTakePhoto.style.display = state === false ? 'none' : 'flex'
+  }
+  
+  clearPhotoArea() {
+    const { photoArea } = this.el
+
+    const context = photoArea.getContext('2d')
+    context.clearRect(0, 0, photoArea.width, photoArea.height)
   }
 }
 

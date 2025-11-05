@@ -51,19 +51,29 @@
       <div class="overlay-layer">
         <div id="media">
           <div class="top-bar">
+            <a href="#" id="repeat-take-photo" title="Repeat Take Photo">
+              <img src="./src/assets/refresh-icon.svg" alt="refresh icon">
+              <div>Take again</div>
+            </a>
             <a href="#" id="close-media-modal-btn" title="Close Modal">
               <img src="./src/assets/cancel.svg" alt="close media modal">
             </a>
           </div>
           <div class="media-content">
-            <!-- <div class="screenshot media-type">
+            <div class="take-photo media-type">
               <div class="box-components">
                 <div class="screen-wrapper">
-                  <canvas id="screenshot-area"></canvas>
+                  <canvas id="photo-area"></canvas>
+                  <video id="video-area"></video>
                 </div>
-                <a href="#" id="take-screenshot-btn">Take Screenshot</a>
+                <div>
+                  <a href="#" id="take-photo-action-btn">Take Photo</a>
+                  <button id="send-photo-action-btn">
+                    <img src="./src/assets/send-icon.svg" alt="send icon">
+                  </button>
+                </div>
               </div>
-            </div> -->
+            </div>
             
             <div class="image-preview media-type">
               <div id="preview-content">
@@ -286,7 +296,7 @@
           </header>
           <ul class="media-bar" id="media-bar">
             <li>
-              <a href="#" id="take-screenshot-btn">
+              <a href="#" id="take-photo-btn">
                 <img src="./src/assets/camera-action-icon.svg" alt="camera icon" title="Tirar Foto">
               </a>
             </li>

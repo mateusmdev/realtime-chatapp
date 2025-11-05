@@ -4,6 +4,7 @@ import LocalStorage from '../utils/LocalStorage'
 import User from '../model/User'
 import MediaContext from './../model/MediaContext'
 import MediaFactory from '../model/MediaFactory'
+import Camera from '../model/Camera'
 
 const TOKEN_VALIDATOR = import.meta.env.VITE_TOKEN_VALIDATOR
 const ICON_KEY = import.meta.env.VITE_ICON_KEY
@@ -19,7 +20,7 @@ class AppController{
     const { addContactBtn, cancelAddContact } = this.view.el
     const { emojiModalBtn } = this.view.el
     const { attachmentBtn, closeMediaModalBtn} = this.view.el
-    const { takeScreenshotBtn, sendPictureBtn, sendDocumentBtn, sendContactBtn } = this.view.el
+    const { takePhotoBtn, sendPictureBtn, sendDocumentBtn, sendContactBtn } = this.view.el
     const { uploadFile } = this.view.el
     const { messageScreen } = this.view.el
     const { emojiList } = this.view.el
@@ -28,6 +29,7 @@ class AppController{
     const { changeImgBtn, profileImageFile } = this.view.el
     const { inputContent, placeholder, sendBtn } = this.view.el
     const { insertContactBtn, contactInput } = this.view.el
+    const { takePhotoActionBtn, repeatTakePhoto } = this.view.el
     
     
     this.view.addEvent(document, {
@@ -79,7 +81,7 @@ class AppController{
       stopPropagation: true
     })
 
-    this.view.addEventAll([takeScreenshotBtn, sendPictureBtn, sendDocumentBtn, sendContactBtn], {
+    this.view.addEventAll([takePhotoBtn, sendPictureBtn, sendDocumentBtn, sendContactBtn], {
       eventName: 'click',
       fn: (e) => this.handleMediaButton(e),
       preventDefault: true,
@@ -199,6 +201,18 @@ class AppController{
       fn: (event) => this.handleToggleStyle(event),
       preventDefault: false,
     })
+
+    this.view.addEvent(takePhotoActionBtn, {
+      eventName: 'click',
+      fn: async (event) => this.takePhotoActionBtn(event),
+      preventDefault: true,
+    })
+
+    this.view.addEvent(repeatTakePhoto, {
+      eventName: 'click',
+      fn: async (event) => this.handleRepeatTakePhoto(event),
+      preventDefault: true,
+    })
   }
 
   async initApp(){
@@ -308,9 +322,20 @@ class AppController{
 
   handleCloseMediaModal(){
     this.view.toggleMediaModal(false)
+
+    if (this.view.state.isVideoRecording) {
+      const camera = Camera.getInstance()
+      camera.stop()
+
+      this.view.state.isVideoRecording = false
+    }
+
+    this.view.state.isPhotoAreaVisible = false
+    this.view.clearPhotoArea()
+    this.view.togglePhotoArea()
   }
 
-  handleMediaButton(e) {
+  async handleMediaButton(e) {
     const { id } = e.currentTarget
     const { uploadFile } = this.view.el
 
@@ -335,12 +360,14 @@ class AppController{
         break
 
 
-      case 'take-screenshot-btn':
+      case 'take-photo-btn':
         if (this.view.state.blockMedia === true) {
           blockMessage()
           return
         }
 
+        this.view.toggleMediaModal(true, 'take-photo')
+        await this.openCamera()
         break
         
         case 'send-picture-btn':
@@ -490,6 +517,60 @@ class AppController{
     
     LocalStorage.setUserPreferences(JSON.stringify(preferences))
     this.view.setAppStyle()
+  }
+
+  async openCamera() {
+    const camera = Camera.getInstance()
+
+    if (!camera.isSupported()) {
+      alert("Your browser does not support camera access or the page is not using HTTPS.")
+      return
+    }
+
+    try {
+      if (!this.view.state.isVideoRecording) {
+        const { videoArea } = this.view.el
+
+        videoArea.srcObject = await camera.getStream()
+        videoArea.play()
+
+        this.view.state.isVideoRecording = true
+      }
+
+    } catch (error) {
+      console.error("An error occurred while trying to access the camera")
+    }    
+  }
+
+  async handleRepeatTakePhoto() {
+    this.view.state.isPhotoAreaVisible = false
+        
+    this.view.clearPhotoArea()
+    this.view.togglePhotoArea()
+    this.view.togglePhotoAction()
+
+    await this.openCamera()
+  }
+
+  async takePhotoActionBtn() {
+    const { photoArea, videoArea } = this.view.el
+    const camera = Camera.getInstance()
+    const photoSettings = {
+      mimeType: 'image/png',
+      origin: videoArea,
+      width: videoArea.videoWidth,
+      height: videoArea.videoHeight,
+      renderArea: photoArea
+    }
+
+    const result = camera.takePhoto(photoSettings)
+    camera.stop()
+    
+    this.view.state.isVideoRecording = false
+    this.view.state.isPhotoAreaVisible = true
+  
+    this.view.togglePhotoArea()
+    this.view.togglePhotoAction()
   }
 }
 

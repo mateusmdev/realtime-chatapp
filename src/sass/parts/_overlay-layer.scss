@@ -39,12 +39,29 @@
       background-color: variables.$primary-color;
       height: 3.91rem;
       align-items: center;
-      justify-content: right;
+      position: relative;
       padding: 0 1.5rem;
       display: none;
+
+      a#repeat-take-photo {
+        display: flex;
+        align-items: center;
+        text-decoration: none;
+        color: variables.$color-text;
+        display: none;
+
+        img {
+          margin-right: 0.5rem;
+          width: 1rem;
+          height: 1rem;
+        }
+      }
        
-      a {
+      a#close-media-modal-btn {
         margin-top: 0.35rem;
+        position: absolute;
+        right: 1.5rem;
+
         img {
           width: 1rem;
           height: 1rem;
@@ -55,7 +72,7 @@
     .media-content {
       height: calc(100% - 3.91rem);
       
-      .screenshot,
+      .take-photo,
       .image-preview,
       .pdf-preview,
       .documents,
@@ -66,24 +83,71 @@
         justify-content: center;
       }
 
-      .screenshot {
+      .take-photo {
         .box-components {
-          border: 1px solid red;
-          display: flex;
-          flex-direction: column;
-          align-items: center;
+          padding: 0;
+          border-radius: 0.40rem;
+          width: clamp(15.625rem, 75%, 35.375rem);
+          height: fit-content;
 
           .screen-wrapper {
-            border: 1px solid red;
+            position: relative;
+            padding: 0 0 56.25% 0;
+            margin: 0;
+
+            canvas, video {
+              position: absolute;
+              top: 0;
+              left: 0;
+              bottom: 0;
+              right: 0;
+              width: 100%;
+              height: 100%;
+            }
+
+            canvas {
+              object-fit: contain;
+            }
           }
 
-          #take-screenshot-btn {
-            background-color: variables.$primary-color;
-            padding: 0.4rem 0.5rem;
-            color: variables.$color-text;
-            border-radius: 2px;
-            text-decoration: none;
-            margin-top: 1rem;
+          div {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+
+            #take-photo-action-btn {
+              background-color: variables.$primary-color;
+              padding: 0.4rem 0.5rem;
+              color: variables.$color-text;
+              border-radius: 0.188rem;
+              text-decoration: none;
+              margin-top: 1rem;
+            }
+            
+            #send-photo-action-btn {
+              background-color: variables.$primary-color;
+              border-radius: 50%;
+              border: none;
+              outline: none;
+              cursor: pointer;
+              padding: 0.7rem;
+              display: flex;
+              justify-content: center;
+              align-items: center;
+              position: absolute;
+              top: -1.563rem;
+              width: 3.125rem;
+              height: 3.125rem;
+              z-index: 2;
+              display: none;
+
+              img {
+                margin-left: 0.28rem;
+                width: 90%;
+                height: 100%;
+              }
+            }
           }
         }
       }
