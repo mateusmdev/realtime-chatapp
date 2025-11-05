@@ -405,12 +405,9 @@ class AppView extends AbstractView{
   
   clearPhotoArea() {
     const { photoArea } = this.el
-    const doesClearReact = this.state.isPhotoAreaVisible || this.isVideoRecording === false
 
-    if (doesClearReact === true) {
-      const context = photoArea.getContext('2d')
-      context.clearRect(0, 0, photoArea.width, photoArea.height)
-    }
+    const context = photoArea.getContext('2d')
+    context.clearRect(0, 0, photoArea.width, photoArea.height)
   }
 }
 
