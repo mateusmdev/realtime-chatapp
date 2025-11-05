@@ -21,15 +21,15 @@ class IndexController{
   }
 
   redirectUser(){
-    const acessToken = LocalStorage.getAcessToken()
-    // if (acessToken) window.location.href = '/app'
+    const accessToken = LocalStorage.getAccessToken()
+    // if (accessToken) window.location.href = '/app'
   }
 
   async authenticate(){
     const auth =  new Authenticator()
-    const acessToken = await auth.signIn()
+    const accessToken = await auth.signIn()
 
-    LocalStorage.setAcessToken(JSON.stringify(acessToken))
+    LocalStorage.setAccessToken(JSON.stringify(accessToken))
     window.location.href = '/app'
   }
 }

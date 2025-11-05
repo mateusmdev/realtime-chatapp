@@ -32,7 +32,7 @@ class AbstractView{
     return queryFn.call(document, items)
   }
 
-  async addEvent(selectedItem, eventParams){
+  addEvent(selectedItem, eventParams){
     const { eventName, fn } = eventParams
 
     const element = this._defineEventItems(selectedItem)
@@ -40,56 +40,46 @@ class AbstractView{
 
     if (!element) throw new NotFoundException()
 
-    const eventList = splitedNames.map(name => {
-      return new Promise(function(resolve, reject){
-        element.addEventListener(name, e => {
-          eventParams.preventDefault ? e.preventDefault() : null
-          eventParams.stopPropagation ? e.stopPropagation() : null
-          fn(e)
-        }, false)
+    splitedNames.forEach(name => {
+      element.addEventListener(name, e => {
+        const { behavior = {} } = eventParams
 
-        resolve()
-      })
+        behavior.preventDefault ? e.preventDefault() : null
+        behavior.stopPropagation ? e.stopPropagation() : null
+        fn(e)
+      }, false)
     })
-
-    await Promise.all(eventList)
   }
   
-  async addEventAll(selectedItems, eventParams){
+  addEventAll(selectedItems, eventParams){
     const { eventName, fn } = eventParams
     const elements = this._defineEventItems(selectedItems, true)
     const splitedNames = eventName.split(' ')
 
-    const isEmptyArray = Array.isArray(elements) && elements.length === 0
-    if (!elements || isEmptyArray) throw new NotFoundException()
-
-    const callback = (element) => {
+    if (!elements || elements.length === 0) throw new NotFoundException()
+    
+    elements.forEach(element => {
       splitedNames.forEach(name => {
         element.addEventListener(name, e => {
-          eventParams.preventDefault ? e.preventDefault() : null
-          eventParams.stopPropagation ? e.stopPropagation() : null
+          const { behavior = {}} = eventParams
+
+          behavior.preventDefault ? e.preventDefault() : null
+          behavior.stopPropagation ? e.stopPropagation() : null
           fn(e)
         })
       })
-    }
-
-    const eventsList = [...elements].map(item => {
-
-      return new Promise(function(resolve, reject){
-        callback(item)
-        resolve()
-      })
     })
-
-    await Promise.all(eventsList)
   }
 
   createElement(name, parent, attributes = {}){
     const element = document.createElement(name)
 
     Object.keys(attributes).forEach(attr => { 
-      element[attr] = attributes[attr]
-      element.setAttribute(attr, attributes[attr])
+      if (attr in element) {
+        element[attr] = attributes[attr]
+      } else {
+        element.setAttribute(attr, attributes[attr])
+      }
     })
 
     if (parent != null) {

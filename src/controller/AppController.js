@@ -14,22 +14,15 @@ class AppController{
   view = new AppView()
 
   async initEvents(){
-    const logoutBtn = this.view.el.exitBtn
-    const { chatMenuBtn, contactMenuBtn, settingMenuBtn } = this.view.el
-    const { backBtn } = this.view.el
-    const { addContactBtn, cancelAddContact } = this.view.el
-    const { emojiModalBtn } = this.view.el
-    const { attachmentBtn, closeMediaModalBtn} = this.view.el
-    const { takePhotoBtn, sendPictureBtn, sendDocumentBtn, sendContactBtn } = this.view.el
-    const { uploadFile } = this.view.el
-    const { messageScreen } = this.view.el
-    const { emojiList } = this.view.el
-    const { mediaBar } = this.view.el
-    const { userNameContent, userAboutContent } = this.view.el
-    const { changeImgBtn, profileImageFile } = this.view.el
-    const { inputContent, placeholder, sendBtn } = this.view.el
-    const { insertContactBtn, contactInput } = this.view.el
-    const { takePhotoActionBtn, repeatTakePhoto } = this.view.el
+    const { 
+      exitBtn, chatMenuBtn, contactMenuBtn, settingMenuBtn, 
+      backBtn, addContactBtn, cancelAddContact, emojiModalBtn, 
+      attachmentBtn, closeMediaModalBtn,takePhotoBtn, sendPictureBtn,
+      sendDocumentBtn, sendContactBtn, uploadFile, messageScreen, 
+      emojiList, mediaBar, userNameContent, userAboutContent, 
+      changeImgBtn, profileImageFile, inputContent, sendBtn, 
+      insertContactBtn, takePhotoActionBtn, repeatTakePhoto 
+    } = this.view.el
     
     
     this.view.addEvent(document, {
@@ -37,87 +30,113 @@ class AppController{
       fn: () => this.initApp(),
     })
 
-    this.view.addEvent(logoutBtn, {
+    this.view.addEvent(exitBtn, {
       eventName: 'click',
       fn: () => this.signOut(),
-      preventDefault: true
+      behavior: {
+        preventDefault: true,
+      }
     })
 
     this.view.addEventAll([chatMenuBtn, contactMenuBtn, settingMenuBtn], {
       eventName: 'click',
       fn: (e) => this.handleMenuBtnClick(e),
-      preventDefault: true
+      behavior: {
+        preventDefault: true,
+      }
     })
 
     this.view.addEventAll('.item', {
       eventName: 'click',
       fn: (e) => this.handleMessageItem(e),
-      preventDefault: true
+      behavior: {
+        preventDefault: true,
+      }
     })
 
     this.view.addEvent(backBtn, {
       eventName: 'click',
       fn: (e) => this.handleMessageItem(e),
-      preventDefault: true
+      behavior: {
+        preventDefault: true
+      }
     })
 
     this.view.addEventAll([addContactBtn, cancelAddContact], {
       eventName: 'click',
       fn: (e) => this.view.setAddContactModal(e.currentTarget),
-      preventDefault: true
+      behavior: {
+        preventDefault: true
+      }
     })
 
     this.view.addEvent(emojiModalBtn, {
       eventName: 'click',
       fn: (event) => this.view.toggleEmojiModal(event),
-      preventDefault: true,
-      stopPropagation: true
+      behavior: {
+        preventDefault: true,
+        stopPropagation: true
+      }
     })
 
     this.view.addEvent(attachmentBtn, {
       eventName: 'click',
       fn: () => this.view.toggleMediaBar(),
-      preventDefault: true,
-      stopPropagation: true
+      behavior: {
+        preventDefault: true,
+        stopPropagation: true
+      }
     })
 
     this.view.addEventAll([takePhotoBtn, sendPictureBtn, sendDocumentBtn, sendContactBtn], {
       eventName: 'click',
       fn: (e) => this.handleMediaButton(e),
-      preventDefault: true,
-      stopPropagation: true
+      behavior: {
+        preventDefault: true,
+        stopPropagation: true
+      }
     })
 
     this.view.addEvent(closeMediaModalBtn, {
       eventName: 'click',
       fn: () => this.handleCloseMediaModal(false),
-      preventDefault: true
+      behavior: {
+        preventDefault: true,
+      }
     })
 
     this.view.addEvent(uploadFile, {
       eventName: 'change',
       fn: (e) => this.handleChangeInputFile(e),
-      preventDefault: false
+      behavior: {
+        preventDefault: false
+      }
     })
 
     this.view.addEvent(messageScreen, {
       eventName: 'click closeModal',
       fn: (e) => this.view.setDefaultMode(e),
-      preventDefault: false,
-      stopPropagation: true
+      behavior: {
+        preventDefault: false,
+        stopPropagation: true
+      }
     })
     
     this.view.addEvent(mediaBar, {
       eventName: 'click',
       fn: (e) => e.stopPropagation(),
-      preventDefault: false,
+      behavior: {
+        preventDefault: false,
+      }
     })
 
     this.view.addEvent(emojiList, {
       eventName: 'click',
       fn: (event) => this.view.addEmoji(event),
-      preventDefault: false,
-      stopPropagation: true
+      behavior: {
+        preventDefault: false,
+        stopPropagation: true
+      }
     })
     
     this.view.addEventAll([userNameContent, userAboutContent], {
@@ -128,90 +147,89 @@ class AppController{
     this.view.addEvent(changeImgBtn, {
       eventName: 'click',
       fn: (e) => profileImageFile.click(),
-      preventDefault: true,
+      behavior: {
+        preventDefault: true,
+      }
     })
 
     this.view.addEvent(profileImageFile, {
       eventName: 'change',
       fn: (e) => this.handleProfileImageFile(e),
-      preventDefault: false
+      behavior: {
+        preventDefault: false
+      }
     })
 
     this.view.addEvent(inputContent, {
       eventName: 'keyup',
       fn: (e) => this.view.toggleMessagePlaceholder(e),
-      preventDefault: false
+      behavior: {
+        preventDefault: false
+      }
     })
 
     this.view.addEvent(inputContent, {
       eventName: 'keypress',
       fn: (e) => this.handleSendMessage(e),
-      preventDefault: false
+      behavior: {
+        preventDefault: false
+      }
     })
 
     this.view.addEvent(sendBtn, {
       eventName: 'click',
-      fn: (e) => {
-        const { messageList, inputContent } = this.view.el
-        const messageLength = inputContent.innerText.trim().length
-
-        if (messageLength > 0) {
-          const message = this.view.createElement('li', messageList, {
-            class: 'message user',
-          })
-  
-          const content = this.view.createElement('div', message, {
-            class: 'content text',
-            innerText: inputContent.innerText
-          })
-  
-          const event = new CustomEvent('keyup', {
-            bubbles: false,
-            cancelable: true,
-            composed: false
-          })
-  
-          inputContent.textContent = ''
-          inputContent.dispatchEvent(event)
-        }
-      },
-      preventDefault: true
+      fn: (event) => this.handlerSendMessage(event),
+      behavior: {
+        preventDefault: true
+      }
     })
 
     this.view.addEvent(inputContent, {
       eventName: 'mouseup',
       fn: (event) => this.view.setSelection(event),
-      preventDefault: false
+      behavior: {
+        preventDefault: false
+      }
     })
 
     this.view.addEventAll([userNameContent, userAboutContent], {
       eventName: 'saveData',
       fn: (event) => this.handleUpdateUserData(event),
-      preventDefault: true
+      behavior: {
+        preventDefault: true,
+      }
     })
 
     this.view.addEvent(insertContactBtn, {
       eventName: 'click',
       fn: (event) => this.handleAddContact(event),
-      preventDefault: true
+      behavior: {
+        preventDefault: true,
+      }
     })
 
     this.view.addEvent('.custom-input button', {
       eventName: 'click',
       fn: (event) => this.handleToggleStyle(event),
-      preventDefault: false,
+      behavior: {
+        preventDefault: false,
+      }
     })
 
     this.view.addEvent(takePhotoActionBtn, {
       eventName: 'click',
       fn: async (event) => this.takePhotoActionBtn(event),
-      preventDefault: true,
+      behavior: {
+        preventDefault: true,
+      }
     })
 
     this.view.addEvent(repeatTakePhoto, {
       eventName: 'click',
       fn: async (event) => this.handleRepeatTakePhoto(event),
-      preventDefault: true,
+      behavior: {
+        preventDefault: true,
+      }
     })
   }
 
@@ -230,16 +248,16 @@ class AppController{
   }
 
   async getUserData(){
-    const acessToken = LocalStorage.getAcessToken()
+    const accessToken = LocalStorage.getAccessToken()
 
-    if (!acessToken) {
+    if (!accessToken) {
       window.location.href = '/'
     }
 
     try {
       const response = await axios.get(TOKEN_VALIDATOR, {
         headers: {
-        ' Authorization': `Bearer ${acessToken}`
+        ' Authorization': `Bearer ${accessToken}`
         }
       });
 
@@ -571,6 +589,31 @@ class AppController{
   
     this.view.togglePhotoArea()
     this.view.togglePhotoAction()
+  }
+
+  async handlerSendMessage() {
+    const { messageList, inputContent } = this.view.el
+    const messageLength = inputContent.innerText.trim().length
+
+    if (messageLength > 0) {
+      const message = this.view.createElement('li', messageList, {
+        class: 'message user',
+      })
+
+      const content = this.view.createElement('div', message, {
+        class: 'content text',
+        innerText: inputContent.innerText
+      })
+
+      const event = new CustomEvent('keyup', {
+        bubbles: false,
+        cancelable: true,
+        composed: false
+      })
+
+      inputContent.textContent = ''
+      inputContent.dispatchEvent(event)
+    }
   }
 }
 

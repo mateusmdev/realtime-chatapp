@@ -65,7 +65,9 @@ class AppView extends AbstractView{
       this.addEvent(item, {
         eventName: 'click',
         fn: event => options.handleCallback(event, callbackParam),
-        preventDefault: true
+        behavior: {
+          preventDefault: true
+        }
       })
 
       contactContainer.appendChild(item)
