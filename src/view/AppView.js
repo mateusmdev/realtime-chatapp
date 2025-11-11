@@ -1,7 +1,7 @@
 import AbstractView from './AbstractView'
 import './../sass/app.scss'
 
-class AppView extends AbstractView{
+class AppView extends AbstractView {
   
   constructor(){
     super()
@@ -26,7 +26,7 @@ class AppView extends AbstractView{
     if (!data) return
 
     const profilePictures = document.querySelectorAll('.profile-picture.user-picture')
-    const { userNameContent, userAboutContent, userEmailContent } = this.el
+    const { userNameContent, userAboutContent, userEmailContent } = this.$()
 
     document.title = data.name;
     [...profilePictures].forEach(picture => {
@@ -39,9 +39,9 @@ class AppView extends AbstractView{
   }
 
   loadContacts(list, options = {}) {
-    const { contactContainer } = this.el
+    const { contactContainer } = this.$()
     const baseItem = contactContainer.querySelector('.item')
-    this.el.contactContainer.innerHTML = ''
+    contactContainer.innerHTML = ''
 
     
     if (list?.length < 1) return
@@ -75,7 +75,7 @@ class AppView extends AbstractView{
   }
 
   updateMessageScreen(data) {
-    const { messageScreen } = this.el
+    const { messageScreen } = this.$()
     const { profileImage, name } = data
     
     const userName = messageScreen.querySelector('.contact-data .name')
@@ -85,9 +85,11 @@ class AppView extends AbstractView{
     image.src = profileImage
   }
 
-  initLayout(preferences = {}){
-    if (this.state.blockMedia === true) {
-      const { takePhotoBtn, sendPictureBtn, sendDocumentBtn } = this.el
+  initLayout(preferences = {}) {
+    const [blockMediaState, isIconListBlock] = this.getState('blockMedia', 'isIconListBlock')
+
+    if (blockMediaState === true) {
+      const { takePhotoBtn, sendPictureBtn, sendDocumentBtn } = this.$()
 
       const blockedElements = [takePhotoBtn, sendPictureBtn, sendDocumentBtn];
       
@@ -98,8 +100,8 @@ class AppView extends AbstractView{
       })
     }
 
-    if (this.state.isIconListBlock === true) {
-      const { emojiModalBtn } = this.el
+    if (isIconListBlock === true) {
+      const { emojiModalBtn } = this.$()
 
       emojiModalBtn.style.visibility = 'hidden'
       emojiModalBtn.style.opacity = '0'
@@ -108,12 +110,13 @@ class AppView extends AbstractView{
       emojiModalBtn.disabled = true
     }
 
-    placeholder.innerText = this.state.placeholderText
+    placeholder.innerText = this.getState('placeholderText')
     
     const { appStyle } = preferences
-    const { splashScreen } = this.el
+    const splashScreen = this.$('splashScreen')
+    const appStyleState = this.getState('appStyle')
 
-    this.state.appStyle = appStyle ?? this.state.appStyle
+    this.setState('appStyle', appStyle ?? appStyleState)
     
     this.setAppStyle()
     splashScreen.remove()
@@ -126,12 +129,12 @@ class AppView extends AbstractView{
       composed: false
     })
 
-    const { messageScreen } = this.el
+    const { messageScreen } = this.$()
     messageScreen.dispatchEvent(event)
   }
 
   changeSection(button){
-    const { messageSection, contactSection, settingSection } = this.el
+    const { messageSection, contactSection, settingSection } = this.$()
     const dictionary = {
       'chat-menu-btn': messageSection,
       'contact-menu-btn': contactSection,
@@ -175,25 +178,26 @@ class AppView extends AbstractView{
   }
 
   setAddContactModal(element){
-    const { addContactBtn, addContactSection } = this.el
+    const { addContactBtn, addContactSection, contactInput } = this.$()
 
     if (element === addContactBtn){
       addContactSection.classList.add('overlay-active')
       return
     }
     
-    this.el.contactInput.innerHTML = ''
+    contactInput.innerHTML = ''
     addContactSection.classList.remove('overlay-active')
   }
 
   loadEmoji(data){
 
     if (!data || data?.length < 1) {
-      this.state.isIconListBlock = true
+      this.setState('isIconListBlock', true)
+      
       return
     }
 
-    const { emojiList } = this.el
+    const { emojiList } = this.$()
     const emojiPromises = data.map(emoji => {
       return new Promise((resolve, reject) => {
         const li = this.createElement('li', emojiList, {
@@ -205,42 +209,42 @@ class AppView extends AbstractView{
       })
     })
     
-    this.state.isIconListBlock = false
+    this.setState('isIconListBlock', false)
     Promise.all(emojiPromises)    
   }
 
   toggleEmojiModal(){
-    if (this.state.isIconListBlock === true) {
+    if (this.getState('isIconListBlock') === true) {
       return
     }
     
-    if (this.state.isMediaBarOpen  === true) {
+    if (this.getState('isMediaBarOpen')  === true) {
       this.closeConcorrentModal()
     }
     
-    const { emojiList } = this.el
+    const { emojiList } = this.$()
     const emojiContainer = emojiList.parentNode
     
-    this.state.isEmojiModalOpen = !this.state.isEmojiModalOpen
+    this.setState('isEmojiModalOpen', !this.getState('isEmojiModalOpen'))
     
-    emojiContainer.style.marginBottom = this.state.isEmojiModalOpen ? 'initial' : '-12.5rem'
+    emojiContainer.style.marginBottom = this.getState('isEmojiModalOpen') ? 'initial' : '-12.5rem'
   }
   
   toggleMediaBar() {
-    if (this.state.isEmojiModalOpen === true) {
+    if (this.getState('isEmojiModalOpen') === true) {
       this.closeConcorrentModal()
     }
 
     const mediaBar = document.querySelector('.media-bar')
-    const state = this.state.isMediaBarOpen
+    const state = this.getState('isMediaBarOpen')
     const toggleMethod = state ? mediaBar.classList.remove : mediaBar.classList.add
     
     toggleMethod.call(mediaBar.classList, 'show-media-bar')
-    this.state.isMediaBarOpen = !this.state.isMediaBarOpen
+    this.setState('isMediaBarOpen', !this.getState('isMediaBarOpen'))
   }
 
   toggleMediaModal(isShowModal = true, mediaType = '') {
-    const { media } = this.el
+    const { media } = this.$()
     const modals = [...media.querySelectorAll('.media-type')]
     
     if (isShowModal) {
@@ -261,7 +265,7 @@ class AppView extends AbstractView{
   }
 
   async setDefaultMode(event) {
-    const { inputContent, placeholder } = this.el
+    const { inputContent, placeholder } = this.$()
 
     const IsIgnoredElements = event.target === inputContent || event.target === placeholder
 
@@ -277,12 +281,12 @@ class AppView extends AbstractView{
 
     if (result === true) return;
   
-    if (this.state.isMediaBarOpen === true) {
+    if (this.getState('isMediaBarOpen') === true) {
       this.toggleMediaBar()
       return
     }
 
-    if (this.state.isEmojiModalOpen === true) {
+    if (this.getState('isEmojiModalOpen') === true) {
       this.toggleEmojiModal()
       return
     }     
@@ -321,11 +325,11 @@ class AppView extends AbstractView{
   }
 
   async toggleMessagePlaceholder(event) {
-    const { inputContent, placeholder, microphoneBtn, sendBtn } = this.el
+    const { inputContent, placeholder, microphoneBtn, sendBtn } = this.$()
     const message = inputContent.innerText.trim()
 
     if (message.length < 1) {
-      placeholder.innerText = this.state.placeholderText
+      placeholder.innerText = this.getState('placeholderText')
       microphoneBtn.classList.remove('hidden')
       sendBtn.classList.add('hidden')
     } else {
@@ -337,18 +341,18 @@ class AppView extends AbstractView{
 
   async addEmoji(event) {
     if (event.target !== event.currentTarget) {
-      const { inputContent } = this.el
+      const { inputContent } = this.$()
       const emoji = event.target
       const textNode = document.createTextNode(emoji.innerText)
 
-      if (!this.state.range) {
+      if (!this.getState('range')) {
           inputContent.focus();
           return;
       }
 
       const selection = window.getSelection()
       selection.removeAllRanges();
-      selection.addRange(this.state.range)
+      selection.addRange(this.getState('range'))
 
       const range = selection.getRangeAt(0)
       range.deleteContents()
@@ -357,31 +361,31 @@ class AppView extends AbstractView{
       range.setStartAfter(textNode)
       range.collapse(true)
 
-      this.state.range = range.cloneRange()
+      this.setState('range', range.cloneRange())
     }
   }
 
   async setSelection(event) {
     const selection = window.getSelection();
     if (selection.rangeCount > 0) {
-        this.state.range = selection.getRangeAt(0).cloneRange();
+        this.setState('range', selection.getRangeAt(0).cloneRange())
     }
   }
 
   setAppStyle() {
-    const { btnContainer } = this.el
+    const { btnContainer } = this.$()
     const profilePicure = document.querySelectorAll('.profile-picture')
     const button = document.querySelector('.custom-toggle-button')
-    const appStyle = this.state.appStyle
+    const appStyleState = this.getState('appStyle')
 
-    button.style.marginLeft = appStyle === 'circle' ? '-63%' : '63%';
+    button.style.marginLeft = appStyleState === 'circle' ? '-63%' : '63%';
 
     [...profilePicure].forEach(item => {
-      const radius = this.state.appStyle === 'circle' ? '50%' : '5px'
+      const radius = appStyleState === 'circle' ? '50%' : '5px'
       item.style.borderRadius = radius
     })
 
-    if (this.state.appStyle === 'circle') {
+    if (appStyleState === 'circle') {
       btnContainer.classList.remove('square-position')
     } else {
       btnContainer.classList.add('square-position')
@@ -389,16 +393,16 @@ class AppView extends AbstractView{
   }
 
   togglePhotoArea() {
-    const { photoArea, videoArea } = this.el
-    const state = this.state.isPhotoAreaVisible
+    const { photoArea, videoArea } = this.$()
+    const state = this.getState('isPhotoAreaVisible')
     
     videoArea.style.zIndex = state === false ? '1' : 'initial'
     photoArea.style.zIndex = state === true ? '1' : 'initial'
   }
   
   togglePhotoAction() {
-    const { takePhotoActionBtn, sendPhotoActionBtn, repeatTakePhoto } = this.el
-    const state = this.state.isPhotoAreaVisible
+    const { takePhotoActionBtn, sendPhotoActionBtn, repeatTakePhoto } = this.$()
+    const state = this.getState('isPhotoAreaVisible')
 
     takePhotoActionBtn.style.visibility = state === true ? 'hidden' : 'initial'
     sendPhotoActionBtn.style.display = state === false ? 'none' : 'initial'
@@ -406,7 +410,7 @@ class AppView extends AbstractView{
   }
   
   clearPhotoArea() {
-    const { photoArea } = this.el
+    const { photoArea } = this.$()
 
     const context = photoArea.getContext('2d')
     context.clearRect(0, 0, photoArea.width, photoArea.height)

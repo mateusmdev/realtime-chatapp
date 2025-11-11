@@ -3,20 +3,22 @@ import Authenticator from '../firebase/Authenticator'
 import LocalStorage from '../utils/LocalStorage'
 
 class IndexController{
-  view = new IndexView()
+  #view = new IndexView()
 
   async initEvents(){
-    const form = this.view.el.form
+    const form = this.#view.$('form')
 
-    this.view.addEvent(document, {
+    this.#view.addEvent(document, {
       eventName: 'DOMContentLoaded',
       fn: () => this.redirectUser(),
     })
 
-    this.view.addEvent(form, {
-      eventName: 'click',
+    this.#view.addEvent(form, {
+      eventName: 'submit',
       fn: this.authenticate,
-      preventDefault: true
+      behavior: {
+        preventDefault: true
+      }
     })
   }
 

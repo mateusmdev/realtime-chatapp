@@ -10,8 +10,8 @@ const TOKEN_VALIDATOR = import.meta.env.VITE_TOKEN_VALIDATOR
 const ICON_KEY = import.meta.env.VITE_ICON_KEY
 const BLOCK_MEDIA = import.meta.env.VITE_BLOCK_MEDIA
 
-class AppController{
-  view = new AppView()
+class AppController {
+  #view = new AppView()
 
   async initEvents(){
     const { 
@@ -22,15 +22,15 @@ class AppController{
       emojiList, mediaBar, userNameContent, userAboutContent, 
       changeImgBtn, profileImageFile, inputContent, sendBtn, 
       insertContactBtn, takePhotoActionBtn, repeatTakePhoto 
-    } = this.view.el
+     } = this.#view.$()
     
     
-    this.view.addEvent(document, {
+    this.#view.addEvent(document, {
       eventName: 'DOMContentLoaded',
       fn: () => this.initApp(),
     })
 
-    this.view.addEvent(exitBtn, {
+    this.#view.addEvent(exitBtn, {
       eventName: 'click',
       fn: () => this.signOut(),
       behavior: {
@@ -38,7 +38,7 @@ class AppController{
       }
     })
 
-    this.view.addEventAll([chatMenuBtn, contactMenuBtn, settingMenuBtn], {
+    this.#view.addEventAll([chatMenuBtn, contactMenuBtn, settingMenuBtn], {
       eventName: 'click',
       fn: (e) => this.handleMenuBtnClick(e),
       behavior: {
@@ -46,7 +46,7 @@ class AppController{
       }
     })
 
-    this.view.addEventAll('.item', {
+    this.#view.addEventAll('.item', {
       eventName: 'click',
       fn: (e) => this.handleMessageItem(e),
       behavior: {
@@ -54,7 +54,7 @@ class AppController{
       }
     })
 
-    this.view.addEvent(backBtn, {
+    this.#view.addEvent(backBtn, {
       eventName: 'click',
       fn: (e) => this.handleMessageItem(e),
       behavior: {
@@ -62,33 +62,33 @@ class AppController{
       }
     })
 
-    this.view.addEventAll([addContactBtn, cancelAddContact], {
+    this.#view.addEventAll([addContactBtn, cancelAddContact], {
       eventName: 'click',
-      fn: (e) => this.view.setAddContactModal(e.currentTarget),
+      fn: (e) => this.#view.setAddContactModal(e.currentTarget),
       behavior: {
         preventDefault: true
       }
     })
 
-    this.view.addEvent(emojiModalBtn, {
+    this.#view.addEvent(emojiModalBtn, {
       eventName: 'click',
-      fn: (event) => this.view.toggleEmojiModal(event),
+      fn: (event) => this.#view.toggleEmojiModal(event),
       behavior: {
         preventDefault: true,
         stopPropagation: true
       }
     })
 
-    this.view.addEvent(attachmentBtn, {
+    this.#view.addEvent(attachmentBtn, {
       eventName: 'click',
-      fn: () => this.view.toggleMediaBar(),
+      fn: () => this.#view.toggleMediaBar(),
       behavior: {
         preventDefault: true,
         stopPropagation: true
       }
     })
 
-    this.view.addEventAll([takePhotoBtn, sendPictureBtn, sendDocumentBtn, sendContactBtn], {
+    this.#view.addEventAll([takePhotoBtn, sendPictureBtn, sendDocumentBtn, sendContactBtn], {
       eventName: 'click',
       fn: (e) => this.handleMediaButton(e),
       behavior: {
@@ -97,7 +97,7 @@ class AppController{
       }
     })
 
-    this.view.addEvent(closeMediaModalBtn, {
+    this.#view.addEvent(closeMediaModalBtn, {
       eventName: 'click',
       fn: () => this.handleCloseMediaModal(false),
       behavior: {
@@ -105,7 +105,7 @@ class AppController{
       }
     })
 
-    this.view.addEvent(uploadFile, {
+    this.#view.addEvent(uploadFile, {
       eventName: 'change',
       fn: (e) => this.handleChangeInputFile(e),
       behavior: {
@@ -113,16 +113,16 @@ class AppController{
       }
     })
 
-    this.view.addEvent(messageScreen, {
+    this.#view.addEvent(messageScreen, {
       eventName: 'click closeModal',
-      fn: (e) => this.view.setDefaultMode(e),
+      fn: (e) => this.#view.setDefaultMode(e),
       behavior: {
         preventDefault: false,
         stopPropagation: true
       }
     })
     
-    this.view.addEvent(mediaBar, {
+    this.#view.addEvent(mediaBar, {
       eventName: 'click',
       fn: (e) => e.stopPropagation(),
       behavior: {
@@ -130,21 +130,21 @@ class AppController{
       }
     })
 
-    this.view.addEvent(emojiList, {
+    this.#view.addEvent(emojiList, {
       eventName: 'click',
-      fn: (event) => this.view.addEmoji(event),
+      fn: (event) => this.#view.addEmoji(event),
       behavior: {
         preventDefault: false,
         stopPropagation: true
       }
     })
     
-    this.view.addEventAll([userNameContent, userAboutContent], {
+    this.#view.addEventAll([userNameContent, userAboutContent], {
       eventName: 'keypress blur',
-      fn: (e) => this.view.setUserContent(e)
+      fn: (e) => this.#view.setUserContent(e)
     })
 
-    this.view.addEvent(changeImgBtn, {
+    this.#view.addEvent(changeImgBtn, {
       eventName: 'click',
       fn: (e) => profileImageFile.click(),
       behavior: {
@@ -152,7 +152,7 @@ class AppController{
       }
     })
 
-    this.view.addEvent(profileImageFile, {
+    this.#view.addEvent(profileImageFile, {
       eventName: 'change',
       fn: (e) => this.handleProfileImageFile(e),
       behavior: {
@@ -160,15 +160,15 @@ class AppController{
       }
     })
 
-    this.view.addEvent(inputContent, {
+    this.#view.addEvent(inputContent, {
       eventName: 'keyup',
-      fn: (e) => this.view.toggleMessagePlaceholder(e),
+      fn: (e) => this.#view.toggleMessagePlaceholder(e),
       behavior: {
         preventDefault: false
       }
     })
 
-    this.view.addEvent(inputContent, {
+    this.#view.addEvent(inputContent, {
       eventName: 'keypress',
       fn: (e) => this.handleSendMessage(e),
       behavior: {
@@ -176,7 +176,7 @@ class AppController{
       }
     })
 
-    this.view.addEvent(sendBtn, {
+    this.#view.addEvent(sendBtn, {
       eventName: 'click',
       fn: (event) => this.handlerSendMessage(event),
       behavior: {
@@ -184,15 +184,15 @@ class AppController{
       }
     })
 
-    this.view.addEvent(inputContent, {
+    this.#view.addEvent(inputContent, {
       eventName: 'mouseup',
-      fn: (event) => this.view.setSelection(event),
+      fn: (event) => this.#view.setSelection(event),
       behavior: {
         preventDefault: false
       }
     })
 
-    this.view.addEventAll([userNameContent, userAboutContent], {
+    this.#view.addEventAll([userNameContent, userAboutContent], {
       eventName: 'saveData',
       fn: (event) => this.handleUpdateUserData(event),
       behavior: {
@@ -200,7 +200,7 @@ class AppController{
       }
     })
 
-    this.view.addEvent(insertContactBtn, {
+    this.#view.addEvent(insertContactBtn, {
       eventName: 'click',
       fn: (event) => this.handleAddContact(event),
       behavior: {
@@ -208,7 +208,7 @@ class AppController{
       }
     })
 
-    this.view.addEvent('.custom-input button', {
+    this.#view.addEvent('.custom-input button', {
       eventName: 'click',
       fn: (event) => this.handleToggleStyle(event),
       behavior: {
@@ -216,7 +216,7 @@ class AppController{
       }
     })
 
-    this.view.addEvent(takePhotoActionBtn, {
+    this.#view.addEvent(takePhotoActionBtn, {
       eventName: 'click',
       fn: async (event) => this.takePhotoActionBtn(event),
       behavior: {
@@ -224,7 +224,7 @@ class AppController{
       }
     })
 
-    this.view.addEvent(repeatTakePhoto, {
+    this.#view.addEvent(repeatTakePhoto, {
       eventName: 'click',
       fn: async (event) => this.handleRepeatTakePhoto(event),
       behavior: {
@@ -234,17 +234,19 @@ class AppController{
   }
 
   async initApp(){
-    this.view.state.blockMedia = BLOCK_MEDIA || false
+    this.#view.setState('blockMedia', BLOCK_MEDIA || false)
     
-    if (typeof this.view.state.blockMedia === 'string') {
-      this.view.state.blockMedia = JSON.parse(this.view.state.blockMedia)
+    const blockMediaState = this.#view.getState('blockMedia')
+
+    if (typeof blockMediaState === 'string') {
+      this.#view.setState('blockMedia', JSON.parse(blockMediaState))
     }
 
     const preferences = JSON.parse(LocalStorage.getUserPreferences()) || {}
     
     this.getUserData()
     await this.getIconData()
-    await this.view.initLayout(preferences)
+    await this.#view.initLayout(preferences)
   }
 
   async getUserData(){
@@ -257,7 +259,7 @@ class AppController{
     try {
       const response = await axios.get(TOKEN_VALIDATOR, {
         headers: {
-        ' Authorization': `Bearer ${accessToken}`
+        'Authorization': `Bearer ${accessToken}`
         }
       });
 
@@ -274,14 +276,14 @@ class AppController{
       
       await user.onSnapshot(() => {
         LocalStorage.setUserData(JSON.stringify(user.data))
-        this.view.loadUserContent(user.data)
+        this.#view.loadUserContent(user.data)
       })
 
       const options = {
         handleCallback: this.handleContactItem.bind(this)
       }
 
-      await this.view.loadContacts(contacts, options)
+      await this.#view.loadContacts(contacts, options)
 
     } catch (error) {
       localStorage.clear()
@@ -307,7 +309,7 @@ class AppController{
       }
     }
     
-    this.view.loadEmoji(iconList)
+    this.#view.loadEmoji(iconList)
   }
 
   signOut(){
@@ -316,48 +318,48 @@ class AppController{
   }
 
   handleMenuBtnClick(e){
-    this.view.changeSection(e.currentTarget)
+    this.#view.changeSection(e.currentTarget)
   }
   
   handleContactItem(e, data) {
     const isCorrectTarget = e.currentTarget.id === 'back-btn'
-    this.view.updateMessageScreen(data)
-    this.view.toggleMessageScreen(!isCorrectTarget)
+    this.#view.updateMessageScreen(data)
+    this.#view.toggleMessageScreen(!isCorrectTarget)
     
     if (isCorrectTarget){
-      this.view.toggleMediaModal(false)
+      this.#view.toggleMediaModal(false)
     }
   }
 
   handleMessageItem(e){
     const isCorrectTarget = e.currentTarget.id === 'back-btn'
-    this.view.toggleMessageScreen(!isCorrectTarget)
+    this.#view.toggleMessageScreen(!isCorrectTarget)
     
     if (isCorrectTarget){
-      this.view.toggleMediaModal(false)
+      this.#view.toggleMediaModal(false)
     }
   }
 
   handleCloseMediaModal(){
-    this.view.toggleMediaModal(false)
+    this.#view.toggleMediaModal(false)
 
-    if (this.view.state.isVideoRecording) {
+    if (this.#view.getState('isVideoRecording')) {
       const camera = Camera.getInstance()
       camera.stop()
 
-      this.view.state.isVideoRecording = false
+      this.#view.setState('isVideoRecording', false)
     }
 
-    this.view.state.isPhotoAreaVisible = false
-    this.view.clearPhotoArea()
-    this.view.togglePhotoArea()
+    this.#view.setState('isPhotoAreaVisible', false)
+    this.#view.clearPhotoArea()
+    this.#view.togglePhotoArea()
   }
 
   async handleMediaButton(e) {
     const { id } = e.currentTarget
-    const { uploadFile } = this.view.el
+    const { uploadFile } = this.#view.$()
 
-    this.view.state.mediaButtonId = id
+    this.#view.setState('mediaButtonId', id)
 
     const blockMessage = () => {
       alert('This feature is not allowed on my server. Run the project on your machine and enable it for use.')
@@ -365,11 +367,11 @@ class AppController{
 
     switch(id) {
       case 'send-contact-btn':
-        this.view.toggleMediaModal(true, 'list-contact')
+        this.#view.toggleMediaModal(true, 'list-contact')
         break
 
       case 'send-document-btn':
-        if (this.view.state.blockMedia === true) {
+        if (this.#view.getState('blockMedia') === true) {
           blockMessage()
           return
         }
@@ -379,17 +381,17 @@ class AppController{
 
 
       case 'take-photo-btn':
-        if (this.view.state.blockMedia === true) {
+        if (this.#view.getState('blockMedia') === true) {
           blockMessage()
           return
         }
 
-        this.view.toggleMediaModal(true, 'take-photo')
+        this.#view.toggleMediaModal(true, 'take-photo')
         await this.openCamera()
         break
         
         case 'send-picture-btn':
-          if (this.view.state.blockMedia === true) {
+          if (this.#view.getState('blockMedia') === true) {
             blockMessage()
             return
           }
@@ -400,9 +402,9 @@ class AppController{
   }
   
   async handleChangeInputFile(e) {
-    const id = this.view.state.mediaButtonId
+    const id = this.#view.getState('mediaButtonId')
     const [uploadedFile] = e.target.files
-    const { pdfArea, fileArea, sentImagePreview, sentImageName } = this.view.el
+    const { pdfArea, fileArea, sentImagePreview, sentImageName } = this.#view.$()
 
     if (!uploadedFile) alert('Could not open this file.')
 
@@ -441,8 +443,8 @@ class AppController{
       await mediaHandler.execute(uploadData)
     }
 
-    await this.view.toggleMediaModal(true, componentData.modalClass)
-    this.view.setDefaultMode()
+    await this.#view.toggleMediaModal(true, componentData.modalClass)
+    this.#view.setDefaultMode()
   }
 
   async handleProfileImageFile(e) {
@@ -461,7 +463,7 @@ class AppController{
     
     if (keyPressed === true && !isModifiedPressed === true) {
       event.preventDefault()
-      const { sendBtn } = this.view.el
+      const { sendBtn } = this.#view.$()
       sendBtn.click()
 
       return
@@ -495,12 +497,12 @@ class AppController{
   }
 
   async handleAddContact(event) {
-    const value = this.view.el.contactInput.value
+    const value = this.#view.$('contactInput').value
     const userData = JSON.parse(LocalStorage.getUserData())
 
     if (value.trim() === '' || value.trim() === userData.email) return
 
-    const contact = new User({ email : contactInput.value })
+    const contact = new User({ email : value })
     const result = await contact.getDocument()
 
     if (result !== null) {
@@ -519,22 +521,22 @@ class AppController{
       }
     }
 
-    this.view.setAddContactModal(this.view.el.cancelAddContact)
+    this.#view.setAddContactModal(this.#view.$('cancelAddContact'))
   }
 
   async handleToggleStyle(event) {
     let preferences = JSON.parse(LocalStorage.getUserPreferences()) ?? {}
 
-    const appStyle = this.view.state.appStyle === 'circle' ? 'square' : 'circle'
-    this.view.state.appStyle = appStyle
+    const appStyle = this.#view.getState('appStyle') === 'circle' ? 'square' : 'circle'
+    this.#view.setState('appStyle', appStyle)
     
     preferences = {
       ...preferences,
-      appStyle: this.view.state.appStyle
+      appStyle: this.#view.getState('appStyle')
     }
     
     LocalStorage.setUserPreferences(JSON.stringify(preferences))
-    this.view.setAppStyle()
+    this.#view.setAppStyle()
   }
 
   async openCamera() {
@@ -546,13 +548,13 @@ class AppController{
     }
 
     try {
-      if (!this.view.state.isVideoRecording) {
-        const { videoArea } = this.view.el
+      if (!this.#view.getState('isVideoRecording')) {
+        const { videoArea } = this.#view.$()
 
         videoArea.srcObject = await camera.getStream()
         videoArea.play()
 
-        this.view.state.isVideoRecording = true
+        this.#view.setState('isVideoRecording', true)
       }
 
     } catch (error) {
@@ -561,17 +563,17 @@ class AppController{
   }
 
   async handleRepeatTakePhoto() {
-    this.view.state.isPhotoAreaVisible = false
+    this.#view.setState('isPhotoAreaVisible', false)
         
-    this.view.clearPhotoArea()
-    this.view.togglePhotoArea()
-    this.view.togglePhotoAction()
+    this.#view.clearPhotoArea()
+    this.#view.togglePhotoArea()
+    this.#view.togglePhotoAction()
 
     await this.openCamera()
   }
 
   async takePhotoActionBtn() {
-    const { photoArea, videoArea } = this.view.el
+    const { photoArea, videoArea } = this.#view.$()
     const camera = Camera.getInstance()
     const photoSettings = {
       mimeType: 'image/png',
@@ -584,23 +586,23 @@ class AppController{
     const result = camera.takePhoto(photoSettings)
     camera.stop()
     
-    this.view.state.isVideoRecording = false
-    this.view.state.isPhotoAreaVisible = true
+    this.#view.setState('isVideoRecording', false)
+    this.#view.setState('isPhotoAreaVisible', true)
   
-    this.view.togglePhotoArea()
-    this.view.togglePhotoAction()
+    this.#view.togglePhotoArea()
+    this.#view.togglePhotoAction()
   }
 
   async handlerSendMessage() {
-    const { messageList, inputContent } = this.view.el
+    const { messageList, inputContent } = this.#view.$()
     const messageLength = inputContent.innerText.trim().length
 
     if (messageLength > 0) {
-      const message = this.view.createElement('li', messageList, {
+      const message = this.#view.createElement('li', messageList, {
         class: 'message user',
       })
 
-      const content = this.view.createElement('div', message, {
+      const content = this.#view.createElement('div', message, {
         class: 'content text',
         innerText: inputContent.innerText
       })
