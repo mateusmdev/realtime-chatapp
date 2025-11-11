@@ -28,11 +28,15 @@ class IndexController{
   }
 
   async authenticate(){
-    const auth =  new Authenticator()
-    const accessToken = await auth.signIn()
+    try {
+      const auth =  new Authenticator()
+      const accessToken = await auth.signIn()
 
-    LocalStorage.setAccessToken(JSON.stringify(accessToken))
-    window.location.href = '/app'
+      LocalStorage.setAccessToken(JSON.stringify(accessToken))
+      window.location.href = '/app'
+    } catch (error) {
+      throw error
+    }
   }
 }
 

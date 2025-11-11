@@ -1,72 +1,114 @@
 import Firestore from "./../firebase/Firestore"
 
 class AbstractModel {
-    _data = {}
-    _primaryKeyProp
-    _firestore = Firestore.instance
-    _path = null
-    _listener = null
+    #data = {}
+    #primaryKeyProp
+    #firestore = Firestore.instance
+    #path = null
+    #listener = null
 
     constructor(data = {}, documentName, primaryKeyProp) {
-      this._data = data
-      this._primaryKeyProp = primaryKeyProp
-      this._path = documentName
+      this.#data = data
+      this.#primaryKeyProp = primaryKeyProp
+      this.#path = documentName
+    }
 
-      // if (this._path == null) throw new Error(`The model's name needs to be defined in the child class.`)
+    #validatePrimaryKey() {
+        const primaryKeyValue = this.#data[this.#primaryKeyProp]
+        if (!primaryKeyValue) {
+            throw new Error(`A chave primária ('${this.#primaryKeyProp}') deve ser definida para esta operação.`)
+        }
+        return primaryKeyValue
     }
 
     async getDocument(data) {
-      const userData = data || this._data
-      const documentPath = this._path
-      const whereCondition = [`${this._primaryKeyProp}`, '==', userData[this._primaryKeyProp]]
-      const query = await this._firestore.findDocs(documentPath, whereCondition)
-      const docs = await query.docs
-      const isExist = docs && docs.length > 0
+      const userData = data || this.#data
+      const documentPath = this.#path
+      
+      const primaryKeyValue = userData[this.#primaryKeyProp]
+      if (!primaryKeyValue) {
+          throw new Error(`A chave primária ('${this.#primaryKeyProp}') é necessária para buscar o documento.`)
+      }
+
+      const query = await this.#firestore.findById(documentPath, this.#data[this.#primaryKeyProp])
+      const isExist = query && query?.exists()
 
       if (isExist){
-        const [document] = docs
-        return document.data() 
+        const documentData = query.data()
+        this.#data = documentData
+        
+        return documentData
       }
 
       return null
     }
 
     async save() {
-      const document = await this._firestore.save(this._data, this._path, this._data[this._primaryKeyProp])
-      return document
+        const documentId = this.#validatePrimaryKey()
+
+        const document = await this.#firestore.save(this.#data, this.#path, documentId)
+        return document?.data()
     }
 
     async onSnapshot(callback) {
-      this._listener = this._firestore.onSnapshot(this._path, this._data[this._primaryKeyProp], doc => {
-        
-        if (!callback || typeof callback !== 'function') throw new Error(`You must pass a callback function when calling 'onSnapshot'`)
-        console.log(doc.data())
+      if (!callback || typeof callback !== 'function') {
+         throw new Error(`Você deve passar uma função de callback ao chamar 'onSnapshot'`)
+      }
 
-        this._data = doc.data()
+      const documentId = this.#validatePrimaryKey()
+
+      this.offSnapshot() 
+      
+      this.#listener = this.#firestore.onSnapshot(this.#path, documentId, doc => {
         
-          
-        callback(doc)
+        if (doc && doc.exists()) {
+            this.#data = doc.data()
+            callback(doc)
+        }
       })
       
-      return this._listener
+      return this.#listener
+    }
+
+    offSnapshot() {
+        if (typeof this.#listener === 'function') {
+            this.#listener()
+            this.#listener = null
+            return true
+        }
+        return false
     }
 
     get data() {
-      return this._data
+      return this.#data
     }
 
-    getAttribute(name){
-      const attr = this._data[name]
+    getModelAttr(name) {
+      const dictionary = {
+        'firestore': this.#firestore,
+        'path': this.#path,
+        'primaryKeyProp': this.#primaryKeyProp
+      }
 
-      if (attr == null) throw Error('Attribute not found.')
+      const selectedAttr = dictionary[name]
+
+      if (!selectedAttr) throw new Error(`Este atributo ${name} não existe ou não pode ser acessado.`)
+
+      return selectedAttr
+    }
+
+    getAttribute(name) {
+      const attr = this.#data[name]
+
+      if (attr == null) throw Error('Atributo não encontrado.')
       return attr
         
     }
 
-    setAttribute(name, value){
-      if (name === 'id' || name === this._primaryKeyProp) throw Error('It is not allowed change this attribute.')
+    setAttribute(name, value) {
+      if (name === 'id' || name === this.#primaryKeyProp) throw Error('Não é permitido alterar este atributo.')
 
-      this._data[name] = value
+      this.#data[name] = value
     }
 }
 

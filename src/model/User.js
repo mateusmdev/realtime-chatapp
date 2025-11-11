@@ -8,25 +8,26 @@ class User extends AbstractModel {
 
   async findOrCreate(){
 
-      let document = await this.getDocument(this._data)
+      let document = await this.getDocument(this.data)
       
       if (!document) {
-        document = await this._firestore.save(this._data, this._path, this._data[this._primaryKeyProp])
+        const firestore = this.getModelAttr('firestore')
+        document = await firestore.save(this.data, this.getModelAttr('path'), this.data[this.getModelAttr('primaryKeyProp')])
       }
 
       return document
   }
 
   async saveContact(contactData) {
-    const documentPath = `${this._path}/${this._data[this._primaryKeyProp]}/contacts`
-    const documentRef = await this._firestore.save(contactData, documentPath, contactData[this._primaryKeyProp])
+    const documentPath = `${this.getModelAttr('path')}/${this.data[this.getModelAttr('primaryKeyProp')]}/contacts`
+    const documentRef = await this.getModelAttr('firestore').save(contactData, documentPath, contactData[this.getModelAttr('primaryKeyProp')])
     
     return documentRef
   }
 
   async getContacts() {
-    const documentPath = `${this._path}/${this._data[this._primaryKeyProp]}/contacts`
-    const query = await this._firestore.findDocs(documentPath)
+    const documentPath = `${this.getModelAttr('path')}/${this.data[this.getModelAttr('primaryKeyProp')]}/contacts`
+    const query = await this.getModelAttr('firestore').findDocs(documentPath)
     const docs = await query.docs
 
     if (docs?.length > 0){
