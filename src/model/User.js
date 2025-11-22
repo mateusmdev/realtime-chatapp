@@ -6,18 +6,6 @@ class User extends AbstractModel {
     super(data, 'user', 'email')
   }
 
-  async findOrCreate(){
-
-      let document = await this.getDocument(this.data)
-      
-      if (!document) {
-        const firestore = this.getModelAttr('firestore')
-        document = await firestore.save(this.data, this.getModelAttr('path'), this.data[this.getModelAttr('primaryKeyProp')])
-      }
-
-      return document
-  }
-
   async saveContact(contactData) {
     const documentPath = `${this.getModelAttr('path')}/${this.data[this.getModelAttr('primaryKeyProp')]}/contacts`
     const documentRef = await this.getModelAttr('firestore').save(contactData, documentPath, contactData[this.getModelAttr('primaryKeyProp')])

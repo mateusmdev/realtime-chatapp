@@ -43,6 +43,18 @@ class AbstractModel {
       return null
     }
 
+    async findOrCreate() {
+
+      let document = await this.getDocument(this.data)
+      
+      if (!document) {
+        const firestore = this.getModelAttr('firestore')
+        document = await firestore.save(this.data, this.getModelAttr('path'), this.data[this.getModelAttr('primaryKeyProp')])
+      }
+  
+      return document
+    }
+
     async save() {
         const documentId = this.#validatePrimaryKey()
 
@@ -71,12 +83,12 @@ class AbstractModel {
     }
 
     offSnapshot() {
-        if (typeof this.#listener === 'function') {
-            this.#listener()
-            this.#listener = null
-            return true
-        }
-        return false
+      if (typeof this.#listener === 'function') {
+        this.#listener()
+        this.#listener = null
+        return true
+      }
+      return false
     }
 
     get data() {
@@ -102,7 +114,6 @@ class AbstractModel {
 
       if (attr == null) throw Error('Atributo não encontrado.')
       return attr
-        
     }
 
     setAttribute(name, value) {
