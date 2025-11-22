@@ -14,23 +14,13 @@ class AppController {
   #view = new AppView()
 
   async initEvents(){
-    const { 
-      exitBtn, chatMenuBtn, contactMenuBtn, settingMenuBtn, 
-      backBtn, addContactBtn, cancelAddContact, emojiModalBtn, 
-      attachmentBtn, closeMediaModalBtn,takePhotoBtn, sendPictureBtn,
-      sendDocumentBtn, sendContactBtn, uploadFile, messageScreen, 
-      emojiList, mediaBar, userNameContent, userAboutContent, 
-      changeImgBtn, profileImageFile, inputContent, sendBtn, 
-      insertContactBtn, takePhotoActionBtn, repeatTakePhoto 
-     } = this.#view.$()
-    
     
     this.#view.addEvent(document, {
       eventName: 'DOMContentLoaded',
       fn: () => this.initApp(),
     })
 
-    this.#view.addEvent(exitBtn, {
+    this.#view.addEvent('#exitBtn', {
       eventName: 'click',
       fn: () => this.signOut(),
       behavior: {
@@ -38,7 +28,7 @@ class AppController {
       }
     })
 
-    this.#view.addEventAll([chatMenuBtn, contactMenuBtn, settingMenuBtn], {
+    this.#view.addEventAll(['#chatMenuBtn', '#contactMenuBtn', '#settingMenuBtn'], {
       eventName: 'click',
       fn: (e) => this.handleMenuBtnClick(e),
       behavior: {
@@ -54,7 +44,7 @@ class AppController {
       }
     })
 
-    this.#view.addEvent(backBtn, {
+    this.#view.addEvent('#backBtn', {
       eventName: 'click',
       fn: (e) => this.handleMessageItem(e),
       behavior: {
@@ -62,7 +52,7 @@ class AppController {
       }
     })
 
-    this.#view.addEventAll([addContactBtn, cancelAddContact], {
+    this.#view.addEventAll(['#addContactBtn', '#cancelAddContact'], {
       eventName: 'click',
       fn: (e) => this.#view.setAddContactModal(e.currentTarget),
       behavior: {
@@ -70,7 +60,7 @@ class AppController {
       }
     })
 
-    this.#view.addEvent(emojiModalBtn, {
+    this.#view.addEvent('#emojiModalBtn', {
       eventName: 'click',
       fn: (event) => this.#view.toggleEmojiModal(event),
       behavior: {
@@ -79,7 +69,7 @@ class AppController {
       }
     })
 
-    this.#view.addEvent(attachmentBtn, {
+    this.#view.addEvent('#attachmentBtn', {
       eventName: 'click',
       fn: () => this.#view.toggleMediaBar(),
       behavior: {
@@ -88,7 +78,7 @@ class AppController {
       }
     })
 
-    this.#view.addEventAll([takePhotoBtn, sendPictureBtn, sendDocumentBtn, sendContactBtn], {
+    this.#view.addEventAll(['#takePhotoBtn', '#sendPictureBtn', '#sendDocumentBtn', '#sendContactBtn'], {
       eventName: 'click',
       fn: (e) => this.handleMediaButton(e),
       behavior: {
@@ -97,7 +87,7 @@ class AppController {
       }
     })
 
-    this.#view.addEvent(closeMediaModalBtn, {
+    this.#view.addEvent('#closeMediaModalBtn', {
       eventName: 'click',
       fn: () => this.handleCloseMediaModal(false),
       behavior: {
@@ -105,7 +95,7 @@ class AppController {
       }
     })
 
-    this.#view.addEvent(uploadFile, {
+    this.#view.addEvent('#uploadFile', {
       eventName: 'change',
       fn: (e) => this.handleChangeInputFile(e),
       behavior: {
@@ -113,7 +103,7 @@ class AppController {
       }
     })
 
-    this.#view.addEvent(messageScreen, {
+    this.#view.addEvent('#messageScreen', {
       eventName: 'click closeModal',
       fn: (e) => this.#view.setDefaultMode(e),
       behavior: {
@@ -122,7 +112,7 @@ class AppController {
       }
     })
     
-    this.#view.addEvent(mediaBar, {
+    this.#view.addEvent('#mediaBar', {
       eventName: 'click',
       fn: (e) => e.stopPropagation(),
       behavior: {
@@ -130,7 +120,7 @@ class AppController {
       }
     })
 
-    this.#view.addEvent(emojiList, {
+    this.#view.addEvent('#emojiList', {
       eventName: 'click',
       fn: (event) => this.#view.addEmoji(event),
       behavior: {
@@ -139,20 +129,20 @@ class AppController {
       }
     })
     
-    this.#view.addEventAll([userNameContent, userAboutContent], {
+    this.#view.addEventAll(['#userNameContent', '#userAboutContent'], {
       eventName: 'keypress blur',
       fn: (e) => this.#view.setUserContent(e)
     })
 
-    this.#view.addEvent(changeImgBtn, {
+    this.#view.addEvent('#changeImgBtn', {
       eventName: 'click',
-      fn: (e) => profileImageFile.click(),
+      fn: (e) =>  this.#view.$('profileImageFile').click(),
       behavior: {
         preventDefault: true,
       }
     })
 
-    this.#view.addEvent(profileImageFile, {
+    this.#view.addEvent('#profileImageFile', {
       eventName: 'change',
       fn: (e) => this.handleProfileImageFile(e),
       behavior: {
@@ -160,7 +150,7 @@ class AppController {
       }
     })
 
-    this.#view.addEvent(inputContent, {
+    this.#view.addEvent('#inputContent', {
       eventName: 'keyup',
       fn: (e) => this.#view.toggleMessagePlaceholder(e),
       behavior: {
@@ -168,7 +158,7 @@ class AppController {
       }
     })
 
-    this.#view.addEvent(inputContent, {
+    this.#view.addEvent('#inputContent', {
       eventName: 'keypress',
       fn: (e) => this.handleSendMessage(e),
       behavior: {
@@ -176,7 +166,7 @@ class AppController {
       }
     })
 
-    this.#view.addEvent(sendBtn, {
+    this.#view.addEvent('#sendBtn', {
       eventName: 'click',
       fn: (event) => this.handlerSendMessage(event),
       behavior: {
@@ -184,7 +174,7 @@ class AppController {
       }
     })
 
-    this.#view.addEvent(inputContent, {
+    this.#view.addEvent('#inputContent', {
       eventName: 'mouseup',
       fn: (event) => this.#view.setSelection(event),
       behavior: {
@@ -192,7 +182,7 @@ class AppController {
       }
     })
 
-    this.#view.addEventAll([userNameContent, userAboutContent], {
+    this.#view.addEventAll(['#userNameContent', '#userAboutContent'], {
       eventName: 'saveData',
       fn: (event) => this.handleUpdateUserData(event),
       behavior: {
@@ -200,7 +190,7 @@ class AppController {
       }
     })
 
-    this.#view.addEvent(insertContactBtn, {
+    this.#view.addEvent('#insertContactBtn', {
       eventName: 'click',
       fn: (event) => this.handleAddContact(event),
       behavior: {
@@ -216,7 +206,7 @@ class AppController {
       }
     })
 
-    this.#view.addEvent(takePhotoActionBtn, {
+    this.#view.addEvent('#takePhotoActionBtn', {
       eventName: 'click',
       fn: async (event) => this.takePhotoActionBtn(event),
       behavior: {
@@ -224,7 +214,7 @@ class AppController {
       }
     })
 
-    this.#view.addEvent(repeatTakePhoto, {
+    this.#view.addEvent('#repeatTakePhoto', {
       eventName: 'click',
       fn: async (event) => this.handleRepeatTakePhoto(event),
       behavior: {
@@ -243,8 +233,13 @@ class AppController {
     }
 
     const preferences = JSON.parse(LocalStorage.getUserPreferences()) || {}
-    
-    this.getUserData()
+    const params = new URLSearchParams(window.location.search)
+    const mode = params.get('mode')
+
+    if (mode !== 'preview') {
+      await this.getUserData()
+    }
+
     await this.getIconData()
     await this.#view.initLayout(preferences)
   }
@@ -519,9 +514,12 @@ class AppController {
       } catch (error) {
         throw error
       }
-    }
 
-    this.#view.setAddContactModal(this.#view.$('cancelAddContact'))
+      this.#view.setAddContactModal(this.#view.$('cancelAddContact'))
+    } 
+    else {
+      this.#view.toggleContactError(true)
+    }
   }
 
   async handleToggleStyle(event) {
@@ -558,7 +556,7 @@ class AppController {
       }
 
     } catch (error) {
-      console.error("An error occurred while trying to access the camera")
+      alert("An error occurred while trying to access the camera.")
     }    
   }
 

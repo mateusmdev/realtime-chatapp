@@ -1,5 +1,5 @@
 import IndexView from './../view/IndexView'
-import Authenticator from '../firebase/Authenticator'
+import Authenticator from './../firebase/Authenticator'
 import LocalStorage from '../utils/LocalStorage'
 
 class IndexController{
@@ -24,7 +24,10 @@ class IndexController{
 
   redirectUser(){
     const accessToken = LocalStorage.getAccessToken()
-    // if (accessToken) window.location.href = '/app'
+    
+    if (accessToken) {
+      window.location.href = '/app'
+    }
   }
 
   async authenticate(){

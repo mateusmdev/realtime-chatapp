@@ -140,7 +140,7 @@ class AbstractView {
   }
 
   setStyle(element, styles = {}) {
-    Object.assign(element.style, styleAttr)
+    Object.assign(element.style, styles)
   }
 }
 

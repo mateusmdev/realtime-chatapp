@@ -94,8 +94,11 @@ class AppView extends AbstractView {
       const blockedElements = [takePhotoBtn, sendPictureBtn, sendDocumentBtn];
       
       blockedElements.forEach(element => {
-        element.style.opacity = '0.3'
-        element.style.cursor = 'not-allowed'
+        this.setStyle(element, {
+          opacity: '0.3',
+          cursor: 'not-allowed'
+        })
+
         element.disabled = true
       })
     }
@@ -103,9 +106,11 @@ class AppView extends AbstractView {
     if (isIconListBlock === true) {
       const { emojiModalBtn } = this.$()
 
-      emojiModalBtn.style.visibility = 'hidden'
-      emojiModalBtn.style.opacity = '0'
-      emojiModalBtn.style.display = 'none'
+      this.setStyle(emojiModalBtn, {
+        visibility: 'hidden',
+        opacity: '0',
+        display: 'none'
+      })
 
       emojiModalBtn.disabled = true
     }
@@ -177,6 +182,15 @@ class AppView extends AbstractView {
     contentScreen.classList.remove('messages')
   }
 
+  toggleContactError(hasError = true) {
+    const contactAdvise = this.$('contactAdvise')
+      
+    this.setStyle(contactAdvise, {
+      display: hasError ? 'initial' : 'none',
+      opacity: hasError ? '1' : '0'
+    })
+  }
+
   setAddContactModal(element){
     const { addContactBtn, addContactSection, contactInput } = this.$()
 
@@ -185,8 +199,9 @@ class AppView extends AbstractView {
       return
     }
     
-    contactInput.innerHTML = ''
+    contactInput.value = ''
     addContactSection.classList.remove('overlay-active')
+    this.toggleContactError(false)
   }
 
   loadEmoji(data){

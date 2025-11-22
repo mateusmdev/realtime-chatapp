@@ -75,7 +75,6 @@ body{
           width: 55px;
           height: 55px;
           border: 6px solid variables.$primary-color;
-          box-shadow: 0 0 8px variables.$shadow-color, 0 0 8px variables.$shadow-color inset;
           animation: 2s loading ease-in-out infinite;
           border-radius: 2px;
 
@@ -97,7 +96,6 @@ body{
 
         p {
           color: variables.$primary-color;
-          text-shadow: 0 0 8px variables.$shadow-color;
           font-size: 1.1rem;
         }
       }
@@ -153,7 +151,6 @@ body{
 
           &.active {
             background-color: variables.$primary-color;
-            box-shadow: variables.$shadow-color 0 0 12px 2px;
           }
 
           img {
@@ -226,6 +223,15 @@ body{
             & #insert-contact-btn {
               font-size: 0.9375rem;
               color: variables.$color-text;
+            }
+
+            & #contact-advise {
+              color: variables.$color-danger;
+              position: absolute;
+              top: 67.8%;
+              font-size: 12px;
+              display: none;
+              opacity: 0;
             }
             
             .start {
