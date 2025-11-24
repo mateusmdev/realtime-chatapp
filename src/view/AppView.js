@@ -19,6 +19,7 @@ class AppView extends AbstractView {
       appStyle: 'circle',
       isVideoRecording: false,
       isPhotoAreaVisible: false,
+      isMediaModalOpen: false,
     }
   }
 
@@ -246,31 +247,39 @@ class AppView extends AbstractView {
   }
   
   toggleMediaBar() {
+    const isActionBlocked = !this.getState('isMediaBarOpen') && this.getState('isMediaModalOpen') 
+    
+    if (isActionBlocked) return
+      
     if (this.getState('isEmojiModalOpen') === true) {
       this.closeConcorrentModal()
     }
-
+      
     const mediaBar = document.querySelector('.media-bar')
     const state = this.getState('isMediaBarOpen')
     const toggleMethod = state ? mediaBar.classList.remove : mediaBar.classList.add
     
     toggleMethod.call(mediaBar.classList, 'show-media-bar')
-    this.setState('isMediaBarOpen', !this.getState('isMediaBarOpen'))
+    this.setState('isMediaBarOpen', !state)
   }
-
-  toggleMediaModal(isShowModal = true, mediaType = '') {
+  
+  toggleMediaModal(mediaType = '') {
     const { media } = this.$()
     const modals = [...media.querySelectorAll('.media-type')]
+    const modalState = this.getState('isMediaModalOpen')
+
+    this.setState('isMediaModalOpen', !modalState)
     
-    if (isShowModal) {
+    if (!modalState === true) {
       const selectedModal = modals.find(currentModal => {
         const classes = [...currentModal.classList]
         return classes.includes(mediaType)
       })
 
-      selectedModal.style.display = 'flex'
-      media.classList.add('overlay-active')
-      this.toggleMediaBar(false)
+      if (selectedModal) {
+        selectedModal.style.display = 'flex'
+        media.classList.add('overlay-active')
+      }
       
       return
     }
@@ -304,7 +313,7 @@ class AppView extends AbstractView {
     if (this.getState('isEmojiModalOpen') === true) {
       this.toggleEmojiModal()
       return
-    }     
+    }
   }
 
   async setUserContent(event) {
@@ -429,6 +438,16 @@ class AppView extends AbstractView {
 
     const context = photoArea.getContext('2d')
     context.clearRect(0, 0, photoArea.width, photoArea.height)
+  }
+
+  clearMediaProperties() {
+    const { uploadFile, sentImagePreview, pdfArea } = this.$()
+
+    uploadFile.value = ''
+    sentImagePreview.src = ''
+
+    const context = pdfArea.getContext('2d')
+    context.clearRect(0, 0, pdfArea.width, pdfArea.height)
   }
 }
 

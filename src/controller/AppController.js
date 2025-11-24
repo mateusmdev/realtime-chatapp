@@ -46,7 +46,7 @@ class AppController {
 
     this.#view.addEvent('#backBtn', {
       eventName: 'click',
-      fn: (e) => this.handleMessageItem(e),
+      fn: (e) => this.handleBackBtn(e),
       behavior: {
         preventDefault: true
       }
@@ -322,7 +322,7 @@ class AppController {
     this.#view.toggleMessageScreen(!isCorrectTarget)
     
     if (isCorrectTarget){
-      this.#view.toggleMediaModal(false)
+      this.#view.toggleMediaModal()
     }
   }
 
@@ -331,12 +331,12 @@ class AppController {
     this.#view.toggleMessageScreen(!isCorrectTarget)
     
     if (isCorrectTarget){
-      this.#view.toggleMediaModal(false)
+      this.#view.toggleMediaModal()
     }
   }
 
   handleCloseMediaModal(){
-    this.#view.toggleMediaModal(false)
+    this.#view.toggleMediaModal()
 
     if (this.#view.getState('isVideoRecording')) {
       const camera = Camera.getInstance()
@@ -348,6 +348,7 @@ class AppController {
     this.#view.setState('isPhotoAreaVisible', false)
     this.#view.clearPhotoArea()
     this.#view.togglePhotoArea()
+    this.#view.clearMediaProperties()
   }
 
   async handleMediaButton(e) {
@@ -362,7 +363,7 @@ class AppController {
 
     switch(id) {
       case 'send-contact-btn':
-        this.#view.toggleMediaModal(true, 'list-contact')
+        this.#view.toggleMediaModal('list-contact')
         break
 
       case 'send-document-btn':
@@ -371,7 +372,10 @@ class AppController {
           return
         }
 
-        uploadFile.click()
+        this.handlerUploadFileClick(uploadFile, {
+          idMedia: 'send-document-btn'
+        })
+
         break
 
 
@@ -381,7 +385,7 @@ class AppController {
           return
         }
 
-        this.#view.toggleMediaModal(true, 'take-photo')
+        this.#view.toggleMediaModal('take-photo')
         await this.openCamera()
         break
         
@@ -391,19 +395,23 @@ class AppController {
             return
           }
 
-          uploadFile.click()
+          this.handlerUploadFileClick(uploadFile, {
+            idMedia: 'send-picture-btn'
+          })
+
           break
     }
   }
   
-  async handleChangeInputFile(e) {
+  async handleChangeInputFile(event) {
     const id = this.#view.getState('mediaButtonId')
     const [uploadedFile] = e.target.files
     const { pdfArea, fileArea, sentImagePreview, sentImageName } = this.#view.$()
+    this.#view.clearMediaProperties()
 
-    if (!uploadedFile) alert('Could not open this file.')
+    if (!uploadedFile) return
 
-    const isPdf = uploadedFile.type === 'application/pdf'
+    const isPdf = uploadedFile?.type === 'application/pdf'
     const componentData = {} 
 
     if (uploadedFile.type.startsWith('image/') && id === 'send-document-btn') {
@@ -438,8 +446,8 @@ class AppController {
       await mediaHandler.execute(uploadData)
     }
 
-    await this.#view.toggleMediaModal(true, componentData.modalClass)
-    this.#view.setDefaultMode()
+    await this.#view.toggleMediaModal(componentData.modalClass)
+    this.#view.setDefaultMode(event)
   }
 
   async handleProfileImageFile(e) {
@@ -613,6 +621,29 @@ class AppController {
 
       inputContent.textContent = ''
       inputContent.dispatchEvent(event)
+    }
+  }
+
+  handlerUploadFileClick(inputFile, settings = {}) {
+    const { idMedia } = settings
+
+    const dictionary = {
+      'send-document-btn': '*',
+      'send-picture-btn': 'image/*'
+    }
+
+    const mediaType = dictionary[idMedia]
+    inputFile.setAttribute('accept', mediaType)
+
+    inputFile.click()
+  }
+
+  async handleBackBtn(event) {
+    await this.handleMessageItem(event)
+    const state = this.#view.getState('isMediaModalOpen')
+
+    if (state === true) {
+      this.handleCloseMediaModal(event)
     }
   }
 }
