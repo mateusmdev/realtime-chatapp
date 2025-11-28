@@ -1,4 +1,5 @@
 import NotFoundException from "./../exception/NotFoundException"
+import InvalidStateException from "./../exception/InvalidStateException"
 
 class AbstractView {
   #el = new Map()
@@ -52,7 +53,7 @@ class AbstractView {
 
     const selected = names.map(name => {
       if (!(name in this.#state)) {
-        throw new Error(`The state "${name}" does not exist.`)
+        throw new InvalidStateException(`State key '${name}' does not exist in the view's state object.`)
       }
       return this.#state[name]
     })
@@ -61,9 +62,10 @@ class AbstractView {
   }
 
   setState(name, value) {
-    if (!name) throw new Error(`Invalid state name: "${name}"`)
+    if (!name) throw new InvalidStateException(`Cannot set state: State key 'name' is required but was not provided or is falsy.`)
+    
     if (!(name in this.#state)) {
-      throw new Error(`State "${name}" does not exist.`)
+      throw new InvalidStateException(`State key '${name}' does not exist in the view's state object.`)
     }
 
     this.#state[name] = value
@@ -78,13 +80,13 @@ class AbstractView {
       const [currentName] = names
       const element = this.#el.get(currentName) 
   
-      if (!element) throw new Error(`Element "${currentName}" does not exist.`)
+      if (!element) throw new NotFoundException(`Element with name '${currentName}' was not found in the view's registered elements (loaded by ID).`)
   
       return element
     }
   
     const selected = names.map(name => {
-      if (!this.#el.has(name)) throw new Error(`Element "${name}" does not exist.`)
+      if (!this.#el.has(name)) throw new NotFoundException(`Element with name '${currentName}' was not found in the view's registered elements (loaded by ID).`)
       return this.#el.get(name)
     })
   
@@ -97,7 +99,7 @@ class AbstractView {
     const element = this.#defineEventItems(selectedItem)
     const splitedNames = eventName.split(' ')
 
-    if (!element) throw new NotFoundException()
+    if (!element) throw new NotFoundException(`Element or selector provided doesn't exist or it is null/undefined: '${element}'.`)
 
     splitedNames.forEach(name => {
       element.addEventListener(name, e => {
@@ -113,11 +115,10 @@ class AbstractView {
   addEventAll(selectedItems, eventParams) {
     const elements = this.#defineEventItems(selectedItems, true)
 
-    if (!elements || elements.length === 0) throw new NotFoundException()
+    if (!elements || elements.length === 0) throw new NotFoundException(`No elements were found for the selector: '${selectedItems}'.`)
     
     elements.forEach(element => {
       this.addEvent(element, eventParams)
-
     })
   }
 

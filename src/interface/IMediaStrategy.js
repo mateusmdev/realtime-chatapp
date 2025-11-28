@@ -1,6 +1,8 @@
+import NotImplementedException from "../exception/NotImplementedException"
+
 class IMediaStrategy {
   execute() {
-    throw new Error('Method Not Implemented')
+    throw new NotImplementedException()
   }
 }
 

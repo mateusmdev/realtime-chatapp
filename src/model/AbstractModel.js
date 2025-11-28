@@ -1,4 +1,7 @@
 import Firestore from "./../firebase/Firestore"
+import PrimaryKeyException from "../exception/PrimaryKeyException"
+import InvalidArgumentException from "../exception/InvalidArgumentException"
+import ProtectedAttributeException from "../exception/ProtectedAttributeException"
 
 class AbstractModel {
     #data = {}
@@ -16,7 +19,7 @@ class AbstractModel {
     #validatePrimaryKey() {
         const primaryKeyValue = this.#data[this.#primaryKeyProp]
         if (!primaryKeyValue) {
-            throw new Error(`A chave primária ('${this.#primaryKeyProp}') deve ser definida para esta operação.`)
+            throw new PrimaryKeyException(`The primary key ('${property}') is required for this operation.`)
         }
         return primaryKeyValue
     }
@@ -27,7 +30,7 @@ class AbstractModel {
       
       const primaryKeyValue = userData[this.#primaryKeyProp]
       if (!primaryKeyValue) {
-          throw new Error(`A chave primária ('${this.#primaryKeyProp}') é necessária para buscar o documento.`)
+          throw new PrimaryKeyException(`A chave primária ('${this.#primaryKeyProp}') é necessária para buscar o documento.`)
       }
 
       const query = await this.#firestore.findById(documentPath, this.#data[this.#primaryKeyProp])
@@ -64,7 +67,7 @@ class AbstractModel {
 
     async onSnapshot(callback) {
       if (!callback || typeof callback !== 'function') {
-         throw new Error(`Você deve passar uma função de callback ao chamar 'onSnapshot'`)
+         throw new InvalidArgumentException(`You must pass a callback function when calling 'onSnapshot'`)
       }
 
       const documentId = this.#validatePrimaryKey()
@@ -104,7 +107,7 @@ class AbstractModel {
 
       const selectedAttr = dictionary[name]
 
-      if (!selectedAttr) throw new Error(`Este atributo ${name} não existe ou não pode ser acessado.`)
+      if (!selectedAttr) throw new InvalidArgumentException(`This attribute '${name}' does not exist or cannot be accessed.`)
 
       return selectedAttr
     }
@@ -112,12 +115,12 @@ class AbstractModel {
     getAttribute(name) {
       const attr = this.#data[name]
 
-      if (attr == null) throw Error('Atributo não encontrado.')
+      if (attr == null) throw InvalidArgumentException(`Attribute '${name}' not found.`)
       return attr
     }
 
     setAttribute(name, value) {
-      if (name === 'id' || name === this.#primaryKeyProp) throw Error('Não é permitido alterar este atributo.')
+      if (name === 'id' || name === this.#primaryKeyProp) throw ProtectedAttributeException(`Modification of '${name}' attribute is not allowed.`)
 
       this.#data[name] = value
     }

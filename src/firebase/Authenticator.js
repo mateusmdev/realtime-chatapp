@@ -1,5 +1,6 @@
 import { getAuth, GoogleAuthProvider, signInWithPopup } from 'firebase/auth'
 import firebaseConfig from './firebaseConfig'
+import AuthenticationException from '../exception/AuthenticationException'
 
 class Authenticator {
   #provider = new GoogleAuthProvider()
@@ -10,7 +11,7 @@ class Authenticator {
     const credential = GoogleAuthProvider.credentialFromResult(result)
     const token = credential.accessToken
 
-    if (!result || !token) throw new Error('')
+    if (!result || !token) throw new AuthenticationException('Failed to obtain access token')
 
     return token     
   }
