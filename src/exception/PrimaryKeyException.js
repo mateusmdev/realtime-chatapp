@@ -1,5 +1,5 @@
-class NotFoundException extends Error {
-  constructor(message = `Element wasn't found in the DOM.`){
+class PrimaryKeyException extends Error {
+  constructor(message = `The primary key is required for this operation.`){
     super(message)
     this.name = this.constructor.name
     
@@ -9,4 +9,4 @@ class NotFoundException extends Error {
   }
 }
 
-export default NotFoundException
+export default PrimaryKeyException

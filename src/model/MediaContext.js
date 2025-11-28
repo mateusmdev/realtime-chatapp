@@ -1,16 +1,16 @@
 class MediaContext {
-  strategy = null
+  #strategy = null
 
   constructor(strategy) {
-    this.strategy = strategy
+    this.#strategy = strategy
   }
   
   execute(data) {
-    return this.strategy.execute(data)
+    return this.#strategy.execute(data)
   }
 
-  setStrate(strategy) {
-    this.strategy = strategy
+  setStrategy(strategy) {
+    this.#strategy = strategy
   }
 }
 

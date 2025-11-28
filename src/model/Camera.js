@@ -1,18 +1,14 @@
 class Camera {
 
-  stream = null
-  static _instance = null
-
-  constructor() {
-
-  }
+  #stream = null
+  static #instance = null
 
   static getInstance(mediaId) {
-    if (Camera._instance === null) {
-        Camera._instance = new Camera()
+    if (Camera.#instance === null) {
+        Camera.#instance = new Camera()
     }
 
-    return Camera._instance
+    return Camera.#instance
   }
 
   isSupported() {
@@ -24,8 +20,8 @@ class Camera {
   }
   
   async getStream() {
-    this.stream = await navigator.mediaDevices.getUserMedia({ video: true })
-    return this.stream
+    this.#stream = await navigator.mediaDevices.getUserMedia({ video: true })
+    return this.#stream
   }
 
   takePhoto(settings) {
@@ -41,12 +37,12 @@ class Camera {
   }
 
   stop() {
-    if (this.stream !== null) {
-      this.stream.getTracks().forEach(track => {
+    if (this.#stream !== null) {
+      this.#stream.getTracks().forEach(track => {
         track.stop()
       })
 
-      this.stream = null
+      this.#stream = null
     }
   }
 }

@@ -2,11 +2,11 @@ const KEY = import.meta.env.VITE_STORAGE_KEY
 
 class LocalStorage{
 
-  static getAcessToken(){
+  static getAccessToken(){
     return localStorage.getItem(KEY)
   }
 
-  static setAcessToken(data){
+  static setAccessToken(data){
     localStorage.setItem(KEY, data)
   }
 
