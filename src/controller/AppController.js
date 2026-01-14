@@ -405,7 +405,7 @@ class AppController {
   
   async handleChangeInputFile(event) {
     const id = this.#view.getState('mediaButtonId')
-    const [uploadedFile] = e.target.files
+    const [uploadedFile] = event.target.files
     const { pdfArea, fileArea, sentImagePreview, sentImageName } = this.#view.$()
     this.#view.clearMediaProperties()
 
