@@ -235,8 +235,11 @@ class AppController {
     const preferences = JSON.parse(LocalStorage.getUserPreferences()) || {}
     const params = new URLSearchParams(window.location.search)
     const mode = params.get('mode')
+    const isPreview = mode === 'preview' ? true : false 
 
-    if (mode !== 'preview') {
+    this.#view.setState('isPreviewMode', isPreview)
+
+    if (!isPreview) {
       await this.getUserData()
     }
 
@@ -354,6 +357,7 @@ class AppController {
   async handleMediaButton(e) {
     const { id } = e.currentTarget
     const { uploadFile } = this.#view.$()
+    console.log('clicou')
 
     this.#view.setState('mediaButtonId', id)
 
@@ -385,7 +389,7 @@ class AppController {
           return
         }
 
-        this.#view.toggleMediaModal('take-photo')
+        this.#view.setDefaultMode(e)
         await this.openCamera()
         break
         
@@ -547,11 +551,13 @@ class AppController {
 
   async openCamera() {
     const camera = Camera.getInstance()
-
+    
     if (!camera.isSupported()) {
       alert("Your browser does not support camera access or the page is not using HTTPS.")
       return
     }
+    
+    this.#view.toggleMediaModal('take-photo')
 
     try {
       if (!this.#view.getState('isVideoRecording')) {

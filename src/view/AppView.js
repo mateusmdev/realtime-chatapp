@@ -20,6 +20,7 @@ class AppView extends AbstractView {
       isVideoRecording: false,
       isPhotoAreaVisible: false,
       isMediaModalOpen: false,
+      isPreviewMode: false,
     }
   }
 
@@ -88,10 +89,13 @@ class AppView extends AbstractView {
 
   initLayout(preferences = {}) {
     const [blockMediaState, isIconListBlock] = this.getState('blockMedia', 'isIconListBlock')
+    const isPreviewMode = this.getState('isPreviewMode')
 
-    if (blockMediaState === true) {
-      const { takePhotoBtn, sendPictureBtn, sendDocumentBtn } = this.$()
-
+    if (blockMediaState === true || isPreviewMode === true) {
+      console.log('aqui')
+      console.log('preview: ', isPreviewMode)
+      console.log('aqui')
+      const { takePhotoBtn, sendPictureBtn, sendDocumentBtn, userAboutContent, userAbout } = this.$()
       const blockedElements = [takePhotoBtn, sendPictureBtn, sendDocumentBtn];
       
       blockedElements.forEach(element => {
@@ -102,7 +106,17 @@ class AppView extends AbstractView {
 
         element.disabled = true
       })
+
+      this.setStyle(userAbout, {
+        opacity: '0',
+        cursor: 'not-allowed',
+        visibility: 'hidden',
+        display: 'none'
+      })
+
+      userAboutContent.setAttribute('contenteditable', false)
     }
+
 
     if (isIconListBlock === true) {
       const { emojiModalBtn } = this.$()
@@ -317,6 +331,9 @@ class AppView extends AbstractView {
   }
 
   async setUserContent(event) {
+    const [isPreviewMode, isBlockMedia] = this.getState('isPreviewMode', 'blockMedia')
+    if (isPreviewMode|| isBlockMedia) return
+
     if (event.type === 'keypress' && event.key === 'Enter') {
       event.preventDefault()
       event.target.blur()
