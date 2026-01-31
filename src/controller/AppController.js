@@ -5,6 +5,7 @@ import User from '../model/User'
 import MediaContext from './../model/MediaContext'
 import MediaFactory from '../model/MediaFactory'
 import Camera from '../model/Camera'
+import ProfileCache from '../utils/ProfileCache'
 
 const TOKEN_VALIDATOR = import.meta.env.VITE_TOKEN_VALIDATOR
 const ICON_KEY = import.meta.env.VITE_ICON_KEY
@@ -235,8 +236,11 @@ class AppController {
     const preferences = JSON.parse(LocalStorage.getUserPreferences()) || {}
     const params = new URLSearchParams(window.location.search)
     const mode = params.get('mode')
+    const isPreview = mode === 'preview' ? true : false 
 
-    if (mode !== 'preview') {
+    this.#view.setState('isPreviewMode', isPreview)
+
+    if (!isPreview) {
       await this.getUserData()
     }
 
@@ -267,7 +271,8 @@ class AppController {
       });
 
       await user.findOrCreate()
-      const contacts = await user.getContacts()
+      const cacheObject = ProfileCache.get()
+      const contacts = await user.getContactsFromCache(!cacheObject?.isCached)
       
       await user.onSnapshot(() => {
         LocalStorage.setUserData(JSON.stringify(user.data))
@@ -309,6 +314,7 @@ class AppController {
 
   signOut(){
     LocalStorage.clearSession()
+    ProfileCache.clear()
     window.location.href = '/'
   }
 
@@ -354,6 +360,7 @@ class AppController {
   async handleMediaButton(e) {
     const { id } = e.currentTarget
     const { uploadFile } = this.#view.$()
+    console.log('clicou')
 
     this.#view.setState('mediaButtonId', id)
 
@@ -385,7 +392,7 @@ class AppController {
           return
         }
 
-        this.#view.toggleMediaModal('take-photo')
+        this.#view.setDefaultMode(e)
         await this.openCamera()
         break
         
@@ -405,7 +412,7 @@ class AppController {
   
   async handleChangeInputFile(event) {
     const id = this.#view.getState('mediaButtonId')
-    const [uploadedFile] = e.target.files
+    const [uploadedFile] = event.target.files
     const { pdfArea, fileArea, sentImagePreview, sentImageName } = this.#view.$()
     this.#view.clearMediaProperties()
 
@@ -515,7 +522,6 @@ class AppController {
           email : result.email,
           profilePicture: result.profilePicture,
           picture: result.picture,
-          about: result.about,
           name: result.name
         })
 
@@ -547,11 +553,13 @@ class AppController {
 
   async openCamera() {
     const camera = Camera.getInstance()
-
+    
     if (!camera.isSupported()) {
       alert("Your browser does not support camera access or the page is not using HTTPS.")
       return
     }
+    
+    this.#view.toggleMediaModal('take-photo')
 
     try {
       if (!this.#view.getState('isVideoRecording')) {

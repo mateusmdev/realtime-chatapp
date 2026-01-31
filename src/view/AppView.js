@@ -20,6 +20,7 @@ class AppView extends AbstractView {
       isVideoRecording: false,
       isPhotoAreaVisible: false,
       isMediaModalOpen: false,
+      isPreviewMode: false,
     }
   }
 
@@ -88,10 +89,13 @@ class AppView extends AbstractView {
 
   initLayout(preferences = {}) {
     const [blockMediaState, isIconListBlock] = this.getState('blockMedia', 'isIconListBlock')
+    const isPreviewMode = this.getState('isPreviewMode')
 
-    if (blockMediaState === true) {
-      const { takePhotoBtn, sendPictureBtn, sendDocumentBtn } = this.$()
-
+    if (blockMediaState === true || isPreviewMode === true) {
+      console.log('aqui')
+      console.log('preview: ', isPreviewMode)
+      console.log('aqui')
+      const { takePhotoBtn, sendPictureBtn, sendDocumentBtn, userAboutContent, userAbout } = this.$()
       const blockedElements = [takePhotoBtn, sendPictureBtn, sendDocumentBtn];
       
       blockedElements.forEach(element => {
@@ -102,7 +106,17 @@ class AppView extends AbstractView {
 
         element.disabled = true
       })
+
+      this.setStyle(userAbout, {
+        opacity: '0',
+        cursor: 'not-allowed',
+        visibility: 'hidden',
+        display: 'none'
+      })
+
+      userAboutContent.setAttribute('contenteditable', false)
     }
+
 
     if (isIconListBlock === true) {
       const { emojiModalBtn } = this.$()
@@ -317,6 +331,9 @@ class AppView extends AbstractView {
   }
 
   async setUserContent(event) {
+    const [isPreviewMode, isBlockMedia] = this.getState('isPreviewMode', 'blockMedia')
+    if (isPreviewMode|| isBlockMedia) return
+
     if (event.type === 'keypress' && event.key === 'Enter') {
       event.preventDefault()
       event.target.blur()
@@ -349,6 +366,7 @@ class AppView extends AbstractView {
   }
 
   async toggleMessagePlaceholder(event) {
+    this.saveCursor()
     const { inputContent, placeholder, microphoneBtn, sendBtn } = this.$()
     const message = inputContent.innerText.trim()
 
@@ -364,36 +382,58 @@ class AppView extends AbstractView {
   }
 
   async addEmoji(event) {
-    if (event.target !== event.currentTarget) {
-      const { inputContent } = this.$()
-      const emoji = event.target
-      const textNode = document.createTextNode(emoji.innerText)
-
-      if (!this.getState('range')) {
-          inputContent.focus();
-          return;
-      }
-
-      const selection = window.getSelection()
-      selection.removeAllRanges();
-      selection.addRange(this.getState('range'))
-
-      const range = selection.getRangeAt(0)
-      range.deleteContents()
-
-      range.insertNode(textNode)
-      range.setStartAfter(textNode)
-      range.collapse(true)
-
-      this.setState('range', range.cloneRange())
+    if (event.target === event.currentTarget) return
+  
+    const { inputContent } = this.$()
+    const emoji = event.target.innerText
+    const textNode = document.createTextNode(emoji)
+  
+    let range = this.getState('range')
+  
+    if (!range) {
+      inputContent.focus()
+  
+      range = document.createRange()
+      range.selectNodeContents(inputContent)
+      range.collapse(false) // cursor no final
+  
+      this.setState('range', range)
     }
+  
+    const selection = window.getSelection()
+    selection.removeAllRanges()
+    selection.addRange(range)
+  
+    range.deleteContents()
+    range.insertNode(textNode)
+  
+    range.setStartAfter(textNode)
+    range.collapse(true)
+  
+    inputContent.normalize()
+  
+    this.setState('range', range.cloneRange())
+    this.toggleMessagePlaceholder()
   }
 
   async setSelection(event) {
+    this.saveCursor()
     const selection = window.getSelection();
     if (selection.rangeCount > 0) {
         this.setState('range', selection.getRangeAt(0).cloneRange())
     }
+  }
+
+  saveCursor() {
+    const selection = window.getSelection()
+    if (!selection || selection.rangeCount === 0) return
+
+    const range = selection.getRangeAt(0)
+    const { inputContent } = this.$()
+
+    if (!inputContent.contains(range.startContainer)) return
+
+    this.setState('range', range.cloneRange())
   }
 
   setAppStyle() {

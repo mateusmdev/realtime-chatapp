@@ -155,9 +155,13 @@
       .image-preview {
 
         #preview-content {
+          height: 100%;
+          display: flex;
+          justify-content: center;
+          align-items: center;
 
           .image-wrapper {
-            max-width: 80%;
+            max-width: clamp(46%, 80%, 80%);
             display: flex;
             flex-direction: column;
             align-items: center;
