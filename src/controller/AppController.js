@@ -5,6 +5,7 @@ import User from '../model/User'
 import MediaContext from './../model/MediaContext'
 import MediaFactory from '../model/MediaFactory'
 import Camera from '../model/Camera'
+import ProfileCache from '../utils/ProfileCache'
 
 const TOKEN_VALIDATOR = import.meta.env.VITE_TOKEN_VALIDATOR
 const ICON_KEY = import.meta.env.VITE_ICON_KEY
@@ -270,7 +271,8 @@ class AppController {
       });
 
       await user.findOrCreate()
-      const contacts = await user.getContacts()
+      const cacheObject = ProfileCache.get()
+      const contacts = await user.getContactsFromCache(!cacheObject?.isCached)
       
       await user.onSnapshot(() => {
         LocalStorage.setUserData(JSON.stringify(user.data))
@@ -312,6 +314,7 @@ class AppController {
 
   signOut(){
     LocalStorage.clearSession()
+    ProfileCache.clear()
     window.location.href = '/'
   }
 
@@ -519,7 +522,6 @@ class AppController {
           email : result.email,
           profilePicture: result.profilePicture,
           picture: result.picture,
-          about: result.about,
           name: result.name
         })
 
