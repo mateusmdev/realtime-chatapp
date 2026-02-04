@@ -13,7 +13,7 @@
 
 ## Overview
 
-Preview: <a href="https://myrealtimechat.vercel.app/app">https://myrealtimechat.vercel.app/app</a>
+Preview: <a href="https://myrealtimechat.vercel.app/app?mode=preview">https://myrealtimechat.vercel.app/app?mode=preview</a>
 
 Uma aplicação web de conversação em tempo real, semelhante ao WhatsApp, Telegram ou Discord, com um design próprio e diversas features. Além da conversa por texto, permite o envio de anexos como imagens, arquivos, contatos, pre-visualização de arquivos pdf, mas também aúdios e o uso de emojis. O projeto também tem recursos de autenticação com o Google, adição e gerenciamente de diversos contatos e alteração da imagem de perfil e adaptabilidade (responsibidade) em diferentes dispositivos, tanto em aparelhos mobile quanto desktop. Toda a resposta e o estado da aplicação tem feedback em tempo real, como um chat deve ser.
 
