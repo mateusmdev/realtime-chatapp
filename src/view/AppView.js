@@ -21,6 +21,7 @@ class AppView extends AbstractView {
       isPhotoAreaVisible: false,
       isMediaModalOpen: false,
       isPreviewMode: false,
+      tempRecordedInterval: null
     }
   }
 
@@ -488,6 +489,21 @@ class AppView extends AbstractView {
 
     const context = pdfArea.getContext('2d')
     context.clearRect(0, 0, pdfArea.width, pdfArea.height)
+  }
+
+  toggleSendAudioSection(open = false) {
+    const { sendAudioWrapper } = this.$()
+
+    if (open === false) {
+      sendAudioWrapper.classList.add('hidden')
+      return
+    }
+    
+    sendAudioWrapper.classList.remove('hidden')
+  }
+
+  resetAudioProperties() {
+    this.toggleSendAudioSection(open = false)
   }
 }
 

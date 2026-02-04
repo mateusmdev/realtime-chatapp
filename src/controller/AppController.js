@@ -222,6 +222,30 @@ class AppController {
         preventDefault: true,
       }
     })
+
+    this.#view.addEvent('#microphoneBtn', {
+      eventName: 'click',
+      fn: async (event) => this.startRecordMicrophoneAudio(),
+      behavior: {
+        preventDefault: true,
+      }
+    })
+
+    this.#view.addEvent('#okRecordingBtn', {
+      eventName: 'click',
+      fn: async (event) => this.handleSendAudio(),
+      behavior: {
+        preventDefault: true,
+      }
+    })
+
+    this.#view.addEvent('#cancelRecordingBtn', {
+      eventName: 'click',
+      fn: async (event) => this.handleStopRecordAudio(event),
+      behavior: {
+        preventDefault: true,
+      }
+    })
   }
 
   async initApp(){
@@ -653,6 +677,38 @@ class AppController {
     if (state === true) {
       this.handleCloseMediaModal(event)
     }
+  }
+
+  async startRecordMicrophoneAudio() {
+    this.#view.toggleSendAudioSection(true)
+    const start = Date.now()
+    const { microphoneTimer } = this.#view.$()
+
+    const recordedTime = setInterval(() => {
+      const time = Date.now() - start
+
+      const seconds = parseInt((time / 1000) % 60)
+      const minutes = parseInt((time / (1000 * 60) % 60))
+
+      microphoneTimer.innerText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+    }, 100)
+
+    this.#view.setState('tempRecordedInterval', recordedTime)
+  }
+
+  async handleStopRecordAudio(event) {
+    const interval = this.#view.getState('tempRecordedInterval')
+    clearInterval(interval)
+
+    this.#view.resetAudioProperties()
+  }
+
+  async handleSendAudio(event) {
+    console.log('Audio enviado.')
+    const interval = this.#view.getState('tempRecordedInterval')
+    clearInterval(interval)
+    
+    this.#view.resetAudioProperties()
   }
 }
 

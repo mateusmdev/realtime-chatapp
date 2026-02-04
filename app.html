@@ -496,12 +496,12 @@
                 </ol>
               </div>
           </div>
-          <div>
+          <div class="input-section">
             <div class="icon-container">
               <ul id="emoji-list"></ul>
             </div>
             <div class="input-wrapper">
-              <div id="input">
+              <div id="input" class="customized-input">
                 <div id="input-content" class="input-content" contenteditable="true"></div>
                 <p id="placeholder" class="placeholder">Digite sua mensagem</p>
               </div>
@@ -514,6 +514,25 @@
                 </a>
                 <a href="#" id="send-btn" class="hidden">
                   <img src="./src/assets/send-icon.svg" alt="a 'send' icon">
+                </a>
+              </div>
+            </div>
+            <div id="send-audio-wrapper" class="send-audio-wrapper hidden">
+              <div class="customized-input">
+                <div class="input-content"></div>
+                <p id="recording-count" class="placeholder">
+                  <img src="./src/assets/recording-icon.svg" alt="">
+                  <span id="microphone-timer">
+                    0:00
+                  </span>
+                </p>
+              </div>
+              <div class="message-actions">
+                <a href="#" class="emoji" id="cancel-recording-btn">
+                  <img src="./src/assets/cancel-recording-icon.svg" alt="a .svg cancel-recording icon">
+                </a>
+                <a href="#" id="ok-recording-btn">
+                  <img src="./src/assets/ok-recording.svg" alt="a .svg ok-recording icon">
                 </a>
               </div>
             </div>
