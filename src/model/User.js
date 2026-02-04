@@ -1,54 +1,57 @@
-import Firestore from "./../firebase/Firestore"
+import ProfileCache from "../utils/ProfileCache"
+import AbstractModel from "./AbstractModel"
 
-class User{
-  _path = 'user'
-  _firestore = Firestore.instance
-
+class User extends AbstractModel {
+  
   constructor(data = {}){
-    this._data = data
+    super(data, 'user', 'email')
   }
 
-  async getDocuments(path){
-    try {
-      const docs = this._firestore.findDocs(path, whereParams = [])
-      return docs
-    } catch (error) {
-      throw error
+  async saveContact(contactData) {
+    const documentPath = `${this.getModelAttr('path')}/${this.data[this.getModelAttr('primaryKeyProp')]}/contacts`
+    const documentRef = await this.getModelAttr('firestore').save(contactData, documentPath, contactData[this.getModelAttr('primaryKeyProp')])
+    
+    return documentRef
+  }
+
+  async getContacts() {
+    const documentPath = `${this.getModelAttr('path')}/${this.data[this.getModelAttr('primaryKeyProp')]}/contacts`
+    const query = await this.getModelAttr('firestore').findDocs(documentPath)
+    const docs = query.docs ?? []
+
+    if (docs.length === 0) return []
+
+    const contacts = docs.map(doc => doc.data())
+    return contacts
+  }
+
+  async getContactsFromCache(updateCache = false) {
+    const contacts = await this.getContacts()
+    const cacheObject = ProfileCache.get()
+    const cache = cacheObject?.cache || []
+
+    if (updateCache === false && cache.length === contacts.length) {
+      return cache
     }
-  }
-
-  async findOrCreate(){
-      const documentPath = `${this._path}`
-      const whereCondition = ['id', '==', this._data.id]
-      const query = await this._firestore.findDocs(documentPath, whereCondition)
-      const docs = await query.docs
-      const isExist = docs && docs.length > 0
-
-      if (isExist){
-        const [document] = docs
-        return document.data() 
-      }
-
-      const result = await this._firestore.save(this._data, this._path)
-      return result
+    
+    const enrichedContacts = await Promise.all(
+      contacts.map(async contact => {
+        const user = new User({ email: contact.email })
+        const freshData = await user.getDocument()
+        
+        return {
+          ...contact,
+          about: freshData?.about ?? ''
+        }
+      })
+    )
+    
+    ProfileCache.set(enrichedContacts)
+    return enrichedContacts
   }
 
   async delete(){
 
-  }
-
-  get data(){
-    return this._data
-  }
-
-  getAttribute(name){
-    return this._data[name]
-  }
-
-  setAttribute(name, value){
-    if (name === 'id') throw Error('Não é permitido alterar essa valor')
-
-    this._data[name] = value
   }
 
 }

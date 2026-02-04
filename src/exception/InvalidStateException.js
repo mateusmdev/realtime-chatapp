@@ -1,5 +1,5 @@
-class NotFoundException extends Error {
-  constructor(message = `Element wasn't found in the DOM.`){
+class InvalidStateException extends Error {
+  constructor(message = `State is invalid or does not exist.`){
     super(message)
     this.name = this.constructor.name
     
@@ -9,4 +9,4 @@ class NotFoundException extends Error {
   }
 }
 
-export default NotFoundException
+export default InvalidStateException

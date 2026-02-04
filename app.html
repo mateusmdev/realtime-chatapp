@@ -17,7 +17,7 @@
     </div>
     <header>
       <div class="user-picture-wrapper">
-        <img class="profile-picture" src="https://img.freepik.com/premium-vector/man-avatar-profile-picture-isolated-background-avatar-profile-picture-man_1293239-4870.jpg" alt="profile picture">
+        <img class="profile-picture user-picture" src="https://img.freepik.com/premium-vector/man-avatar-profile-picture-isolated-background-avatar-profile-picture-man_1293239-4870.jpg" alt="profile picture">
         <div class="glass"></div>
       </div>
 
@@ -51,19 +51,38 @@
       <div class="overlay-layer">
         <div id="media">
           <div class="top-bar">
+            <a href="#" id="repeat-take-photo" title="Repeat Take Photo">
+              <img src="./src/assets/refresh-icon.svg" alt="refresh icon">
+              <div>Take again</div>
+            </a>
             <a href="#" id="close-media-modal-btn" title="Close Modal">
               <img src="./src/assets/cancel.svg" alt="close media modal">
             </a>
           </div>
           <div class="media-content">
-            <!-- <div class="screenshot media-type">
+            <div class="take-photo media-type">
               <div class="box-components">
                 <div class="screen-wrapper">
-                  <canvas id="screenshot-area"></canvas>
+                  <canvas id="photo-area"></canvas>
+                  <video id="video-area"></video>
                 </div>
-                <a href="#" id="take-screenshot-btn">Take Screenshot</a>
+                <div>
+                  <a href="#" id="take-photo-action-btn">Take Photo</a>
+                  <button id="send-photo-action-btn">
+                    <img src="./src/assets/send-icon.svg" alt="send icon">
+                  </button>
+                </div>
               </div>
-            </div> -->
+            </div>
+            
+            <div class="image-preview media-type">
+              <div id="preview-content">
+                <div class="image-wrapper">
+                  <img src="./" alt="An image preview sent by user" id="sent-image-preview">
+                  <p id="sent-image-name"></p>
+                </div>
+              </div>
+            </div>
 
             <div class="pdf-preview media-type">
               <div id="pdf">
@@ -170,27 +189,47 @@
             <div class="setting-container">
               <div class="change-image">
                 <div class="img-wrapper">
-                  <img src="https://img.freepik.com/premium-vector/man-avatar-profile-picture-isolated-background-avatar-profile-picture-man_1293239-4870.jpg" alt="user profile picture" class="profile-picture">
+                  <img src="https://img.freepik.com/premium-vector/man-avatar-profile-picture-isolated-background-avatar-profile-picture-man_1293239-4870.jpg" alt="user profile picture" class="profile-picture user-picture">
                 </div>
                 <div id="btn-container">
                   <a href="#" id="change-img-btn">
                     <img src="./src/assets/camera-icon.svg" alt="camera icon">
                   </a>
+                  <input id="profile-image-file" type="file" accept="image/*">
                 </div>
               </div>
               <div class="account">
                 <div class="user-data">
                   <div class="data" id="user-name">
                     <strong>Name</strong>
-                    <p>John Due</p>
+                    <p 
+                      id="user-name-content"
+                      contenteditable="true"
+                    >
+                      John Due
+                    </p>
                   </div>
                   <div class="data" id="user-about">
                     <strong>Sobre</strong>
-                    <p>I am a programmer</p>
+                    <p 
+                      id="user-about-content"
+                      contenteditable="true"
+                    >
+                      I am a programmer
+                    </p>
                   </div>
                   <div class="data" id="user-email">
                     <strong>E-mail</strong>
-                    <p>john_due@gmail.com</p>
+                    <p id="user-email-content">john_due@gmail.com</p>
+                  </div>
+                  <div class="data" id="user-style">
+                    <label for="switch-style">
+                      <strong>App Style</strong>
+                    </label>
+                    <div class="custom-input" id="app-style-toggle">
+                      <div class="marking"></div>
+                      <button class="custom-toggle-button"></button>
+                    </div>
                   </div>
                 </div>
                 <a href="#" id="delete-account-btn">
@@ -212,6 +251,7 @@
               </div>
               <div class="body">
                 <input type="text" placeholder="Email do contato" id="contact-input">
+                <p id="contact-advise">O contato informado não foi encontrado.</p>
                 <a id="insert-contact-btn" href="#">Adicionar</a>
               </div>
             </div>
@@ -238,7 +278,7 @@
                 <img src="https://img.freepik.com/premium-vector/man-avatar-profile-picture-isolated-background-avatar-profile-picture-man_1293239-4870.jpg" alt="contact profile image image" class="profile-picture">
               </div>
               <div class="contact-data">
-                <strong>John Due</strong>
+                <strong class="name">John Due</strong>
                 <p>Online</p>
               </div>
             </div>
@@ -257,7 +297,7 @@
           </header>
           <ul class="media-bar" id="media-bar">
             <li>
-              <a href="#" id="take-screenshot-btn">
+              <a href="#" id="take-photo-btn">
                 <img src="./src/assets/camera-action-icon.svg" alt="camera icon" title="Tirar Foto">
               </a>
             </li>
@@ -456,21 +496,43 @@
                 </ol>
               </div>
           </div>
-          <div>
+          <div class="input-section">
             <div class="icon-container">
               <ul id="emoji-list"></ul>
             </div>
             <div class="input-wrapper">
-              <div id="input">
-                <div class="input-content" contenteditable="true"></div>
-                <p class="placeholder">Digite sua mensagem</p>
+              <div id="input" class="customized-input">
+                <div id="input-content" class="input-content" contenteditable="true"></div>
+                <p id="placeholder" class="placeholder">Digite sua mensagem</p>
               </div>
               <div class="message-actions">
                 <a href="#" class="emoji" id="emoji-modal-btn">
                   <img src="./src/assets/emoji.svg" alt="a .svg emoji icon">
                 </a>
-                <a href="#">
+                <a href="#" id="microphone-btn">
                   <img src="./src/assets/mic.svg" alt="a .svg microphone icon">
+                </a>
+                <a href="#" id="send-btn" class="hidden">
+                  <img src="./src/assets/send-icon.svg" alt="a 'send' icon">
+                </a>
+              </div>
+            </div>
+            <div id="send-audio-wrapper" class="send-audio-wrapper hidden">
+              <div class="customized-input">
+                <div class="input-content"></div>
+                <p id="recording-count" class="placeholder">
+                  <img src="./src/assets/recording-icon.svg" alt="">
+                  <span id="microphone-timer">
+                    0:00
+                  </span>
+                </p>
+              </div>
+              <div class="message-actions">
+                <a href="#" class="emoji" id="cancel-recording-btn">
+                  <img src="./src/assets/cancel-recording-icon.svg" alt="a .svg cancel-recording icon">
+                </a>
+                <a href="#" id="ok-recording-btn">
+                  <img src="./src/assets/ok-recording.svg" alt="a .svg ok-recording icon">
                 </a>
               </div>
             </div>
