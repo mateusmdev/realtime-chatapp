@@ -41,9 +41,10 @@ class Firestore{
         }
     }
 
-    async save(data, collectionName, documentId){
+    async save(data, path, documentId){
         try {
-            const collectionRef = collection(this.#db, collectionName)
+            const segments = path.split('/').filter(segment => segment.length > 0)
+            const collectionRef = collection(this.#db, ...segments)
             
             if (documentId) {
                 const documentRef = doc(collectionRef, documentId)
@@ -62,10 +63,16 @@ class Firestore{
         }
     }
 
-    async onSnapshot(collectionName, documentId, callback) {
-        const documentRef = doc(this.#db, collectionName, documentId)
-        const listener = onSnapshot(documentRef, callback)
-        return listener
+    onSnapshot(path, documentId, callback, constraints = []) {
+        if (documentId) {
+            const documentRef = doc(this.#db, path, documentId)
+            return onSnapshot(documentRef, callback)
+        }
+
+        const segments = path.split('/').filter(segment => segment.length > 0)
+        const collectionRef = collection(this.#db, ...segments)
+        const queryRef = query(collectionRef, ...constraints)
+        return onSnapshot(queryRef, callback)
     }
 
     async update(){

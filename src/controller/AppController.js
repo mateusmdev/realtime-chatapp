@@ -2,6 +2,8 @@ import AppView from './../view/AppView'
 import axios from 'axios'
 import LocalStorage from '../utils/LocalStorage'
 import User from '../model/User'
+import Chat from '../model/Chat'
+import Message from '../model/Message'
 import MediaContext from './../model/MediaContext'
 import MediaFactory from '../model/MediaFactory'
 import Camera from '../model/Camera'
@@ -13,7 +15,9 @@ const BLOCK_MEDIA = import.meta.env.VITE_BLOCK_MEDIA
 
 class AppController {
   #view = new AppView()
-
+  #currentChatId = null
+  #messageListener = null
+  
   async initEvents(){
     
     this.#view.addEvent(document, {
@@ -346,14 +350,33 @@ class AppController {
     this.#view.changeSection(e.currentTarget)
   }
   
-  handleContactItem(e, data) {
+  async handleContactItem(e, data) {
     const isCorrectTarget = e.currentTarget.id === 'back-btn'
     this.#view.updateMessageScreen(data)
     this.#view.toggleMessageScreen(!isCorrectTarget)
-    
+
     if (isCorrectTarget){
       this.#view.toggleMediaModal()
+      return
     }
+
+    if (this.#messageListener) {
+      this.#messageListener.offSnapshot()
+      this.#messageListener = null
+    }
+
+    this.#currentChatId = data.chatId
+    const { messageList } = this.#view.$()
+    const userData = JSON.parse(LocalStorage.getUserData())
+    
+    messageList.innerHTML = ''
+    this.#messageListener = Message.listenByChatId(this.#currentChatId, (messages) => {
+
+      messages.forEach(currentMessage => {
+        const { data } = currentMessage
+        this.#view.addMessage(data, data.from !== userData.email)
+      })
+    })
   }
 
   handleMessageItem(e){
@@ -536,17 +559,36 @@ class AppController {
 
     if (value.trim() === '' || value.trim() === userData.email) return
 
-    const contact = new User({ email : value })
+    const contact = new User({ email: value })
     const result = await contact.getDocument()
 
     if (result !== null) {
       try {
-        const user = new User( userData )
-        await user.saveContact({ 
-          email : result.email,
+        const userA = new User(userData)
+        const userB = new User(result)
+
+        let chat = await Chat.findByUsers(userData.email, result.email)
+
+        if (!chat) {
+          chat = await Chat.create(userData.email, result.email)
+        }
+
+        const chatId = chat.data.id
+
+        await userA.saveContact({
+          email: result.email,
           profilePicture: result.profilePicture,
           picture: result.picture,
-          name: result.name
+          name: result.name,
+          chatId,
+        })
+
+        await userB.saveContact({
+          email: userData.email,
+          profilePicture: userData.profilePicture,
+          picture: userData.picture,
+          name: userData.name,
+          chatId,
         })
 
       } catch (error) {
@@ -632,18 +674,22 @@ class AppController {
   }
 
   async handlerSendMessage() {
+    console.log('herre')
     const { messageList, inputContent } = this.#view.$()
     const messageLength = inputContent.innerText.trim().length
 
-    if (messageLength > 0) {
-      const message = this.#view.createElement('li', messageList, {
-        class: 'message user',
-      })
+    if (messageLength > 0 && this.#currentChatId !== null) {
+      const userData = JSON.parse(LocalStorage.getUserData())
 
-      const content = this.#view.createElement('div', message, {
-        class: 'content text',
-        innerText: inputContent.innerText
-      })
+      const messageData = {
+        content: inputContent.innerText.trim(),
+        type: 'text',
+        status: 'wait',
+        timeStamp: Date.now(),
+        from: userData.email,
+      }
+
+      const message = new Message(messageData, this.#currentChatId)
 
       const event = new CustomEvent('keyup', {
         bubbles: false,
@@ -653,6 +699,8 @@ class AppController {
 
       inputContent.textContent = ''
       inputContent.dispatchEvent(event)
+
+      await message.send()
     }
   }
 

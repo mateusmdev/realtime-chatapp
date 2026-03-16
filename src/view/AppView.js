@@ -45,7 +45,6 @@ class AppView extends AbstractView {
     const { contactContainer } = this.$()
     const baseItem = contactContainer.querySelector('.item')
     contactContainer.innerHTML = ''
-
     
     if (list?.length < 1) return
     
@@ -62,9 +61,11 @@ class AppView extends AbstractView {
       
       const callbackParam = {
         profileImage: dataItem.profilePicture ?? dataItem.picture,
-        name: dataItem.name
+        name: dataItem.name,
+        email: dataItem.email,
+        chatId: dataItem.chatId,
       } 
-
+ 
       this.addEvent(item, {
         eventName: 'click',
         fn: event => options.handleCallback(event, callbackParam),
@@ -72,7 +73,7 @@ class AppView extends AbstractView {
           preventDefault: true
         }
       })
-
+ 
       contactContainer.appendChild(item)
     })
   }
@@ -504,6 +505,100 @@ class AppView extends AbstractView {
 
   resetAudioProperties() {
     this.toggleSendAudioSection(open = false)
+  }
+
+  addMessage(data, isFromContact = false) {
+    if (!data) return
+
+    const li = document.createElement(`li`)
+    li.className = `message`
+
+    isFromContact === true ? li.classList.add('contact') : li.classList.add('user')
+
+    switch (data.type) {
+      case 'contact-attachment':
+        li.innerHTML = `
+          <div class="content contact-attachment">
+            <div class="detail">
+              <div class="picture-wrapper">
+                <img 
+                  class="profile-picture"
+                  src="https://img.freepik.com/premium-vector/man-avatar-profile-picture-isolated-background-avatar-profile-picture-man_1293239-4870.jpg" 
+                  alt="contact picture"
+                >
+              </div>
+              <p class="contact-name">Nome Contato</p>
+            </div>
+            <a href="#" class="send-message">
+              <span>Enviar Mensagem</span>
+            </a>
+          </div>
+        `
+      break
+      
+      case 'picture':
+        li.innerHTML = `
+          <div class="content picture">
+            <div class="image-area">
+              <img src="https://i.pinimg.com/736x/86/03/c2/8603c240cad5cd350009ef55dc045ee0.jpg" alt="an image">
+            </div>
+          </div>
+        `
+      break
+
+      case 'file':
+        li.innerHTML = `
+          <div class="content file">
+            <div>
+              <img 
+                class="file-img"
+                src="./src/assets/document-icon.svg" 
+                alt="file icon"
+              >
+              <p class="file-name">Arquivo.docx</p>
+            </div>
+            <a href="#" class="dowload-btn">
+              <img src="./src/assets/download.svg" alt="download icon">
+            </a>
+          </div>
+        `
+      break
+
+      case 'audio':
+        li.innerHTML = `
+          <div class="content audio">
+            <div class="picture-wrapper">
+              <img 
+                class="profile-picture"
+                src="https://img.freepik.com/premium-vector/man-avatar-profile-picture-isolated-background-avatar-profile-picture-man_1293239-4870.jpg" 
+                alt="contact picture"
+              >
+            </div>
+            <div class="detail">
+              <div class="player">
+                <button>
+                  <img src="./src/assets/play.svg" alt="play icon">
+                </button>
+                <input type="range" name="audio-range" class="audio-range">
+              </div>
+              <div class="meta-data">
+                <p>10:42</p>
+              </div>
+            </div>
+          </div>
+        `
+      break
+
+      default:
+        li.innerHTML = `
+          <div class="content text">
+            ${data.content}
+          </div>
+        `
+    }
+
+    const { messageList } = this.$()
+    messageList.appendChild(li)
   }
 }
 
