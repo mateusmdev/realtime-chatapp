@@ -19,6 +19,7 @@ class AppController {
   #currentChatId = null
   #messageListener = null
   #pendingMediaFile = null
+  #pendingDocumentFile = null
   
   async initEvents(){
     
@@ -268,6 +269,33 @@ class AppController {
         preventDefault: true,
       }
     })
+
+    this.#view.addEvent('#sendFileActionBtn', {
+      eventName: 'click',
+      fn: async () => this.handleSendDocument(),
+      behavior: {
+        preventDefault: true,
+      }
+    })
+    
+    this.#view.addEvent('#sendPdfActionBtn', {
+      eventName: 'click',
+      fn: async () => this.handleSendDocument(),
+      behavior: {
+        preventDefault: true,
+      }
+    })
+
+    this.#view.addEvent('#messageList', {
+      eventName: 'click',
+      fn: (e) => {
+        console.log(e.target)
+        this.handleDownloadFile(e)
+      },
+      behavior: {
+        preventDefault: true
+      }
+    })
   }
 
   async initApp(){
@@ -422,6 +450,7 @@ class AppController {
 
   handleCloseMediaModal(){
     this.#pendingMediaFile = null
+    this.#pendingDocumentFile = null
     this.#view.toggleMediaModal()
 
     if (this.#view.getState('isVideoRecording')) {
@@ -494,46 +523,54 @@ class AppController {
     const [uploadedFile] = event.target.files
     const { pdfArea, fileArea, sentImagePreview, sentImageName } = this.#view.$()
     this.#view.clearMediaProperties()
-
+  
     if (!uploadedFile) return
-
+  
     const isPdf = uploadedFile?.type === 'application/pdf'
-    const componentData = {} 
-
+    const componentData = {}
+  
     if (uploadedFile.type.startsWith('image/') && id === 'send-document-btn') {
+      this.#pendingDocumentFile = uploadedFile
+      this.#view.updateDocumentPreview(uploadedFile.name)
+  
       componentData.selectedArea = fileArea
       componentData.modalClass = 'documents'
-      
+  
     } else if (uploadedFile.type.startsWith('image/') && id === 'send-picture-btn') {
       this.#pendingMediaFile = uploadedFile
-
+  
       componentData.selectedArea = {
         image: sentImagePreview,
         name: sentImageName
       }
-
+  
       componentData.modalClass = 'image-preview'
-      
+  
     } else if (isPdf) {
+      this.#pendingDocumentFile = uploadedFile
+  
       componentData.selectedArea = pdfArea
       componentData.modalClass = 'pdf-preview'
-      
+  
     } else {
+      this.#pendingDocumentFile = uploadedFile
+      this.#view.updateDocumentPreview(uploadedFile.name)
+  
       componentData.selectedArea = fileArea
       componentData.modalClass = 'documents'
     }
-
+  
     const mediaInstance = MediaFactory.getInstance(id)
     const mediaHandler = new MediaContext(mediaInstance)
-    const uploadData = { 
+    const uploadData = {
       file: uploadedFile,
       area: componentData.selectedArea
     }
-
+  
     if (mediaInstance != null) {
       await mediaHandler.execute(uploadData)
     }
-
+  
     await this.#view.toggleMediaModal(componentData.modalClass)
     this.#view.setDefaultMode(event)
   }
@@ -842,6 +879,62 @@ class AppController {
   
     } catch (error) {
       alert(error.message || 'Erro ao enviar a imagem. Tente novamente.')
+    }
+  }
+
+  async handleSendDocument() {
+    if (!this.#pendingDocumentFile || !this.#currentChatId) return
+  
+    try {
+      const url = await CloudinaryService.uploadRaw(this.#pendingDocumentFile)
+      const userData = JSON.parse(LocalStorage.getUserData())
+  
+      const messageData = {
+        content: url,
+        fileName: this.#pendingDocumentFile.name,
+        type: 'file',
+        status: 'wait',
+        timeStamp: Date.now(),
+        from: userData.email,
+      }
+  
+      const message = new Message(messageData, this.#currentChatId)
+      await message.send()
+  
+      this.#pendingDocumentFile = null
+      this.handleCloseMediaModal()
+  
+    } catch (error) {
+      alert(error.message || 'Erro ao enviar o arquivo. Tente novamente.')
+    }
+  }
+
+  async handleDownloadFile(event) {
+    const downloadBtn = event.target.closest('.dowload-btn')
+    if (!downloadBtn) return
+  
+    const url = downloadBtn.dataset.url
+    const fileName = downloadBtn.dataset.filename
+  
+    if (!url || !fileName) return
+  
+    try {
+      const response = await fetch(url)
+  
+      if (!response.ok) throw new Error('Falha ao baixar o arquivo.')
+  
+      const blob = await response.blob()
+      const blobUrl = URL.createObjectURL(blob)
+  
+      const anchor = document.createElement('a')
+      anchor.href = blobUrl
+      anchor.download = fileName
+      anchor.click()
+  
+      URL.revokeObjectURL(blobUrl)
+  
+    } catch (error) {
+      alert('Erro ao baixar o arquivo. Tente novamente.')
     }
   }
 }

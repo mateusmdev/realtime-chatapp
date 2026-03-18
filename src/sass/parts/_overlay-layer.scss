@@ -208,6 +208,32 @@
 
       .pdf-preview {
         padding: 1rem;
+        position: relative;
+
+        #send-pdf-action-btn {
+          background-color: variables.$primary-color;
+          border-radius: 50%;
+          border: none;
+          outline: none;
+          cursor: pointer;
+          padding: 0.7rem;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          position: absolute;
+          bottom: 1.5rem;
+          right: 1.5rem;
+          width: 3.125rem;
+          height: 3.125rem;
+          z-index: 2;
+      
+          img {
+            margin-left: 0.28rem;
+            width: 90%;
+            height: 100%;
+          }
+        }
+        
         #pdf{
           width: fit-content;
           height: 100%;

@@ -550,18 +550,18 @@ class AppView extends AbstractView {
       case 'file':
         li.innerHTML = `
           <div class="content file">
-            <div>
-              <img 
-                class="file-img"
-                src="./src/assets/document-icon.svg" 
-                alt="file icon"
-              >
-              <p class="file-name">Arquivo.docx</p>
-            </div>
-            <a href="#" class="dowload-btn">
-              <img src="./src/assets/download.svg" alt="download icon">
-            </a>
+          <div>
+            <img 
+              class="file-img"
+              src="./src/assets/document-icon.svg" 
+              alt="file icon"
+            >
+            <p class="file-name">${data.fileName}</p>
           </div>
+          <a href="#" class="dowload-btn" data-url="${data.content}" data-filename="${data.fileName}">
+            <img src="./src/assets/download.svg" alt="download icon">
+          </a>
+        </div>
         `
       break
 
@@ -612,6 +612,12 @@ class AppView extends AbstractView {
     const chat = this.$('chat')
     chat.scrollTop = chat.scrollHeight
   }
+
+  updateDocumentPreview(fileName) {
+    const fileAreaName = this.$('fileAreaName')
+    fileAreaName.innerText = fileName
+  }
+
 }
 
 export default AppView
