@@ -260,6 +260,14 @@ class AppController {
         preventDefault: true,
       }
     })
+
+    this.#view.addEvent('#sendPhotoActionBtn', {
+      eventName: 'click',
+      fn: async () => this.handleSendPhotoImage(),
+      behavior: {
+        preventDefault: true,
+      }
+    })
   }
 
   async initApp(){
@@ -806,6 +814,34 @@ class AppController {
 
     } catch (error) {
       alert('Erro ao enviar a imagem. Tente novamente.')
+    }
+  }
+
+  async handleSendPhotoImage() {
+    if (!this.#currentChatId) return
+  
+    try {
+      const { photoArea } = this.#view.$()
+      const base64 = photoArea.toDataURL('image/png')
+  
+      const url = await CloudinaryService.uploadBase64(base64)
+      const userData = JSON.parse(LocalStorage.getUserData())
+  
+      const messageData = {
+        content: url,
+        type: 'picture',
+        status: 'wait',
+        timeStamp: Date.now(),
+        from: userData.email,
+      }
+  
+      const message = new Message(messageData, this.#currentChatId)
+      await message.send()
+  
+      this.handleCloseMediaModal()
+  
+    } catch (error) {
+      alert(error.message || 'Erro ao enviar a imagem. Tente novamente.')
     }
   }
 }
