@@ -8,6 +8,7 @@ import MediaContext from './../model/MediaContext'
 import MediaFactory from '../model/MediaFactory'
 import Camera from '../model/Camera'
 import ProfileCache from '../utils/ProfileCache'
+import CloudinaryService from '../service/CloudinaryService'
 
 const TOKEN_VALIDATOR = import.meta.env.VITE_TOKEN_VALIDATOR
 const ICON_KEY = import.meta.env.VITE_ICON_KEY
@@ -17,6 +18,7 @@ class AppController {
   #view = new AppView()
   #currentChatId = null
   #messageListener = null
+  #pendingMediaFile = null
   
   async initEvents(){
     
@@ -250,6 +252,14 @@ class AppController {
         preventDefault: true,
       }
     })
+
+    this.#view.addEvent('#sendImageActionBtn', {
+      eventName: 'click',
+      fn: async () => this.handleSendImage(),
+      behavior: {
+        preventDefault: true,
+      }
+    })
   }
 
   async initApp(){
@@ -301,6 +311,10 @@ class AppController {
       await user.findOrCreate()
       const cacheObject = ProfileCache.get()
       const contacts = await user.getContactsFromCache(!cacheObject?.isCached)
+
+      const sortedContacts = [...contacts].sort((a, b) =>
+        a.name.localeCompare(b.name)
+      )
       
       await user.onSnapshot(() => {
         LocalStorage.setUserData(JSON.stringify(user.data))
@@ -311,7 +325,7 @@ class AppController {
         handleCallback: this.handleContactItem.bind(this)
       }
 
-      await this.#view.loadContacts(contacts, options)
+      await this.#view.loadContacts(sortedContacts, options)
 
     } catch (error) {
       localStorage.clear()
@@ -370,12 +384,22 @@ class AppController {
     const userData = JSON.parse(LocalStorage.getUserData())
     
     messageList.innerHTML = ''
+
+    let isInitialLoad = true
+
     this.#messageListener = Message.listenByChatId(this.#currentChatId, (messages) => {
+      const shouldScroll = isInitialLoad || this.#view.isAtBottom()
 
       messages.forEach(currentMessage => {
         const { data } = currentMessage
         this.#view.addMessage(data, data.from !== userData.email)
       })
+
+      if (shouldScroll) {
+        this.#view.scrollToBottom()
+      }
+
+      isInitialLoad = false
     })
   }
 
@@ -389,6 +413,7 @@ class AppController {
   }
 
   handleCloseMediaModal(){
+    this.#pendingMediaFile = null
     this.#view.toggleMediaModal()
 
     if (this.#view.getState('isVideoRecording')) {
@@ -401,13 +426,13 @@ class AppController {
     this.#view.setState('isPhotoAreaVisible', false)
     this.#view.clearPhotoArea()
     this.#view.togglePhotoArea()
+    this.#view.togglePhotoAction()
     this.#view.clearMediaProperties()
   }
 
   async handleMediaButton(e) {
     const { id } = e.currentTarget
     const { uploadFile } = this.#view.$()
-    console.log('clicou')
 
     this.#view.setState('mediaButtonId', id)
 
@@ -432,7 +457,6 @@ class AppController {
 
         break
 
-
       case 'take-photo-btn':
         if (this.#view.getState('blockMedia') === true) {
           blockMessage()
@@ -443,17 +467,17 @@ class AppController {
         await this.openCamera()
         break
         
-        case 'send-picture-btn':
-          if (this.#view.getState('blockMedia') === true) {
-            blockMessage()
-            return
-          }
+      case 'send-picture-btn':
+        if (this.#view.getState('blockMedia') === true) {
+          blockMessage()
+          return
+        }
 
-          this.handlerUploadFileClick(uploadFile, {
-            idMedia: 'send-picture-btn'
-          })
+        this.handlerUploadFileClick(uploadFile, {
+          idMedia: 'send-picture-btn'
+        })
 
-          break
+        break
     }
   }
   
@@ -473,6 +497,8 @@ class AppController {
       componentData.modalClass = 'documents'
       
     } else if (uploadedFile.type.startsWith('image/') && id === 'send-picture-btn') {
+      this.#pendingMediaFile = uploadedFile
+
       componentData.selectedArea = {
         image: sentImagePreview,
         name: sentImageName
@@ -674,7 +700,6 @@ class AppController {
   }
 
   async handlerSendMessage() {
-    console.log('herre')
     const { messageList, inputContent } = this.#view.$()
     const messageLength = inputContent.innerText.trim().length
 
@@ -752,11 +777,36 @@ class AppController {
   }
 
   async handleSendAudio(event) {
-    console.log('Audio enviado.')
     const interval = this.#view.getState('tempRecordedInterval')
     clearInterval(interval)
     
     this.#view.resetAudioProperties()
+  }
+
+  async handleSendImage() {
+    if (!this.#pendingMediaFile || !this.#currentChatId) return
+
+    try {
+      const url = await CloudinaryService.upload(this.#pendingMediaFile)
+      const userData = JSON.parse(LocalStorage.getUserData())
+
+      const messageData = {
+        content: url,
+        type: 'picture',
+        status: 'wait',
+        timeStamp: Date.now(),
+        from: userData.email,
+      }
+
+      const message = new Message(messageData, this.#currentChatId)
+      await message.send()
+
+      this.#pendingMediaFile = null
+      this.handleCloseMediaModal()
+
+    } catch (error) {
+      alert('Erro ao enviar a imagem. Tente novamente.')
+    }
   }
 }
 

@@ -21,7 +21,8 @@ class AppView extends AbstractView {
       isPhotoAreaVisible: false,
       isMediaModalOpen: false,
       isPreviewMode: false,
-      tempRecordedInterval: null
+      tempRecordedInterval: null,
+      scrollThreshold: 150,
     }
   }
 
@@ -45,7 +46,7 @@ class AppView extends AbstractView {
     const { contactContainer } = this.$()
     const baseItem = contactContainer.querySelector('.item')
     contactContainer.innerHTML = ''
-    
+
     if (list?.length < 1) return
     
     list.forEach(dataItem => {
@@ -540,7 +541,7 @@ class AppView extends AbstractView {
         li.innerHTML = `
           <div class="content picture">
             <div class="image-area">
-              <img src="https://i.pinimg.com/736x/86/03/c2/8603c240cad5cd350009ef55dc045ee0.jpg" alt="an image">
+              <img src="${data.content}" alt="an image">
             </div>
           </div>
         `
@@ -599,6 +600,17 @@ class AppView extends AbstractView {
 
     const { messageList } = this.$()
     messageList.appendChild(li)
+  }
+
+  isAtBottom() {
+    const chat = this.$('chat')
+    const distanceFromBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight
+    return distanceFromBottom <= this.getState('scrollThreshold')
+  }
+  
+  scrollToBottom() {
+    const chat = this.$('chat')
+    chat.scrollTop = chat.scrollHeight
   }
 }
 
