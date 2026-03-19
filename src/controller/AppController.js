@@ -320,6 +320,20 @@ class AppController {
 
     await this.getIconData()
     await this.#view.initLayout(preferences)
+    
+    if (!isPreview) {
+      const cacheObject = ProfileCache.get()
+      const contacts = cacheObject?.cache || []
+      const sortedContacts = [...contacts].sort((a, b) =>
+        a.name.localeCompare(b.name)
+      )
+    
+      const options = {
+        handleCallback: this.handleSendContact.bind(this)
+      }
+    
+      this.#view.loadContactsModal(sortedContacts, options)
+    }
   }
 
   async getUserData(){
@@ -627,25 +641,25 @@ class AppController {
   async handleAddContact(event) {
     const value = this.#view.$('contactInput').value
     const userData = JSON.parse(LocalStorage.getUserData())
-
+  
     if (value.trim() === '' || value.trim() === userData.email) return
-
+  
     const contact = new User({ email: value })
     const result = await contact.getDocument()
-
+  
     if (result !== null) {
       try {
         const userA = new User(userData)
         const userB = new User(result)
-
+  
         let chat = await Chat.findByUsers(userData.email, result.email)
-
+  
         if (!chat) {
           chat = await Chat.create(userData.email, result.email)
         }
-
+  
         const chatId = chat.data.id
-
+  
         await userA.saveContact({
           email: result.email,
           profilePicture: result.profilePicture,
@@ -653,7 +667,7 @@ class AppController {
           name: result.name,
           chatId,
         })
-
+  
         await userB.saveContact({
           email: userData.email,
           profilePicture: userData.profilePicture,
@@ -661,14 +675,26 @@ class AppController {
           name: userData.name,
           chatId,
         })
-
+  
+        const freshContacts = await userA.getContactsFromCache(true)
+        const sortedContacts = [...freshContacts].sort((a, b) =>
+          a.name.localeCompare(b.name)
+        )
+  
+        await this.#view.loadContacts(sortedContacts, {
+          handleCallback: this.handleContactItem.bind(this)
+        })
+  
+        this.#view.loadContactsModal(sortedContacts, {
+          handleCallback: this.handleSendContact.bind(this)
+        })
+  
       } catch (error) {
         throw error
       }
-
+  
       this.#view.setAddContactModal(this.#view.$('cancelAddContact'))
-    } 
-    else {
+    } else {
       this.#view.toggleContactError(true)
     }
   }
@@ -935,6 +961,33 @@ class AppController {
   
     } catch (error) {
       alert('Erro ao baixar o arquivo. Tente novamente.')
+    }
+  }
+
+  async handleSendContact(contact) {
+    if (!this.#currentChatId) return
+  
+    try {
+      const userData = JSON.parse(LocalStorage.getUserData())
+  
+      const messageData = {
+        type: 'contact-attachment',
+        contactName: contact.name,
+        contactEmail: contact.email,
+        contactPicture: contact.profilePicture ?? contact.picture,
+        contactChatId: contact.chatId,
+        from: userData.email,
+        status: 'wait',
+        timeStamp: Date.now(),
+      }
+  
+      const message = new Message(messageData, this.#currentChatId)
+      await message.send()
+  
+      this.handleCloseMediaModal()
+  
+    } catch (error) {
+      alert('Erro ao enviar o contato. Tente novamente.')
     }
   }
 }

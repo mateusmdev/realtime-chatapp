@@ -93,56 +93,54 @@ class AppView extends AbstractView {
   initLayout(preferences = {}) {
     const [blockMediaState, isIconListBlock] = this.getState('blockMedia', 'isIconListBlock')
     const isPreviewMode = this.getState('isPreviewMode')
-
+  
     if (blockMediaState === true || isPreviewMode === true) {
-      console.log('aqui')
-      console.log('preview: ', isPreviewMode)
-      console.log('aqui')
       const { takePhotoBtn, sendPictureBtn, sendDocumentBtn, userAboutContent, userAbout } = this.$()
-      const blockedElements = [takePhotoBtn, sendPictureBtn, sendDocumentBtn];
+      const blockedElements = [takePhotoBtn, sendPictureBtn, sendDocumentBtn]
       
       blockedElements.forEach(element => {
         this.setStyle(element, {
           opacity: '0.3',
           cursor: 'not-allowed'
         })
-
         element.disabled = true
       })
-
+  
       this.setStyle(userAbout, {
         opacity: '0',
         cursor: 'not-allowed',
         visibility: 'hidden',
         display: 'none'
       })
-
+  
       userAboutContent.setAttribute('contenteditable', false)
     }
-
-
+  
     if (isIconListBlock === true) {
       const { emojiModalBtn } = this.$()
-
+  
       this.setStyle(emojiModalBtn, {
         visibility: 'hidden',
         opacity: '0',
         display: 'none'
       })
-
+  
       emojiModalBtn.disabled = true
     }
-
+  
     placeholder.innerText = this.getState('placeholderText')
     
     const { appStyle } = preferences
     const splashScreen = this.$('splashScreen')
     const appStyleState = this.getState('appStyle')
-
+  
     this.setState('appStyle', appStyle ?? appStyleState)
-    
     this.setAppStyle()
     splashScreen.remove()
+  
+    if (isPreviewMode === false) {
+      this.clearMockedData()
+    }
   }
 
   closeConcorrentModal() {
@@ -524,11 +522,11 @@ class AppView extends AbstractView {
               <div class="picture-wrapper">
                 <img 
                   class="profile-picture"
-                  src="https://img.freepik.com/premium-vector/man-avatar-profile-picture-isolated-background-avatar-profile-picture-man_1293239-4870.jpg" 
+                  src="${data.contactPicture}" 
                   alt="contact picture"
                 >
               </div>
-              <p class="contact-name">Nome Contato</p>
+              <p class="contact-name">${data.contactName}</p>
             </div>
             <a href="#" class="send-message">
               <span>Enviar Mensagem</span>
@@ -618,6 +616,39 @@ class AppView extends AbstractView {
     fileAreaName.innerText = fileName
   }
 
+  clearMockedData() {
+    const { contactModalList } = this.$()
+    contactModalList.innerHTML = ''
+  }
+  
+  loadContactsModal(contacts, options = {}) {
+    const { contactModalList } = this.$()
+    contactModalList.innerHTML = ''
+  
+    contacts.forEach(contact => {
+      const li = document.createElement('li')
+      li.innerHTML = `
+        <div class="picture-wrapper">
+          <img 
+            class="profile-picture" 
+            src="${contact.profilePicture ?? contact.picture}" 
+            alt="contact picture"
+          >
+        </div>
+        <span>${contact.name}</span>
+      `
+  
+      this.addEvent(li, {
+        eventName: 'click',
+        fn: () => options.handleCallback(contact),
+        behavior: {
+          preventDefault: true
+        }
+      })
+  
+      contactModalList.appendChild(li)
+    })
+  }
 }
 
 export default AppView
