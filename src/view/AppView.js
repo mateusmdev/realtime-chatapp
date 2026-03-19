@@ -528,7 +528,10 @@ class AppView extends AbstractView {
               </div>
               <p class="contact-name">${data.contactName}</p>
             </div>
-            <a href="#" class="send-message">
+            <a href="#" class="send-message"
+              data-contact-name="${data.contactName}"
+              data-contact-email="${data.contactEmail}"
+              data-contact-picture="${data.contactPicture}">
               <span>Enviar Mensagem</span>
             </a>
           </div>
@@ -648,6 +651,25 @@ class AppView extends AbstractView {
   
       contactModalList.appendChild(li)
     })
+  }
+
+  toggleConfirmChatModal(contactData = null) {
+    const { media } = this.$()
+    const card = media.querySelector('.list-contact .card')
+    const confirmModal = media.querySelector('.confirm-chat-modal')
+    const confirmContactName = this.$('confirmContactName')
+
+    if (contactData) {
+      confirmContactName.innerText = contactData.name
+      card.style.display = 'none'
+      confirmModal.classList.add('active')
+      this.toggleMediaModal('list-contact')
+      return
+    }
+
+    card.style.display = ''
+    confirmModal.classList.remove('active')
+    this.toggleMediaModal()
   }
 }
 

@@ -20,6 +20,7 @@ class AppController {
   #messageListener = null
   #pendingMediaFile = null
   #pendingDocumentFile = null
+  #pendingContactData = null
   
   async initEvents(){
     
@@ -289,12 +290,27 @@ class AppController {
     this.#view.addEvent('#messageList', {
       eventName: 'click',
       fn: (e) => {
-        console.log(e.target)
         this.handleDownloadFile(e)
+        this.handleSendMessageFromContact(e)
       },
       behavior: {
         preventDefault: true
       }
+    })
+
+    this.#view.addEvent('#cancelConfirmChat', {
+      eventName: 'click',
+      fn: () => {
+        this.#pendingContactData = null
+        this.#view.toggleConfirmChatModal()
+      },
+      behavior: { preventDefault: true }
+    })
+
+    this.#view.addEvent('#confirmConfirmChat', {
+      eventName: 'click',
+      fn: () => this.handleConfirmSendMessage(),
+      behavior: { preventDefault: true }
     })
   }
 
@@ -424,6 +440,10 @@ class AppController {
       return
     }
 
+    await this.openChat(data)
+  }
+
+  async openChat(data) {
     if (this.#messageListener) {
       this.#messageListener.offSnapshot()
       this.#messageListener = null
@@ -432,7 +452,7 @@ class AppController {
     this.#currentChatId = data.chatId
     const { messageList } = this.#view.$()
     const userData = JSON.parse(LocalStorage.getUserData())
-    
+
     messageList.innerHTML = ''
 
     let isInitialLoad = true
@@ -961,6 +981,104 @@ class AppController {
   
     } catch (error) {
       alert('Erro ao baixar o arquivo. Tente novamente.')
+    }
+  }
+
+  handleSendMessageFromContact(e) {
+    const sendMessageBtn = e.target.closest('.send-message')
+    if (!sendMessageBtn) return
+
+    const { contactName, contactEmail, contactPicture } = sendMessageBtn.dataset
+    const userData = JSON.parse(LocalStorage.getUserData())
+
+    if (contactEmail === userData.email) {
+      alert('Você não pode enviar mensagem para si mesmo.')
+      return
+    }
+
+    this.#pendingContactData = {
+      name: contactName,
+      email: contactEmail,
+      profilePicture: contactPicture,
+    }
+
+    this.#view.toggleConfirmChatModal(this.#pendingContactData)
+  }
+
+  async handleConfirmSendMessage() {
+    if (!this.#pendingContactData) return
+
+    try {
+      const userData = JSON.parse(LocalStorage.getUserData())
+      const contact = this.#pendingContactData
+
+      const contactUser = new User({ email: contact.email })
+      const contactData = await contactUser.getDocument()
+
+      if (!contactData) {
+        alert('Contato não encontrado.')
+        this.#view.toggleConfirmChatModal()
+        this.#pendingContactData = null
+        return
+      }
+
+      let chat = await Chat.findByUsers(userData.email, contact.email)
+      if (!chat) {
+        chat = await Chat.create(userData.email, contact.email)
+      }
+
+      const chatId = chat.data.id
+
+      const userA = new User(userData)
+      const userB = new User(contactData)
+
+      await userA.saveContact({
+        email: contactData.email,
+        profilePicture: contactData.profilePicture ?? contactData.picture,
+        picture: contactData.picture,
+        name: contactData.name,
+        chatId,
+      })
+
+      await userB.saveContact({
+        email: userData.email,
+        profilePicture: userData.profilePicture ?? userData.picture,
+        picture: userData.picture,
+        name: userData.name,
+        chatId,
+      })
+
+      const freshContacts = await userA.getContactsFromCache(true)
+      const sortedContacts = [...freshContacts].sort((a, b) =>
+        a.name.localeCompare(b.name)
+      )
+
+      await this.#view.loadContacts(sortedContacts, {
+        handleCallback: this.handleContactItem.bind(this)
+      })
+
+      this.#view.loadContactsModal(sortedContacts, {
+        handleCallback: this.handleSendContact.bind(this)
+      })
+
+      this.#view.toggleConfirmChatModal()
+
+      const openData = {
+        profileImage: contactData.profilePicture ?? contactData.picture,
+        name: contactData.name,
+        email: contactData.email,
+        chatId,
+      }
+
+      this.#view.updateMessageScreen(openData)
+      this.#view.toggleMessageScreen(true)
+      await this.openChat(openData)
+
+      this.#pendingContactData = null
+
+    } catch (error) {
+      alert('Erro ao abrir conversa. Tente novamente.')
+      throw error
     }
   }
 
