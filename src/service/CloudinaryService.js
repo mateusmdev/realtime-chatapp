@@ -80,6 +80,31 @@ class CloudinaryService {
     const data = await response.json()
     return data.secure_url
   }
+
+  static async uploadAudio(blob) {
+    if (blob.size > CloudinaryService.#MAX_SIZE_BYTES) {
+      throw new Error('O arquivo de áudio excede o tamanho máximo permitido de 5MB.')
+    }
+
+    const formData = new FormData()
+    formData.append('file', blob, 'audio.webm')
+    formData.append('upload_preset', UPLOAD_PRESET)
+
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/video/upload`,
+      {
+        method: 'POST',
+        body: formData
+      }
+    )
+
+    if (!response.ok) {
+      throw new Error(`Upload failed with status ${response.status}`)
+    }
+
+    const data = await response.json()
+    return data.secure_url
+  }
 }
 
 export default CloudinaryService

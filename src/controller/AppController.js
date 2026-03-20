@@ -7,6 +7,7 @@ import Message from '../model/Message'
 import MediaContext from './../model/MediaContext'
 import MediaFactory from '../model/MediaFactory'
 import Camera from '../model/Camera'
+import AudioRecorder from '../model/AudioRecorder'
 import ProfileCache from '../utils/ProfileCache'
 import CloudinaryService from '../service/CloudinaryService'
 
@@ -17,6 +18,7 @@ const BLOCK_MEDIA = import.meta.env.VITE_BLOCK_MEDIA
 class AppController {
   #view = new AppView()
   #currentChatId = null
+  #currentContactData = null
   #messageListener = null
   #pendingMediaFile = null
   #pendingDocumentFile = null
@@ -233,7 +235,7 @@ class AppController {
 
     this.#view.addEvent('#microphoneBtn', {
       eventName: 'click',
-      fn: async (event) => this.startRecordMicrophoneAudio(),
+      fn: async () => this.startRecordMicrophoneAudio(),
       behavior: {
         preventDefault: true,
       }
@@ -241,7 +243,7 @@ class AppController {
 
     this.#view.addEvent('#okRecordingBtn', {
       eventName: 'click',
-      fn: async (event) => this.handleSendAudio(),
+      fn: async () => this.handleSendAudio(),
       behavior: {
         preventDefault: true,
       }
@@ -249,7 +251,7 @@ class AppController {
 
     this.#view.addEvent('#cancelRecordingBtn', {
       eventName: 'click',
-      fn: async (event) => this.handleStopRecordAudio(event),
+      fn: async () => this.handleStopRecordAudio(),
       behavior: {
         preventDefault: true,
       }
@@ -440,16 +442,17 @@ class AppController {
       return
     }
 
-    await this.openChat(data)
+    await this.#openChat(data)
   }
 
-  async openChat(data) {
+  async #openChat(data) {
     if (this.#messageListener) {
       this.#messageListener.offSnapshot()
       this.#messageListener = null
     }
 
     this.#currentChatId = data.chatId
+    this.#currentContactData = data
     const { messageList } = this.#view.$()
     const userData = JSON.parse(LocalStorage.getUserData())
 
@@ -462,7 +465,16 @@ class AppController {
 
       messages.forEach(currentMessage => {
         const { data } = currentMessage
-        this.#view.addMessage(data, data.from !== userData.email)
+        const isFromContact = data.from !== userData.email
+
+        const enrichedData = {
+          ...data,
+          profilePicture: isFromContact
+            ? this.#currentContactData.profileImage
+            : (userData.profilePicture ?? userData.picture)
+        }
+
+        this.#view.addMessage(enrichedData, isFromContact)
       })
 
       if (shouldScroll) {
@@ -844,34 +856,86 @@ class AppController {
   }
 
   async startRecordMicrophoneAudio() {
-    this.#view.toggleSendAudioSection(true)
-    const start = Date.now()
-    const { microphoneTimer } = this.#view.$()
+    const recorder = AudioRecorder.getInstance()
 
-    const recordedTime = setInterval(() => {
-      const time = Date.now() - start
+    if (!recorder.isSupported()) {
+      alert('Seu navegador não suporta gravação de áudio.')
+      return
+    }
 
-      const seconds = parseInt((time / 1000) % 60)
-      const minutes = parseInt((time / (1000 * 60) % 60))
+    try {
+      await recorder.start()
 
-      microphoneTimer.innerText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
-    }, 100)
+      this.#view.toggleSendAudioSection(true)
 
-    this.#view.setState('tempRecordedInterval', recordedTime)
+      const start = Date.now()
+      const { microphoneTimer } = this.#view.$()
+
+      const recordedTime = setInterval(() => {
+        const time = Date.now() - start
+        const seconds = parseInt((time / 1000) % 60)
+        const minutes = parseInt((time / (1000 * 60)) % 60)
+        microphoneTimer.innerText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+      }, 100)
+
+      this.#view.setState('tempRecordedInterval', recordedTime)
+
+    } catch (error) {
+      alert('Erro ao acessar o microfone. Verifique as permissões.')
+    }
   }
 
-  async handleStopRecordAudio(event) {
+  async handleStopRecordAudio() {
     const interval = this.#view.getState('tempRecordedInterval')
     clearInterval(interval)
+
+    const recorder = AudioRecorder.getInstance()
+    recorder.cancel()
 
     this.#view.resetAudioProperties()
   }
 
-  async handleSendAudio(event) {
+  async handleSendAudio() {
     const interval = this.#view.getState('tempRecordedInterval')
     clearInterval(interval)
-    
-    this.#view.resetAudioProperties()
+
+    const recorder = AudioRecorder.getInstance()
+
+    if (!this.#currentChatId) {
+      recorder.cancel()
+      this.#view.resetAudioProperties()
+      return
+    }
+
+    try {
+      const blob = await recorder.stop()
+
+      const audioContext = new AudioContext()
+      const arrayBuffer = await blob.arrayBuffer()
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
+      const duration = parseFloat(audioBuffer.duration.toFixed(2))
+      audioContext.close()
+
+      const url = await CloudinaryService.uploadAudio(blob)
+      const userData = JSON.parse(LocalStorage.getUserData())
+
+      const messageData = {
+        type: 'audio',
+        content: url,
+        duration,
+        status: 'wait',
+        timeStamp: Date.now(),
+        from: userData.email,
+      }
+
+      const message = new Message(messageData, this.#currentChatId)
+      await message.send()
+
+    } catch (error) {
+      alert('Erro ao enviar o áudio. Tente novamente.')
+    } finally {
+      this.#view.resetAudioProperties()
+    }
   }
 
   async handleSendImage() {
@@ -1072,7 +1136,7 @@ class AppController {
 
       this.#view.updateMessageScreen(openData)
       this.#view.toggleMessageScreen(true)
-      await this.openChat(openData)
+      await this.#openChat(openData)
 
       this.#pendingContactData = null
 

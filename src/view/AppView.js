@@ -1,4 +1,5 @@
 import AbstractView from './AbstractView'
+import AudioPlayer from '../model/AudioPlayer'
 import './../sass/app.scss'
 
 class AppView extends AbstractView {
@@ -396,7 +397,7 @@ class AppView extends AbstractView {
   
       range = document.createRange()
       range.selectNodeContents(inputContent)
-      range.collapse(false) // cursor no final
+      range.collapse(false)
   
       this.setState('range', range)
     }
@@ -503,7 +504,71 @@ class AppView extends AbstractView {
   }
 
   resetAudioProperties() {
-    this.toggleSendAudioSection(open = false)
+    this.toggleSendAudioSection(false)
+  }
+
+  #formatTime(seconds) {
+    const m = parseInt(seconds / 60)
+    const s = parseInt(seconds % 60)
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+  }
+
+  bindAudioPlayer(li, url, duration) {
+    const playBtn = li.querySelector('.audio-play-btn')
+    const playIcon = li.querySelector('.audio-play-icon')
+    const range = li.querySelector('.audio-range')
+    const timeDisplay = li.querySelector('.audio-time')
+
+    timeDisplay.innerText = this.#formatTime(duration)
+
+    const player = new AudioPlayer()
+    let loaded = false
+
+    playBtn.addEventListener('click', async () => {
+      if (!loaded) {
+        playBtn.disabled = true
+
+        try {
+          await player.load(url)
+          loaded = true
+        } catch (_) {
+          playBtn.disabled = false
+          return
+        }
+
+        playBtn.disabled = false
+      }
+
+      if (player.isPlaying) {
+        player.pause()
+        playIcon.src = './src/assets/play.svg'
+        return
+      }
+
+      player.play(
+        (currentTime, totalDuration) => {
+          const ratio = currentTime / totalDuration
+          range.value = ratio * 100
+          timeDisplay.innerText = this.#formatTime(currentTime)
+        },
+        () => {
+          playIcon.src = './src/assets/play.svg'
+          range.value = 0
+          timeDisplay.innerText = this.#formatTime(duration)
+        }
+      )
+
+      playIcon.src = './src/assets/pause.svg'
+    })
+
+    range.addEventListener('input', () => {
+      const ratio = range.value / 100
+      player.seek(ratio)
+
+      if (!player.isPlaying) {
+        timeDisplay.innerText = this.#formatTime(ratio * duration)
+      }
+    })
   }
 
   addMessage(data, isFromContact = false) {
@@ -572,23 +637,25 @@ class AppView extends AbstractView {
             <div class="picture-wrapper">
               <img 
                 class="profile-picture"
-                src="https://img.freepik.com/premium-vector/man-avatar-profile-picture-isolated-background-avatar-profile-picture-man_1293239-4870.jpg" 
+                src="${data.profilePicture}" 
                 alt="contact picture"
               >
             </div>
             <div class="detail">
               <div class="player">
-                <button>
-                  <img src="./src/assets/play.svg" alt="play icon">
+                <button class="audio-play-btn">
+                  <img class="audio-play-icon" src="./src/assets/play.svg" alt="play icon">
                 </button>
-                <input type="range" name="audio-range" class="audio-range">
+                <input type="range" name="audio-range" class="audio-range" min="0" max="100" value="0">
               </div>
               <div class="meta-data">
-                <p>10:42</p>
+                <p class="audio-time">00:00</p>
               </div>
             </div>
           </div>
         `
+
+        this.bindAudioPlayer(li, data.content, data.duration)
       break
 
       default:
