@@ -17,9 +17,11 @@ class AbstractModel {
     }
 
     #validatePrimaryKey() {
+        if (this.#primaryKeyProp === null) return null
+
         const primaryKeyValue = this.#data[this.#primaryKeyProp]
         if (!primaryKeyValue) {
-            throw new PrimaryKeyException(`The primary key ('${property}') is required for this operation.`)
+            throw new PrimaryKeyException(`The primary key ('${this.#primaryKeyProp}') is required for this operation.`)
         }
         return primaryKeyValue
     }
@@ -65,22 +67,26 @@ class AbstractModel {
         return document?.data()
     }
 
-    async onSnapshot(callback) {
+    async onSnapshot(callback, constraints = [], path = null) {
       if (!callback || typeof callback !== 'function') {
          throw new InvalidArgumentException(`You must pass a callback function when calling 'onSnapshot'`)
       }
 
       const documentId = this.#validatePrimaryKey()
+      const snapshotPath = path || this.#path
 
       this.offSnapshot() 
       
-      this.#listener = this.#firestore.onSnapshot(this.#path, documentId, doc => {
-        
-        if (doc && doc.exists()) {
-            this.#data = doc.data()
-            callback(doc)
+      this.#listener = this.#firestore.onSnapshot(snapshotPath, documentId, (snapshot) => {
+        if (documentId) {
+          if (snapshot && snapshot.exists()) {
+            this.#data = snapshot.data()
+            callback(snapshot)
+          }
+        } else {
+          callback(snapshot)
         }
-      })
+      }, constraints)
       
       return this.#listener
     }

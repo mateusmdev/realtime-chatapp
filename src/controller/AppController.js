@@ -2,10 +2,14 @@ import AppView from './../view/AppView'
 import axios from 'axios'
 import LocalStorage from '../utils/LocalStorage'
 import User from '../model/User'
+import Chat from '../model/Chat'
+import Message from '../model/Message'
 import MediaContext from './../model/MediaContext'
 import MediaFactory from '../model/MediaFactory'
 import Camera from '../model/Camera'
+import AudioRecorder from '../model/AudioRecorder'
 import ProfileCache from '../utils/ProfileCache'
+import CloudinaryService from '../service/CloudinaryService'
 
 const TOKEN_VALIDATOR = import.meta.env.VITE_TOKEN_VALIDATOR
 const ICON_KEY = import.meta.env.VITE_ICON_KEY
@@ -13,7 +17,13 @@ const BLOCK_MEDIA = import.meta.env.VITE_BLOCK_MEDIA
 
 class AppController {
   #view = new AppView()
-
+  #currentChatId = null
+  #currentContactData = null
+  #messageListener = null
+  #pendingMediaFile = null
+  #pendingDocumentFile = null
+  #pendingContactData = null
+  
   async initEvents(){
     
     this.#view.addEvent(document, {
@@ -225,7 +235,7 @@ class AppController {
 
     this.#view.addEvent('#microphoneBtn', {
       eventName: 'click',
-      fn: async (event) => this.startRecordMicrophoneAudio(),
+      fn: async () => this.startRecordMicrophoneAudio(),
       behavior: {
         preventDefault: true,
       }
@@ -233,7 +243,7 @@ class AppController {
 
     this.#view.addEvent('#okRecordingBtn', {
       eventName: 'click',
-      fn: async (event) => this.handleSendAudio(),
+      fn: async () => this.handleSendAudio(),
       behavior: {
         preventDefault: true,
       }
@@ -241,10 +251,68 @@ class AppController {
 
     this.#view.addEvent('#cancelRecordingBtn', {
       eventName: 'click',
-      fn: async (event) => this.handleStopRecordAudio(event),
+      fn: async () => this.handleStopRecordAudio(),
       behavior: {
         preventDefault: true,
       }
+    })
+
+    this.#view.addEvent('#sendImageActionBtn', {
+      eventName: 'click',
+      fn: async () => this.handleSendImage(),
+      behavior: {
+        preventDefault: true,
+      }
+    })
+
+    this.#view.addEvent('#sendPhotoActionBtn', {
+      eventName: 'click',
+      fn: async () => this.handleSendPhotoImage(),
+      behavior: {
+        preventDefault: true,
+      }
+    })
+
+    this.#view.addEvent('#sendFileActionBtn', {
+      eventName: 'click',
+      fn: async () => this.handleSendDocument(),
+      behavior: {
+        preventDefault: true,
+      }
+    })
+    
+    this.#view.addEvent('#sendPdfActionBtn', {
+      eventName: 'click',
+      fn: async () => this.handleSendDocument(),
+      behavior: {
+        preventDefault: true,
+      }
+    })
+
+    this.#view.addEvent('#messageList', {
+      eventName: 'click',
+      fn: (e) => {
+        this.handleDownloadFile(e)
+        this.handleSendMessageFromContact(e)
+      },
+      behavior: {
+        preventDefault: true
+      }
+    })
+
+    this.#view.addEvent('#cancelConfirmChat', {
+      eventName: 'click',
+      fn: () => {
+        this.#pendingContactData = null
+        this.#view.toggleConfirmChatModal()
+      },
+      behavior: { preventDefault: true }
+    })
+
+    this.#view.addEvent('#confirmConfirmChat', {
+      eventName: 'click',
+      fn: () => this.handleConfirmSendMessage(),
+      behavior: { preventDefault: true }
     })
   }
 
@@ -270,6 +338,20 @@ class AppController {
 
     await this.getIconData()
     await this.#view.initLayout(preferences)
+    
+    if (!isPreview) {
+      const cacheObject = ProfileCache.get()
+      const contacts = cacheObject?.cache || []
+      const sortedContacts = [...contacts].sort((a, b) =>
+        a.name.localeCompare(b.name)
+      )
+    
+      const options = {
+        handleCallback: this.handleSendContact.bind(this)
+      }
+    
+      this.#view.loadContactsModal(sortedContacts, options)
+    }
   }
 
   async getUserData(){
@@ -297,6 +379,10 @@ class AppController {
       await user.findOrCreate()
       const cacheObject = ProfileCache.get()
       const contacts = await user.getContactsFromCache(!cacheObject?.isCached)
+
+      const sortedContacts = [...contacts].sort((a, b) =>
+        a.name.localeCompare(b.name)
+      )
       
       await user.onSnapshot(() => {
         LocalStorage.setUserData(JSON.stringify(user.data))
@@ -307,7 +393,7 @@ class AppController {
         handleCallback: this.handleContactItem.bind(this)
       }
 
-      await this.#view.loadContacts(contacts, options)
+      await this.#view.loadContacts(sortedContacts, options)
 
     } catch (error) {
       localStorage.clear()
@@ -346,14 +432,57 @@ class AppController {
     this.#view.changeSection(e.currentTarget)
   }
   
-  handleContactItem(e, data) {
+  async handleContactItem(e, data) {
     const isCorrectTarget = e.currentTarget.id === 'back-btn'
     this.#view.updateMessageScreen(data)
     this.#view.toggleMessageScreen(!isCorrectTarget)
-    
+
     if (isCorrectTarget){
       this.#view.toggleMediaModal()
+      return
     }
+
+    await this.#openChat(data)
+  }
+
+  async #openChat(data) {
+    if (this.#messageListener) {
+      this.#messageListener.offSnapshot()
+      this.#messageListener = null
+    }
+
+    this.#currentChatId = data.chatId
+    this.#currentContactData = data
+    const { messageList } = this.#view.$()
+    const userData = JSON.parse(LocalStorage.getUserData())
+
+    messageList.innerHTML = ''
+
+    let isInitialLoad = true
+
+    this.#messageListener = Message.listenByChatId(this.#currentChatId, (messages) => {
+      const shouldScroll = isInitialLoad || this.#view.isAtBottom()
+
+      messages.forEach(currentMessage => {
+        const { data } = currentMessage
+        const isFromContact = data.from !== userData.email
+
+        const enrichedData = {
+          ...data,
+          profilePicture: isFromContact
+            ? this.#currentContactData.profileImage
+            : (userData.profilePicture ?? userData.picture)
+        }
+
+        this.#view.addMessage(enrichedData, isFromContact)
+      })
+
+      if (shouldScroll) {
+        this.#view.scrollToBottom()
+      }
+
+      isInitialLoad = false
+    })
   }
 
   handleMessageItem(e){
@@ -366,6 +495,8 @@ class AppController {
   }
 
   handleCloseMediaModal(){
+    this.#pendingMediaFile = null
+    this.#pendingDocumentFile = null
     this.#view.toggleMediaModal()
 
     if (this.#view.getState('isVideoRecording')) {
@@ -378,13 +509,13 @@ class AppController {
     this.#view.setState('isPhotoAreaVisible', false)
     this.#view.clearPhotoArea()
     this.#view.togglePhotoArea()
+    this.#view.togglePhotoAction()
     this.#view.clearMediaProperties()
   }
 
   async handleMediaButton(e) {
     const { id } = e.currentTarget
     const { uploadFile } = this.#view.$()
-    console.log('clicou')
 
     this.#view.setState('mediaButtonId', id)
 
@@ -409,7 +540,6 @@ class AppController {
 
         break
 
-
       case 'take-photo-btn':
         if (this.#view.getState('blockMedia') === true) {
           blockMessage()
@@ -420,17 +550,17 @@ class AppController {
         await this.openCamera()
         break
         
-        case 'send-picture-btn':
-          if (this.#view.getState('blockMedia') === true) {
-            blockMessage()
-            return
-          }
+      case 'send-picture-btn':
+        if (this.#view.getState('blockMedia') === true) {
+          blockMessage()
+          return
+        }
 
-          this.handlerUploadFileClick(uploadFile, {
-            idMedia: 'send-picture-btn'
-          })
+        this.handlerUploadFileClick(uploadFile, {
+          idMedia: 'send-picture-btn'
+        })
 
-          break
+        break
     }
   }
   
@@ -439,44 +569,54 @@ class AppController {
     const [uploadedFile] = event.target.files
     const { pdfArea, fileArea, sentImagePreview, sentImageName } = this.#view.$()
     this.#view.clearMediaProperties()
-
+  
     if (!uploadedFile) return
-
+  
     const isPdf = uploadedFile?.type === 'application/pdf'
-    const componentData = {} 
-
+    const componentData = {}
+  
     if (uploadedFile.type.startsWith('image/') && id === 'send-document-btn') {
+      this.#pendingDocumentFile = uploadedFile
+      this.#view.updateDocumentPreview(uploadedFile.name)
+  
       componentData.selectedArea = fileArea
       componentData.modalClass = 'documents'
-      
+  
     } else if (uploadedFile.type.startsWith('image/') && id === 'send-picture-btn') {
+      this.#pendingMediaFile = uploadedFile
+  
       componentData.selectedArea = {
         image: sentImagePreview,
         name: sentImageName
       }
-
+  
       componentData.modalClass = 'image-preview'
-      
+  
     } else if (isPdf) {
+      this.#pendingDocumentFile = uploadedFile
+  
       componentData.selectedArea = pdfArea
       componentData.modalClass = 'pdf-preview'
-      
+  
     } else {
+      this.#pendingDocumentFile = uploadedFile
+      this.#view.updateDocumentPreview(uploadedFile.name)
+  
       componentData.selectedArea = fileArea
       componentData.modalClass = 'documents'
     }
-
+  
     const mediaInstance = MediaFactory.getInstance(id)
     const mediaHandler = new MediaContext(mediaInstance)
-    const uploadData = { 
+    const uploadData = {
       file: uploadedFile,
       area: componentData.selectedArea
     }
-
+  
     if (mediaInstance != null) {
       await mediaHandler.execute(uploadData)
     }
-
+  
     await this.#view.toggleMediaModal(componentData.modalClass)
     this.#view.setDefaultMode(event)
   }
@@ -533,29 +673,60 @@ class AppController {
   async handleAddContact(event) {
     const value = this.#view.$('contactInput').value
     const userData = JSON.parse(LocalStorage.getUserData())
-
+  
     if (value.trim() === '' || value.trim() === userData.email) return
-
-    const contact = new User({ email : value })
+  
+    const contact = new User({ email: value })
     const result = await contact.getDocument()
-
+  
     if (result !== null) {
       try {
-        const user = new User( userData )
-        await user.saveContact({ 
-          email : result.email,
+        const userA = new User(userData)
+        const userB = new User(result)
+  
+        let chat = await Chat.findByUsers(userData.email, result.email)
+  
+        if (!chat) {
+          chat = await Chat.create(userData.email, result.email)
+        }
+  
+        const chatId = chat.data.id
+  
+        await userA.saveContact({
+          email: result.email,
           profilePicture: result.profilePicture,
           picture: result.picture,
-          name: result.name
+          name: result.name,
+          chatId,
         })
-
+  
+        await userB.saveContact({
+          email: userData.email,
+          profilePicture: userData.profilePicture,
+          picture: userData.picture,
+          name: userData.name,
+          chatId,
+        })
+  
+        const freshContacts = await userA.getContactsFromCache(true)
+        const sortedContacts = [...freshContacts].sort((a, b) =>
+          a.name.localeCompare(b.name)
+        )
+  
+        await this.#view.loadContacts(sortedContacts, {
+          handleCallback: this.handleContactItem.bind(this)
+        })
+  
+        this.#view.loadContactsModal(sortedContacts, {
+          handleCallback: this.handleSendContact.bind(this)
+        })
+  
       } catch (error) {
         throw error
       }
-
+  
       this.#view.setAddContactModal(this.#view.$('cancelAddContact'))
-    } 
-    else {
+    } else {
       this.#view.toggleContactError(true)
     }
   }
@@ -635,15 +806,18 @@ class AppController {
     const { messageList, inputContent } = this.#view.$()
     const messageLength = inputContent.innerText.trim().length
 
-    if (messageLength > 0) {
-      const message = this.#view.createElement('li', messageList, {
-        class: 'message user',
-      })
+    if (messageLength > 0 && this.#currentChatId !== null) {
+      const userData = JSON.parse(LocalStorage.getUserData())
 
-      const content = this.#view.createElement('div', message, {
-        class: 'content text',
-        innerText: inputContent.innerText
-      })
+      const messageData = {
+        content: inputContent.innerText.trim(),
+        type: 'text',
+        status: 'wait',
+        timeStamp: Date.now(),
+        from: userData.email,
+      }
+
+      const message = new Message(messageData, this.#currentChatId)
 
       const event = new CustomEvent('keyup', {
         bubbles: false,
@@ -653,6 +827,8 @@ class AppController {
 
       inputContent.textContent = ''
       inputContent.dispatchEvent(event)
+
+      await message.send()
     }
   }
 
@@ -680,35 +856,321 @@ class AppController {
   }
 
   async startRecordMicrophoneAudio() {
-    this.#view.toggleSendAudioSection(true)
-    const start = Date.now()
-    const { microphoneTimer } = this.#view.$()
+    const recorder = AudioRecorder.getInstance()
 
-    const recordedTime = setInterval(() => {
-      const time = Date.now() - start
+    if (!recorder.isSupported()) {
+      alert('Seu navegador não suporta gravação de áudio.')
+      return
+    }
 
-      const seconds = parseInt((time / 1000) % 60)
-      const minutes = parseInt((time / (1000 * 60) % 60))
+    try {
+      await recorder.start()
 
-      microphoneTimer.innerText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
-    }, 100)
+      this.#view.toggleSendAudioSection(true)
 
-    this.#view.setState('tempRecordedInterval', recordedTime)
+      const start = Date.now()
+      const { microphoneTimer } = this.#view.$()
+
+      const recordedTime = setInterval(() => {
+        const time = Date.now() - start
+        const seconds = parseInt((time / 1000) % 60)
+        const minutes = parseInt((time / (1000 * 60)) % 60)
+        microphoneTimer.innerText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+      }, 100)
+
+      this.#view.setState('tempRecordedInterval', recordedTime)
+
+    } catch (error) {
+      alert('Erro ao acessar o microfone. Verifique as permissões.')
+    }
   }
 
-  async handleStopRecordAudio(event) {
+  async handleStopRecordAudio() {
     const interval = this.#view.getState('tempRecordedInterval')
     clearInterval(interval)
+
+    const recorder = AudioRecorder.getInstance()
+    recorder.cancel()
 
     this.#view.resetAudioProperties()
   }
 
-  async handleSendAudio(event) {
-    console.log('Audio enviado.')
+  async handleSendAudio() {
     const interval = this.#view.getState('tempRecordedInterval')
     clearInterval(interval)
-    
-    this.#view.resetAudioProperties()
+
+    const recorder = AudioRecorder.getInstance()
+
+    if (!this.#currentChatId) {
+      recorder.cancel()
+      this.#view.resetAudioProperties()
+      return
+    }
+
+    try {
+      const blob = await recorder.stop()
+
+      const audioContext = new AudioContext()
+      const arrayBuffer = await blob.arrayBuffer()
+      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
+      const duration = parseFloat(audioBuffer.duration.toFixed(2))
+      audioContext.close()
+
+      const url = await CloudinaryService.uploadAudio(blob)
+      const userData = JSON.parse(LocalStorage.getUserData())
+
+      const messageData = {
+        type: 'audio',
+        content: url,
+        duration,
+        status: 'wait',
+        timeStamp: Date.now(),
+        from: userData.email,
+      }
+
+      const message = new Message(messageData, this.#currentChatId)
+      await message.send()
+
+    } catch (error) {
+      alert('Erro ao enviar o áudio. Tente novamente.')
+    } finally {
+      this.#view.resetAudioProperties()
+    }
+  }
+
+  async handleSendImage() {
+    if (!this.#pendingMediaFile || !this.#currentChatId) return
+
+    try {
+      const url = await CloudinaryService.upload(this.#pendingMediaFile)
+      const userData = JSON.parse(LocalStorage.getUserData())
+
+      const messageData = {
+        content: url,
+        type: 'picture',
+        status: 'wait',
+        timeStamp: Date.now(),
+        from: userData.email,
+      }
+
+      const message = new Message(messageData, this.#currentChatId)
+      await message.send()
+
+      this.#pendingMediaFile = null
+      this.handleCloseMediaModal()
+
+    } catch (error) {
+      alert('Erro ao enviar a imagem. Tente novamente.')
+    }
+  }
+
+  async handleSendPhotoImage() {
+    if (!this.#currentChatId) return
+  
+    try {
+      const { photoArea } = this.#view.$()
+      const base64 = photoArea.toDataURL('image/png')
+  
+      const url = await CloudinaryService.uploadBase64(base64)
+      const userData = JSON.parse(LocalStorage.getUserData())
+  
+      const messageData = {
+        content: url,
+        type: 'picture',
+        status: 'wait',
+        timeStamp: Date.now(),
+        from: userData.email,
+      }
+  
+      const message = new Message(messageData, this.#currentChatId)
+      await message.send()
+  
+      this.handleCloseMediaModal()
+  
+    } catch (error) {
+      alert(error.message || 'Erro ao enviar a imagem. Tente novamente.')
+    }
+  }
+
+  async handleSendDocument() {
+    if (!this.#pendingDocumentFile || !this.#currentChatId) return
+  
+    try {
+      const url = await CloudinaryService.uploadRaw(this.#pendingDocumentFile)
+      const userData = JSON.parse(LocalStorage.getUserData())
+  
+      const messageData = {
+        content: url,
+        fileName: this.#pendingDocumentFile.name,
+        type: 'file',
+        status: 'wait',
+        timeStamp: Date.now(),
+        from: userData.email,
+      }
+  
+      const message = new Message(messageData, this.#currentChatId)
+      await message.send()
+  
+      this.#pendingDocumentFile = null
+      this.handleCloseMediaModal()
+  
+    } catch (error) {
+      alert(error.message || 'Erro ao enviar o arquivo. Tente novamente.')
+    }
+  }
+
+  async handleDownloadFile(event) {
+    const downloadBtn = event.target.closest('.dowload-btn')
+    if (!downloadBtn) return
+  
+    const url = downloadBtn.dataset.url
+    const fileName = downloadBtn.dataset.filename
+  
+    if (!url || !fileName) return
+  
+    try {
+      const response = await fetch(url)
+  
+      if (!response.ok) throw new Error('Falha ao baixar o arquivo.')
+  
+      const blob = await response.blob()
+      const blobUrl = URL.createObjectURL(blob)
+  
+      const anchor = document.createElement('a')
+      anchor.href = blobUrl
+      anchor.download = fileName
+      anchor.click()
+  
+      URL.revokeObjectURL(blobUrl)
+  
+    } catch (error) {
+      alert('Erro ao baixar o arquivo. Tente novamente.')
+    }
+  }
+
+  handleSendMessageFromContact(e) {
+    const sendMessageBtn = e.target.closest('.send-message')
+    if (!sendMessageBtn) return
+
+    const { contactName, contactEmail, contactPicture } = sendMessageBtn.dataset
+    const userData = JSON.parse(LocalStorage.getUserData())
+
+    if (contactEmail === userData.email) {
+      alert('Você não pode enviar mensagem para si mesmo.')
+      return
+    }
+
+    this.#pendingContactData = {
+      name: contactName,
+      email: contactEmail,
+      profilePicture: contactPicture,
+    }
+
+    this.#view.toggleConfirmChatModal(this.#pendingContactData)
+  }
+
+  async handleConfirmSendMessage() {
+    if (!this.#pendingContactData) return
+
+    try {
+      const userData = JSON.parse(LocalStorage.getUserData())
+      const contact = this.#pendingContactData
+
+      const contactUser = new User({ email: contact.email })
+      const contactData = await contactUser.getDocument()
+
+      if (!contactData) {
+        alert('Contato não encontrado.')
+        this.#view.toggleConfirmChatModal()
+        this.#pendingContactData = null
+        return
+      }
+
+      let chat = await Chat.findByUsers(userData.email, contact.email)
+      if (!chat) {
+        chat = await Chat.create(userData.email, contact.email)
+      }
+
+      const chatId = chat.data.id
+
+      const userA = new User(userData)
+      const userB = new User(contactData)
+
+      await userA.saveContact({
+        email: contactData.email,
+        profilePicture: contactData.profilePicture ?? contactData.picture,
+        picture: contactData.picture,
+        name: contactData.name,
+        chatId,
+      })
+
+      await userB.saveContact({
+        email: userData.email,
+        profilePicture: userData.profilePicture ?? userData.picture,
+        picture: userData.picture,
+        name: userData.name,
+        chatId,
+      })
+
+      const freshContacts = await userA.getContactsFromCache(true)
+      const sortedContacts = [...freshContacts].sort((a, b) =>
+        a.name.localeCompare(b.name)
+      )
+
+      await this.#view.loadContacts(sortedContacts, {
+        handleCallback: this.handleContactItem.bind(this)
+      })
+
+      this.#view.loadContactsModal(sortedContacts, {
+        handleCallback: this.handleSendContact.bind(this)
+      })
+
+      this.#view.toggleConfirmChatModal()
+
+      const openData = {
+        profileImage: contactData.profilePicture ?? contactData.picture,
+        name: contactData.name,
+        email: contactData.email,
+        chatId,
+      }
+
+      this.#view.updateMessageScreen(openData)
+      this.#view.toggleMessageScreen(true)
+      await this.#openChat(openData)
+
+      this.#pendingContactData = null
+
+    } catch (error) {
+      alert('Erro ao abrir conversa. Tente novamente.')
+      throw error
+    }
+  }
+
+  async handleSendContact(contact) {
+    if (!this.#currentChatId) return
+  
+    try {
+      const userData = JSON.parse(LocalStorage.getUserData())
+  
+      const messageData = {
+        type: 'contact-attachment',
+        contactName: contact.name,
+        contactEmail: contact.email,
+        contactPicture: contact.profilePicture ?? contact.picture,
+        contactChatId: contact.chatId,
+        from: userData.email,
+        status: 'wait',
+        timeStamp: Date.now(),
+      }
+  
+      const message = new Message(messageData, this.#currentChatId)
+      await message.send()
+  
+      this.handleCloseMediaModal()
+  
+    } catch (error) {
+      alert('Erro ao enviar o contato. Tente novamente.')
+    }
   }
 }
 

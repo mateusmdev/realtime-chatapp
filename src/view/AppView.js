@@ -1,4 +1,5 @@
 import AbstractView from './AbstractView'
+import AudioPlayer from '../model/AudioPlayer'
 import './../sass/app.scss'
 
 class AppView extends AbstractView {
@@ -21,7 +22,8 @@ class AppView extends AbstractView {
       isPhotoAreaVisible: false,
       isMediaModalOpen: false,
       isPreviewMode: false,
-      tempRecordedInterval: null
+      tempRecordedInterval: null,
+      scrollThreshold: 150,
     }
   }
 
@@ -46,7 +48,6 @@ class AppView extends AbstractView {
     const baseItem = contactContainer.querySelector('.item')
     contactContainer.innerHTML = ''
 
-    
     if (list?.length < 1) return
     
     list.forEach(dataItem => {
@@ -62,9 +63,11 @@ class AppView extends AbstractView {
       
       const callbackParam = {
         profileImage: dataItem.profilePicture ?? dataItem.picture,
-        name: dataItem.name
+        name: dataItem.name,
+        email: dataItem.email,
+        chatId: dataItem.chatId,
       } 
-
+ 
       this.addEvent(item, {
         eventName: 'click',
         fn: event => options.handleCallback(event, callbackParam),
@@ -72,7 +75,7 @@ class AppView extends AbstractView {
           preventDefault: true
         }
       })
-
+ 
       contactContainer.appendChild(item)
     })
   }
@@ -91,56 +94,54 @@ class AppView extends AbstractView {
   initLayout(preferences = {}) {
     const [blockMediaState, isIconListBlock] = this.getState('blockMedia', 'isIconListBlock')
     const isPreviewMode = this.getState('isPreviewMode')
-
+  
     if (blockMediaState === true || isPreviewMode === true) {
-      console.log('aqui')
-      console.log('preview: ', isPreviewMode)
-      console.log('aqui')
       const { takePhotoBtn, sendPictureBtn, sendDocumentBtn, userAboutContent, userAbout } = this.$()
-      const blockedElements = [takePhotoBtn, sendPictureBtn, sendDocumentBtn];
+      const blockedElements = [takePhotoBtn, sendPictureBtn, sendDocumentBtn]
       
       blockedElements.forEach(element => {
         this.setStyle(element, {
           opacity: '0.3',
           cursor: 'not-allowed'
         })
-
         element.disabled = true
       })
-
+  
       this.setStyle(userAbout, {
         opacity: '0',
         cursor: 'not-allowed',
         visibility: 'hidden',
         display: 'none'
       })
-
+  
       userAboutContent.setAttribute('contenteditable', false)
     }
-
-
+  
     if (isIconListBlock === true) {
       const { emojiModalBtn } = this.$()
-
+  
       this.setStyle(emojiModalBtn, {
         visibility: 'hidden',
         opacity: '0',
         display: 'none'
       })
-
+  
       emojiModalBtn.disabled = true
     }
-
+  
     placeholder.innerText = this.getState('placeholderText')
     
     const { appStyle } = preferences
     const splashScreen = this.$('splashScreen')
     const appStyleState = this.getState('appStyle')
-
+  
     this.setState('appStyle', appStyle ?? appStyleState)
-    
     this.setAppStyle()
     splashScreen.remove()
+  
+    if (isPreviewMode === false) {
+      this.clearMockedData()
+    }
   }
 
   closeConcorrentModal() {
@@ -396,7 +397,7 @@ class AppView extends AbstractView {
   
       range = document.createRange()
       range.selectNodeContents(inputContent)
-      range.collapse(false) // cursor no final
+      range.collapse(false)
   
       this.setState('range', range)
     }
@@ -503,7 +504,239 @@ class AppView extends AbstractView {
   }
 
   resetAudioProperties() {
-    this.toggleSendAudioSection(open = false)
+    this.toggleSendAudioSection(false)
+  }
+
+  #formatTime(seconds) {
+    const m = parseInt(seconds / 60)
+    const s = parseInt(seconds % 60)
+    return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`
+  }
+
+  bindAudioPlayer(li, url, duration) {
+    const playBtn = li.querySelector('.audio-play-btn')
+    const playIcon = li.querySelector('.audio-play-icon')
+    const range = li.querySelector('.audio-range')
+    const timeDisplay = li.querySelector('.audio-time')
+
+    timeDisplay.innerText = this.#formatTime(duration)
+
+    const player = new AudioPlayer()
+    let loaded = false
+
+    playBtn.addEventListener('click', async () => {
+      if (!loaded) {
+        playBtn.disabled = true
+
+        try {
+          await player.load(url)
+          loaded = true
+        } catch (_) {
+          playBtn.disabled = false
+          return
+        }
+
+        playBtn.disabled = false
+      }
+
+      if (player.isPlaying) {
+        player.pause()
+        playIcon.src = './src/assets/play.svg'
+        return
+      }
+
+      player.play(
+        (currentTime, totalDuration) => {
+          const ratio = currentTime / totalDuration
+          range.value = ratio * 100
+          timeDisplay.innerText = this.#formatTime(currentTime)
+        },
+        () => {
+          playIcon.src = './src/assets/play.svg'
+          range.value = 0
+          timeDisplay.innerText = this.#formatTime(duration)
+        }
+      )
+
+      playIcon.src = './src/assets/pause.svg'
+    })
+
+    range.addEventListener('input', () => {
+      const ratio = range.value / 100
+      player.seek(ratio)
+
+      if (!player.isPlaying) {
+        timeDisplay.innerText = this.#formatTime(ratio * duration)
+      }
+    })
+  }
+
+  addMessage(data, isFromContact = false) {
+    if (!data) return
+
+    const li = document.createElement(`li`)
+    li.className = `message`
+
+    isFromContact === true ? li.classList.add('contact') : li.classList.add('user')
+
+    switch (data.type) {
+      case 'contact-attachment':
+        li.innerHTML = `
+          <div class="content contact-attachment">
+            <div class="detail">
+              <div class="picture-wrapper">
+                <img 
+                  class="profile-picture"
+                  src="${data.contactPicture}" 
+                  alt="contact picture"
+                >
+              </div>
+              <p class="contact-name">${data.contactName}</p>
+            </div>
+            <a href="#" class="send-message"
+              data-contact-name="${data.contactName}"
+              data-contact-email="${data.contactEmail}"
+              data-contact-picture="${data.contactPicture}">
+              <span>Enviar Mensagem</span>
+            </a>
+          </div>
+        `
+      break
+      
+      case 'picture':
+        li.innerHTML = `
+          <div class="content picture">
+            <div class="image-area">
+              <img src="${data.content}" alt="an image">
+            </div>
+          </div>
+        `
+      break
+
+      case 'file':
+        li.innerHTML = `
+          <div class="content file">
+          <div>
+            <img 
+              class="file-img"
+              src="./src/assets/document-icon.svg" 
+              alt="file icon"
+            >
+            <p class="file-name">${data.fileName}</p>
+          </div>
+          <a href="#" class="dowload-btn" data-url="${data.content}" data-filename="${data.fileName}">
+            <img src="./src/assets/download.svg" alt="download icon">
+          </a>
+        </div>
+        `
+      break
+
+      case 'audio':
+        li.innerHTML = `
+          <div class="content audio">
+            <div class="picture-wrapper">
+              <img 
+                class="profile-picture"
+                src="${data.profilePicture}" 
+                alt="contact picture"
+              >
+            </div>
+            <div class="detail">
+              <div class="player">
+                <button class="audio-play-btn">
+                  <img class="audio-play-icon" src="./src/assets/play.svg" alt="play icon">
+                </button>
+                <input type="range" name="audio-range" class="audio-range" min="0" max="100" value="0">
+              </div>
+              <div class="meta-data">
+                <p class="audio-time">00:00</p>
+              </div>
+            </div>
+          </div>
+        `
+
+        this.bindAudioPlayer(li, data.content, data.duration)
+      break
+
+      default:
+        li.innerHTML = `
+          <div class="content text">
+            ${data.content}
+          </div>
+        `
+    }
+
+    const { messageList } = this.$()
+    messageList.appendChild(li)
+  }
+
+  isAtBottom() {
+    const chat = this.$('chat')
+    const distanceFromBottom = chat.scrollHeight - chat.scrollTop - chat.clientHeight
+    return distanceFromBottom <= this.getState('scrollThreshold')
+  }
+  
+  scrollToBottom() {
+    const chat = this.$('chat')
+    chat.scrollTop = chat.scrollHeight
+  }
+
+  updateDocumentPreview(fileName) {
+    const fileAreaName = this.$('fileAreaName')
+    fileAreaName.innerText = fileName
+  }
+
+  clearMockedData() {
+    const { contactModalList } = this.$()
+    contactModalList.innerHTML = ''
+  }
+  
+  loadContactsModal(contacts, options = {}) {
+    const { contactModalList } = this.$()
+    contactModalList.innerHTML = ''
+  
+    contacts.forEach(contact => {
+      const li = document.createElement('li')
+      li.innerHTML = `
+        <div class="picture-wrapper">
+          <img 
+            class="profile-picture" 
+            src="${contact.profilePicture ?? contact.picture}" 
+            alt="contact picture"
+          >
+        </div>
+        <span>${contact.name}</span>
+      `
+  
+      this.addEvent(li, {
+        eventName: 'click',
+        fn: () => options.handleCallback(contact),
+        behavior: {
+          preventDefault: true
+        }
+      })
+  
+      contactModalList.appendChild(li)
+    })
+  }
+
+  toggleConfirmChatModal(contactData = null) {
+    const { media } = this.$()
+    const card = media.querySelector('.list-contact .card')
+    const confirmModal = media.querySelector('.confirm-chat-modal')
+    const confirmContactName = this.$('confirmContactName')
+
+    if (contactData) {
+      confirmContactName.innerText = contactData.name
+      card.style.display = 'none'
+      confirmModal.classList.add('active')
+      this.toggleMediaModal('list-contact')
+      return
+    }
+
+    card.style.display = ''
+    confirmModal.classList.remove('active')
+    this.toggleMediaModal()
   }
 }
 

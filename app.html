@@ -82,6 +82,9 @@
                   <p id="sent-image-name"></p>
                 </div>
               </div>
+              <button id="send-image-action-btn">
+                <img src="./src/assets/send-icon.svg" alt="send icon">
+              </button>
             </div>
 
             <div class="pdf-preview media-type">
@@ -90,14 +93,17 @@
                   <canvas id="pdf-area"></canvas>
                 </div>
               </div>
+              <button id="send-pdf-action-btn">
+                <img src="./src/assets/send-icon.svg" alt="send icon">
+              </button>
             </div>
             <div class="documents media-type">
               <div id="file-area">
                 <div class="upload-file">
                   <img src="./src/assets/file-icon.svg" alt="file icon">
-                  <p>Document.pdf</p>
+                  <p id="file-area-name">Document.pdf</p>
                 </div>
-                <button>Enviar</button>
+                <button id="send-file-action-btn">Enviar</button>
               </div>
             </div>
             <div class="list-contact media-type">
@@ -105,7 +111,7 @@
                 <div class="header">
                   <p>Contato</p>
                 </div>
-                <ul>
+                <ul id="contact-modal-list">
                   <li>
                     <div class="picture-wrapper">
                       <img class="profile-picture" src="https://img.freepik.com/premium-vector/man-avatar-profile-picture-isolated-background-avatar-profile-picture-man_1293239-4870.jpg" alt="contact picure">
@@ -113,6 +119,16 @@
                     <span>John Due</span>
                   </li>
                 </ul>
+              </div>
+              <div class="confirm-chat-modal">
+                <div class="confirm-chat-content">
+                  <p>Iniciar conversa com <strong id="confirm-contact-name"></strong>?</p>
+                  <p class="confirm-chat-warning">O chat atual será fechado e a conversa com este contato será aberta.</p>
+                  <div class="confirm-chat-actions">
+                    <a href="#" id="cancel-confirm-chat">Cancelar</a>
+                    <a href="#" id="confirm-confirm-chat">Confirmar</a>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -320,8 +336,8 @@
               <input id="upload-file" type="file">
             </li>
           </ul>
-          <div class="chat">
-              <div class="message-wrapper">
+          <div class="chat" id="chat">
+              <div class="message-wrapper" id="message-wrapper">
                 <ol id="message-list">
                   <li
                     class="message user"
