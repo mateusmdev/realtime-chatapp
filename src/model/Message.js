@@ -5,6 +5,8 @@ import { orderBy } from "firebase/firestore"
 class Message extends AbstractModel {
   #chatId
 
+  static MEDIA_TYPES = ['picture', 'file', 'audio']
+
   constructor(data = {}, chatId){
     super(data, 'messages', null)
     this.#chatId = chatId
@@ -25,6 +27,39 @@ class Message extends AbstractModel {
     if (result.empty) return []
 
     return result.docs.map(docSnap => new Message(docSnap.data(), chatId))
+  }
+
+  static async findAllByChatId(chatId) {
+    const firestore = Firestore.instance
+    const path = `chats/${chatId}/messages`
+    const constraints = [orderBy('timeStamp')]
+
+    const result = await firestore.findDocs(path, constraints)
+
+    if (result.empty) return []
+
+    return result.docs.map(docSnap => {
+      const data = docSnap.data()
+      const hasMedia = Message.MEDIA_TYPES.includes(data.type) && !!data.publicId
+
+      return new Message(
+        {
+          ...data,
+          hasMedia,
+          resourceType: hasMedia ? Message.#resolveResourceType(data.type) : null,
+        },
+        chatId
+      )
+    })
+  }
+
+  static #resolveResourceType(messageType) {
+    const map = {
+      picture: 'image',
+      file: 'raw',
+      audio: 'video',
+    }
+    return map[messageType] ?? 'image'
   }
 
   static listenByChatId(chatId, callback) {

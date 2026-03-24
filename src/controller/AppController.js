@@ -10,6 +10,8 @@ import Camera from '../model/Camera'
 import AudioRecorder from '../model/AudioRecorder'
 import ProfileCache from '../utils/ProfileCache'
 import CloudinaryService from '../service/CloudinaryService'
+import Authenticator from '../firebase/Authenticator'
+import Firestore from '../firebase/Firestore'
 
 const TOKEN_VALIDATOR = import.meta.env.VITE_TOKEN_VALIDATOR
 const ICON_KEY = import.meta.env.VITE_ICON_KEY
@@ -312,6 +314,24 @@ class AppController {
     this.#view.addEvent('#confirmConfirmChat', {
       eventName: 'click',
       fn: () => this.handleConfirmSendMessage(),
+      behavior: { preventDefault: true }
+    })
+
+    this.#view.addEvent('#deleteAccountBtn', {
+      eventName: 'click',
+      fn: () => this.#view.toggleDeleteAccountModal(),
+      behavior: { preventDefault: true }
+    })
+
+    this.#view.addEvent('#cancelDeleteAccountBtn', {
+      eventName: 'click',
+      fn: () => this.#view.toggleDeleteAccountModal(),
+      behavior: { preventDefault: true }
+    })
+
+    this.#view.addEvent('#confirmDeleteAccountBtn', {
+      eventName: 'click',
+      fn: () => this.handleDeleteAccount(),
       behavior: { preventDefault: true }
     })
   }
@@ -916,12 +936,13 @@ class AppController {
       const duration = parseFloat(audioBuffer.duration.toFixed(2))
       audioContext.close()
 
-      const url = await CloudinaryService.uploadAudio(blob)
+      const { url, publicId } = await CloudinaryService.uploadAudio(blob)
       const userData = JSON.parse(LocalStorage.getUserData())
 
       const messageData = {
         type: 'audio',
         content: url,
+        publicId,
         duration,
         status: 'wait',
         timeStamp: Date.now(),
@@ -942,11 +963,12 @@ class AppController {
     if (!this.#pendingMediaFile || !this.#currentChatId) return
 
     try {
-      const url = await CloudinaryService.upload(this.#pendingMediaFile)
+      const { url, publicId } = await CloudinaryService.upload(this.#pendingMediaFile)
       const userData = JSON.parse(LocalStorage.getUserData())
 
       const messageData = {
         content: url,
+        publicId,
         type: 'picture',
         status: 'wait',
         timeStamp: Date.now(),
@@ -971,11 +993,12 @@ class AppController {
       const { photoArea } = this.#view.$()
       const base64 = photoArea.toDataURL('image/png')
   
-      const url = await CloudinaryService.uploadBase64(base64)
+      const { url, publicId } = await CloudinaryService.uploadBase64(base64)
       const userData = JSON.parse(LocalStorage.getUserData())
   
       const messageData = {
         content: url,
+        publicId,
         type: 'picture',
         status: 'wait',
         timeStamp: Date.now(),
@@ -996,11 +1019,12 @@ class AppController {
     if (!this.#pendingDocumentFile || !this.#currentChatId) return
   
     try {
-      const url = await CloudinaryService.uploadRaw(this.#pendingDocumentFile)
+      const { url, publicId } = await CloudinaryService.uploadRaw(this.#pendingDocumentFile)
       const userData = JSON.parse(LocalStorage.getUserData())
   
       const messageData = {
         content: url,
+        publicId,
         fileName: this.#pendingDocumentFile.name,
         type: 'file',
         status: 'wait',
@@ -1170,6 +1194,80 @@ class AppController {
   
     } catch (error) {
       alert('Erro ao enviar o contato. Tente novamente.')
+    }
+  }
+
+  async handleDeleteAccount() {
+    this.#view.setDeleteAccountLoading(true)
+
+    try {
+      const userData = JSON.parse(LocalStorage.getUserData())
+      const user = new User(userData)
+
+      await user.markContactAsDeleted(userData.email)
+      await user.delete()
+      await this.#handleMutualDeletionCascade(userData)
+
+      const auth = new Authenticator()
+      await auth.deleteAccount()
+
+      LocalStorage.clearSession()
+      ProfileCache.clear()
+
+      window.location.href = '/'
+
+    } catch (error) {
+      this.#view.setDeleteAccountLoading(false)
+      alert('Erro ao deletar a conta. Tente novamente.')
+      throw error
+    }
+  }
+
+  async #handleMutualDeletionCascade(userData) {
+    const chats = await Chat.findAllByUser(userData.email)
+    const firestore = Firestore.instance
+    let hasActiveConnections = false
+
+    if (chats.length === 0) {
+      await firestore.delete('user', userData.email)
+      return
+    }
+
+    for (const chat of chats) {
+      const otherEmail = chat.getOtherParticipantEmail(userData.email)
+
+      if (!otherEmail) continue
+
+      const otherUser = new User({ email: otherEmail })
+      const otherUserData = await otherUser.getDocument()
+
+      if (!otherUserData?.isDeleted) {
+        hasActiveConnections = true
+        continue
+      }
+
+      const chatId = chat.data.id
+      const messages = await Message.findAllByChatId(chatId)
+
+      const mediaMessages = messages.filter(msg => msg.data.hasMedia)
+
+      await Promise.all(
+        mediaMessages.map(async msg => {
+          try {
+            await CloudinaryService.delete(msg.data.publicId, msg.data.resourceType)
+          } catch (error) {
+            console.error(`Failed to delete Cloudinary asset ${msg.data.publicId}:`, error)
+          }
+        })
+      )
+
+      await Chat.deleteChat(chatId)
+
+      await firestore.delete('user', otherEmail)
+    }
+
+    if (!hasActiveConnections) {
+      await firestore.delete('user', userData.email)
     }
   }
 }

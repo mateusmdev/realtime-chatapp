@@ -50,8 +50,52 @@ class User extends AbstractModel {
     return enrichedContacts
   }
 
-  async delete(){
+  /**
+   * For each contact of the deleted user, updates the corresponding entry
+   * in that contact's subcollection marking it as deleted.
+   * Must be called before delete() so the contacts list is still available.
+   * @param {string} deletedEmail - Email of the user being deleted.
+   */
+  async markContactAsDeleted(deletedEmail) {
+    const contacts = await this.getContacts()
 
+    if (contacts.length === 0) return
+
+    const firestore = this.getModelAttr('firestore')
+    const path = this.getModelAttr('path')
+
+    const updatePromises = contacts.map(async contact => {
+      const contactEntryPath = `${path}/${contact.email}/contacts`
+      const existingEntry = await firestore.findById(contactEntryPath, deletedEmail)
+
+      if (!existingEntry || !existingEntry.exists()) return
+
+      const updatedEntry = {
+        ...existingEntry.data(),
+        isDeleted: true,
+      }
+
+      await firestore.save(updatedEntry, contactEntryPath, deletedEmail)
+    })
+
+    await Promise.all(updatePromises)
+  }
+
+  async delete() {
+    const email = this.data[this.getModelAttr('primaryKeyProp')]
+    const firestore = this.getModelAttr('firestore')
+    const path = this.getModelAttr('path')
+
+    const tombstone = {
+      name: this.data.name,
+      isDeleted: true,
+      deletedAt: Date.now(),
+    }
+
+    await firestore.save(tombstone, path, email)
+
+    const contactsPath = `${path}/${email}/contacts`
+    await firestore.deleteCollection(contactsPath)
   }
 
 }

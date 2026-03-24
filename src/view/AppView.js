@@ -22,6 +22,7 @@ class AppView extends AbstractView {
       isPhotoAreaVisible: false,
       isMediaModalOpen: false,
       isPreviewMode: false,
+      isDeleteAccountModalOpen: false,
       tempRecordedInterval: null,
       scrollThreshold: 150,
     }
@@ -737,6 +738,32 @@ class AppView extends AbstractView {
     card.style.display = ''
     confirmModal.classList.remove('active')
     this.toggleMediaModal()
+  }
+
+  toggleDeleteAccountModal() {
+    const { deleteAccountModal } = this.$()
+    const isOpen = this.getState('isDeleteAccountModalOpen')
+
+    if (!isOpen) {
+      this.setDeleteAccountLoading(false)
+    }
+
+    deleteAccountModal.classList.toggle('active', !isOpen)
+    this.setState('isDeleteAccountModalOpen', !isOpen)
+  }
+
+  setDeleteAccountLoading(isLoading) {
+    const { confirmDeleteAccountBtn, deleteAccountBtnLabel, deleteAccountLoading } = this.$()
+
+    if (isLoading) {
+      confirmDeleteAccountBtn.classList.add('loading')
+      deleteAccountBtnLabel.style.display = 'none'
+      deleteAccountLoading.classList.remove('hidden')
+    } else {
+      confirmDeleteAccountBtn.classList.remove('loading')
+      deleteAccountBtnLabel.style.display = ''
+      deleteAccountLoading.classList.add('hidden')
+    }
   }
 }
 
