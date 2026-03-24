@@ -26,7 +26,7 @@ class CloudinaryService {
     }
 
     const data = await response.json()
-    return data.secure_url
+    return { url: data.secure_url, publicId: data.public_id }
   }
 
   static async uploadBase64(base64DataUrl) {
@@ -53,7 +53,7 @@ class CloudinaryService {
     }
 
     const data = await response.json()
-    return data.secure_url
+    return { url: data.secure_url, publicId: data.public_id }
   }
 
   static async uploadRaw(file) {
@@ -78,7 +78,7 @@ class CloudinaryService {
     }
 
     const data = await response.json()
-    return data.secure_url
+    return { url: data.secure_url, publicId: data.public_id }
   }
 
   static async uploadAudio(blob) {
@@ -103,7 +103,30 @@ class CloudinaryService {
     }
 
     const data = await response.json()
-    return data.secure_url
+    return { url: data.secure_url, publicId: data.public_id }
+  }
+
+  static async delete(publicId, resourceType = 'image') {
+    if (!publicId) return
+
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${resourceType}/destroy`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          public_id: publicId,
+          upload_preset: UPLOAD_PRESET
+        })
+      }
+    )
+
+    if (!response.ok) {
+      throw new Error(`Cloudinary delete failed with status ${response.status}`)
+    }
+
+    const data = await response.json()
+    return data
   }
 }
 

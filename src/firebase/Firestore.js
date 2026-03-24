@@ -2,7 +2,7 @@ import firebaseConfig from "./firebaseConfig"
 import { 
     getFirestore, getDocs, collection, 
     addDoc, query, where, getDoc, doc, 
-    setDoc, onSnapshot 
+    setDoc, onSnapshot, deleteDoc
 } from 'firebase/firestore'
 
 class Firestore{
@@ -79,8 +79,28 @@ class Firestore{
 
     }
 
-    async delete(){
+    async delete(path, documentId) {
+        try {
+            const segments = path.split('/').filter(segment => segment.length > 0)
+            const collectionRef = collection(this.#db, ...segments)
+            const documentRef = doc(collectionRef, documentId)
+            await deleteDoc(documentRef)
+        } catch (error) {
+            throw error
+        }
+    }
 
+    async deleteCollection(path) {
+        try {
+            const result = await this.findDocs(path)
+
+            if (result.empty) return
+
+            const deletePromises = result.docs.map(docSnap => deleteDoc(docSnap.ref))
+            await Promise.all(deletePromises)
+        } catch (error) {
+            throw error
+        }
     }
 }
 
