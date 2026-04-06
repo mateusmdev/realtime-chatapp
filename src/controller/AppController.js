@@ -12,6 +12,7 @@ import ProfileCache from '../utils/ProfileCache'
 import CloudinaryService from '../service/CloudinaryService'
 import Authenticator from '../firebase/Authenticator'
 import Firestore from '../firebase/Firestore'
+import NotificationService from '../service/NotificationService'
 
 const TOKEN_VALIDATOR = import.meta.env.VITE_TOKEN_VALIDATOR
 const ICON_KEY = import.meta.env.VITE_ICON_KEY
@@ -25,6 +26,7 @@ class AppController {
   #pendingMediaFile = null
   #pendingDocumentFile = null
   #pendingContactData = null
+  #notificationService = null
   
   async initEvents(){
     
@@ -334,6 +336,11 @@ class AppController {
       fn: () => this.handleDeleteAccount(),
       behavior: { preventDefault: true }
     })
+    this.#view.addEvent(document, {
+      eventName: 'notificationEvent',
+      fn: async () => this.#initNotifications(),
+      behavior: { preventDefault: true }
+    })
   }
 
   async initApp(){
@@ -371,7 +378,29 @@ class AppController {
       }
     
       this.#view.loadContactsModal(sortedContacts, options)
+
+      const event = new CustomEvent('notificationEvent', {
+        bubbles: false,
+        cancelable: true,
+        composed: false
+      })
+
+      document.dispatchEvent(event)
     }
+  }
+
+  async #initNotifications() {
+    const granted = await NotificationService.requestPermission()
+
+    if (!granted) return
+
+    console.log('depois do if')
+    const userData = JSON.parse(LocalStorage.getUserData())
+    const cacheObject = ProfileCache.get()
+    const contacts = cacheObject?.cache || []
+
+    this.#notificationService = new NotificationService()
+    this.#notificationService.init(userData, contacts)
   }
 
   async getUserData(){
@@ -443,6 +472,7 @@ class AppController {
   }
 
   signOut(){
+    this.#notificationService?.destroy()
     LocalStorage.clearSession()
     ProfileCache.clear()
     window.location.href = '/'
@@ -1211,6 +1241,7 @@ class AppController {
       const auth = new Authenticator()
       await auth.deleteAccount()
 
+      this.#notificationService?.destroy()
       LocalStorage.clearSession()
       ProfileCache.clear()
 
