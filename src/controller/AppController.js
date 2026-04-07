@@ -298,6 +298,7 @@ class AppController {
       fn: (e) => {
         this.handleDownloadFile(e)
         this.handleSendMessageFromContact(e)
+        this.handlePictureFromContact(e)
       },
       behavior: {
         preventDefault: true
@@ -394,7 +395,6 @@ class AppController {
 
     if (!granted) return
 
-    console.log('depois do if')
     const userData = JSON.parse(LocalStorage.getUserData())
     const cacheObject = ProfileCache.get()
     const contacts = cacheObject?.cache || []
@@ -1121,6 +1121,13 @@ class AppController {
     }
 
     this.#view.toggleConfirmChatModal(this.#pendingContactData)
+  }
+
+  async handlePictureFromContact(e) {
+    const sentPicture = e.target.closest('.picture')
+    if (!sentPicture) return
+    
+    await this.#view.openPicture(sentPicture)
   }
 
   async handleConfirmSendMessage() {
