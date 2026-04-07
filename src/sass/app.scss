@@ -109,6 +109,7 @@ body{
     grid-template-columns: auto;
     justify-content: center;
     align-content: space-between;
+    z-index: 5;
 
     .user-picture-wrapper{
       @include mixins.profilePictureWrapper(3.125rem, 3.125rem, hidden);
@@ -188,7 +189,7 @@ body{
         background: none;
         
         &.overlay-active {
-          z-index: 2;
+          z-index: 7;
           position: fixed;
           left: 0;
 
@@ -280,6 +281,16 @@ body{
           }
         }
       }
+
+      section:not(#add-contact-section, #message-section) {
+        transform: translateX(-100%);
+        transition: 0.5s;
+        
+        &.active {
+          transform: translateX(0);
+          z-index: 1;
+        }
+      }
     }
 
     section{
@@ -288,10 +299,6 @@ body{
       width: 100%;
       top: 0;
       left: 0;
-
-      &.active{
-        z-index: 1;
-      }
 
       .title{
         grid-area: title;
