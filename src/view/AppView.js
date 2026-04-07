@@ -484,10 +484,11 @@ class AppView extends AbstractView {
   }
 
   clearMediaProperties() {
-    const { uploadFile, sentImagePreview, pdfArea } = this.$()
+    const { uploadFile, sentImagePreview, pdfArea, sentImageName } = this.$()
 
     uploadFile.value = ''
     sentImagePreview.src = ''
+    sentImageName.innerText = ''
 
     const context = pdfArea.getContext('2d')
     context.clearRect(0, 0, pdfArea.width, pdfArea.height)
@@ -764,6 +765,15 @@ class AppView extends AbstractView {
       deleteAccountBtnLabel.style.display = ''
       deleteAccountLoading.classList.add('hidden')
     }
+  }
+
+  async openPicture(sentPicture) {
+    const imgElement = sentPicture.querySelector('.image-area img')
+    const { sentImagePreview, sentImageName  } = this.$()
+    sentImagePreview.src = imgElement.src
+    sentImageName.innerText = ''
+
+    await this.toggleMediaModal('image-preview')
   }
 }
 
