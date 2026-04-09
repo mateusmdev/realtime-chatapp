@@ -2,16 +2,21 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite App</title>
+    <title>Real-time Chat App</title>
   </head>
   <body>
     <main>
-      <section class="wallpaper"></section>
+      <section class="wallpaper" id="wallpaper">
+        <div class="overlay" id="overlay"></div>
+      </section>
       <section class="login">
         <div class="login-container">
-          <div class="logo-wrapper"></div>
+          <div class="logo-wrapper">
+            <img src="./src/assets/app-icon.svg" alt="app Logo" id="logo">
+            <p>Realtime Chat App</p>
+          </div>
           
           <div class="form-wrapper">
             <p class="sign-text">Sign in with</p>

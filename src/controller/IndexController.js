@@ -2,24 +2,34 @@ import IndexView from './../view/IndexView'
 import Authenticator from './../firebase/Authenticator'
 import LocalStorage from '../utils/LocalStorage'
 
+const BACKGROUND = import.meta.env.VITE_BACKGROUND
+
 class IndexController{
   #view = new IndexView()
 
   async initEvents(){
-    const form = this.#view.$('form')
 
     this.#view.addEvent(document, {
       eventName: 'DOMContentLoaded',
-      fn: () => this.redirectUser(),
+      fn: () => this.initApp(),
     })
 
-    this.#view.addEvent(form, {
+    this.#view.addEvent('#form', {
       eventName: 'submit',
       fn: this.authenticate,
       behavior: {
         preventDefault: true
       }
     })
+  }
+
+  initApp() {
+    const preferences = {
+      backgroundImage: BACKGROUND
+    }
+
+    this.#view.initLayout(preferences)
+    this.redirectUser()
   }
 
   redirectUser(){
