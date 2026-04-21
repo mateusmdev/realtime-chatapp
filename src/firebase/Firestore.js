@@ -2,7 +2,7 @@ import firebaseConfig from "./firebaseConfig"
 import { 
     getFirestore, getDocs, collection, 
     addDoc, query, where, getDoc, doc, 
-    setDoc, onSnapshot, deleteDoc
+    setDoc, onSnapshot, deleteDoc, writeBatch
 } from 'firebase/firestore'
 
 class Firestore{
@@ -85,6 +85,26 @@ class Firestore{
             const collectionRef = collection(this.#db, ...segments)
             const documentRef = doc(collectionRef, documentId)
             await deleteDoc(documentRef)
+        } catch (error) {
+            throw error
+        }
+    }
+
+    async batchWrite(operations) {
+        try {
+            const batch = writeBatch(this.#db)
+    
+            for (const op of operations) {
+                const segments = op.path.split('/').filter(s => s.length > 0)
+                const collRef = collection(this.#db, ...segments)
+                const ref = op.documentId ? doc(collRef, op.documentId) : doc(collRef)
+    
+                op.merge
+                    ? batch.set(ref, op.data, { merge: true })
+                    : batch.set(ref, op.data)
+            }
+    
+            await batch.commit()
         } catch (error) {
             throw error
         }

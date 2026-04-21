@@ -1,6 +1,6 @@
 import AbstractModel from "./AbstractModel"
 import Firestore from "../firebase/Firestore"
-import { where } from "firebase/firestore"
+import { where, documentId } from "firebase/firestore"
 
 class Chat extends AbstractModel {
   
@@ -62,6 +62,33 @@ class Chat extends AbstractModel {
     await firestore.deleteCollection(messagesPath)
 
     await firestore.delete('chats', chatId)
+  }
+
+  static listenLastMessages(chatIds, callback) {
+    if (!chatIds?.length) return []
+
+    const firestore = Firestore.instance
+    const BATCH_SIZE = 30
+    const unsubscribers = []
+
+    for (let i = 0; i < chatIds.length; i += BATCH_SIZE) {
+        const batchIds = chatIds.slice(i, i + BATCH_SIZE)
+        const constraints = [where(documentId(), 'in', batchIds)]
+
+        const unsubscribe = firestore.onSnapshot('chats', null, (snapshot) => {
+            const changes = snapshot.docChanges().map(change => ({
+                changeType: change.type,
+                chatId: change.doc.id,
+                data: change.doc.data(),
+            }))
+
+            if (changes.length > 0) callback(changes)
+        }, constraints)
+
+        unsubscribers.push(unsubscribe)
+    }
+
+    return unsubscribers
   }
 }
 
