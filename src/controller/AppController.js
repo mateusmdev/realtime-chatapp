@@ -54,14 +54,6 @@ class AppController {
       }
     })
 
-    this.#view.addEventAll('.item', {
-      eventName: 'click',
-      fn: (e) => this.handleMessageItem(e),
-      behavior: {
-        preventDefault: true,
-      }
-    })
-
     this.#view.addEvent('#backBtn', {
       eventName: 'click',
       fn: (e) => this.handleBackBtn(e),
@@ -1334,6 +1326,9 @@ class AppController {
   }
 
   #handleMessageListSnapshot(changes) {
+      const { messageContainer } = this.#view.$()
+      messageContainer.innerHTML = ''
+
       const userData = JSON.parse(LocalStorage.getUserData())
       if (!userData) return
 
@@ -1371,7 +1366,7 @@ class AppController {
           .sort((a, b) => b.lastMessage.timeStamp - a.lastMessage.timeStamp)
 
       this.#view.renderMessageList(sortedItems, {
-          handleCallback: this.handleContactItem.bind(this)
+        handleCallback: this.handleConversationItem.bind(this) 
       })
   }
 
@@ -1380,6 +1375,13 @@ class AppController {
           if (typeof unsubscribe === 'function') unsubscribe()
       })
       this.#messageListListeners = []
+  }
+
+  async handleConversationItem(e, data) {
+    console.log('aa')
+    this.#view.updateMessageScreen(data)
+    this.#view.toggleMessageScreen(true)
+    await this.#openChat(data)
   }
 }
 
