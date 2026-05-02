@@ -186,9 +186,11 @@ body{
 
       #add-contact-section {
         height: 100%;
+        display: none;
         background: none;
         
         &.overlay-active {
+          display: initial;
           z-index: 7;
           position: fixed;
           left: 0;
@@ -385,8 +387,12 @@ body{
     grid-template-columns: 79% 1fr;
     grid-template-areas:
         "name time-message"
-        "message-content message-count"
+        "message-content message-content"
     ;
+    // grid-template-areas:
+    //     "name time-message"
+    //     "message-content message-count"
+    // ;
     justify-content: space-between;
     position: relative;
     flex: 1;
@@ -398,7 +404,7 @@ body{
 
     .message-content {
       grid-area: message-content;
-      padding-left: 1.875rem;
+      // padding-left: 1.875rem;
       position: relative;
 
       .message-status {
@@ -407,12 +413,14 @@ body{
         left: 0;
         bottom: -0.20rem;
         position: absolute;
+        display: none;
       }
-
+      
       .visualized {
         background-image: url('../assets/check-icon.svg');
         background-size: 100%;
         background-repeat: no-repeat;
+        display: none;
       }
     }
 
@@ -438,6 +446,7 @@ body{
       width: 1.55rem;
       height: 1.55rem;
       margin: 0.2rem 0.25rem 0 0;
+      display: none;
     }
   }
 

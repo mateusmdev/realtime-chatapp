@@ -12,9 +12,49 @@ class Message extends AbstractModel {
     this.#chatId = chatId
   }
 
+  static #buildLastMessageSnapshot(data) {
+    const snapshot = {
+        type: data.type,
+        from: data.from,
+        timeStamp: data.timeStamp,
+        content: null,
+        fileName: null,
+        contactName: null,
+    }
+
+    switch (data.type) {
+        case 'text':
+            snapshot.content = data.content ?? null
+            break
+        case 'file':
+            snapshot.fileName = data.fileName ?? null
+            break
+        case 'contact-attachment':
+            snapshot.contactName = data.contactName ?? null
+            break
+    }
+
+    return snapshot
+}
+
   async send() {
-    const documentPath = `chats/${this.#chatId}/messages`
-    return await this.getModelAttr('firestore').save(this.data, documentPath, null)
+    const firestore = this.getModelAttr('firestore')
+    const messagePath = `chats/${this.#chatId}/messages`
+    const lastMessage = Message.#buildLastMessageSnapshot(this.data)
+
+    await firestore.batchWrite([
+        {
+            path: messagePath,
+            documentId: null,
+            data: this.data,
+        },
+        {
+            path: 'chats',
+            documentId: this.#chatId,
+            data: { lastMessage },
+            merge: true,
+        }
+    ])
   }
 
   static async findByChatId(chatId) {

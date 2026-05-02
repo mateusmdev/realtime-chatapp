@@ -27,6 +27,9 @@ class AppController {
   #pendingDocumentFile = null
   #pendingContactData = null
   #notificationService = null
+  #messageListListeners = []
+  #chatContactMap = new Map()
+  #messageListMap = new Map() 
   
   async initEvents(){
     
@@ -46,14 +49,6 @@ class AppController {
     this.#view.addEventAll(['#chatMenuBtn', '#contactMenuBtn', '#settingMenuBtn'], {
       eventName: 'click',
       fn: (e) => this.handleMenuBtnClick(e),
-      behavior: {
-        preventDefault: true,
-      }
-    })
-
-    this.#view.addEventAll('.item', {
-      eventName: 'click',
-      fn: (e) => this.handleMessageItem(e),
       behavior: {
         preventDefault: true,
       }
@@ -443,6 +438,7 @@ class AppController {
       }
 
       await this.#view.loadContacts(sortedContacts, options)
+      this.initMessageList(sortedContacts)
 
     } catch (error) {
       localStorage.clear()
@@ -473,6 +469,7 @@ class AppController {
 
   signOut(){
     this.#notificationService?.destroy()
+    this.#destroyMessageListListeners()
     LocalStorage.clearSession()
     ProfileCache.clear()
     window.location.href = '/'
@@ -770,7 +767,8 @@ class AppController {
         this.#view.loadContactsModal(sortedContacts, {
           handleCallback: this.handleSendContact.bind(this)
         })
-  
+
+        this.initMessageList(sortedContacts)
       } catch (error) {
         throw error
       }
@@ -1186,6 +1184,7 @@ class AppController {
         handleCallback: this.handleSendContact.bind(this)
       })
 
+      this.initMessageList(sortedContacts)
       this.#view.toggleConfirmChatModal()
 
       const openData = {
@@ -1307,6 +1306,82 @@ class AppController {
     if (!hasActiveConnections) {
       await firestore.delete('user', userData.email)
     }
+  }
+
+  initMessageList(contacts) {
+    this.#destroyMessageListListeners()
+
+    contacts.forEach(contact => {
+        if (contact.chatId) {
+            this.#chatContactMap.set(contact.chatId, contact)
+        }
+    })
+
+    const chatIds = [...this.#chatContactMap.keys()]
+    if (chatIds.length === 0) return
+
+    this.#messageListListeners = Chat.listenLastMessages(chatIds, (changes) => {
+        this.#handleMessageListSnapshot(changes)
+    })
+  }
+
+  #handleMessageListSnapshot(changes) {
+      const { messageContainer } = this.#view.$()
+      messageContainer.innerHTML = ''
+
+      const userData = JSON.parse(LocalStorage.getUserData())
+      if (!userData) return
+
+      let hasUpdates = false
+
+      changes.forEach(({ changeType, chatId, data }) => {
+          if (changeType === 'removed') {
+              this.#messageListMap.delete(chatId)
+              hasUpdates = true
+              return
+          }
+
+          if (!data.lastMessage) return
+
+          const contactData = this.#chatContactMap.get(chatId)
+          if (!contactData) return
+
+          const isFromMe = data.lastMessage.from === userData.email
+
+          this.#messageListMap.set(chatId, {
+              chatId,
+              name: contactData.name,
+              profilePicture: contactData.profilePicture ?? contactData.picture,
+              email: contactData.email,
+              lastMessage: data.lastMessage,
+              isFromMe,
+          })
+
+          hasUpdates = true
+      })
+
+      if (!hasUpdates) return
+
+      const sortedItems = [...this.#messageListMap.values()]
+          .sort((a, b) => b.lastMessage.timeStamp - a.lastMessage.timeStamp)
+
+      this.#view.renderMessageList(sortedItems, {
+        handleCallback: this.handleConversationItem.bind(this) 
+      })
+  }
+
+  #destroyMessageListListeners() {
+      this.#messageListListeners.forEach(unsubscribe => {
+          if (typeof unsubscribe === 'function') unsubscribe()
+      })
+      this.#messageListListeners = []
+  }
+
+  async handleConversationItem(e, data) {
+    console.log('aa')
+    this.#view.updateMessageScreen(data)
+    this.#view.toggleMessageScreen(true)
+    await this.#openChat(data)
   }
 }
 

@@ -25,6 +25,7 @@ class AppView extends AbstractView {
       isDeleteAccountModalOpen: false,
       tempRecordedInterval: null,
       scrollThreshold: 150,
+      messageListElements: new Map(),
     }
   }
 
@@ -774,6 +775,139 @@ class AppView extends AbstractView {
     sentImageName.innerText = ''
 
     await this.toggleMediaModal('image-preview')
+  }
+
+  renderMessageList(sortedItems, options = {}) {
+    const { messageContainer } = this.$()
+    const existingElements = this.getState('messageListElements')
+
+    const incomingChatIds = new Set(sortedItems.map(item => item.chatId))
+    for (const [chatId, element] of existingElements) {
+        if (!incomingChatIds.has(chatId)) {
+            element.remove()
+            existingElements.delete(chatId)
+        }
+    }
+
+    sortedItems.forEach(itemData => {
+        let element = existingElements.get(itemData.chatId)
+
+        if (!element) {
+            element = this.#buildMessageListItem(itemData, options)
+            existingElements.set(itemData.chatId, element)
+        } else {
+            this.#updateMessageListItemDOM(element, itemData)
+        }
+
+        messageContainer.appendChild(element)  // move to end = sorted position
+    })
+  }
+
+  #buildMessageListItem(itemData, options = {}) {
+      const li = document.createElement('li')
+      li.className = 'item'
+      li.dataset.chatId = itemData.chatId
+
+      li.innerHTML = `
+          <div class="picture-wrapper">
+              <img
+                  src="${itemData.profilePicture}"
+                  alt="${itemData.name}"
+                  class="profile-picture"
+              >
+          </div>
+          <div class="message-data">
+              <p class="name">${itemData.name}</p>
+              <p class="message-content">
+                  <span class="message-status ${itemData.isFromMe ? 'visualized' : ''}"></span>
+                  ${this.#resolveLastMessageText(itemData.lastMessage, itemData.isFromMe)}
+              </p>
+              <p class="time-message">${this.#formatMessageTime(itemData.lastMessage.timeStamp)}</p>
+          </div>
+      `
+
+      const callbackParam = {
+          profileImage: itemData.profilePicture,
+          name: itemData.name,
+          email: itemData.email,
+          chatId: itemData.chatId,
+      }
+
+      this.addEvent(li, {
+          eventName: 'click',
+          fn: event => options.handleCallback(event, callbackParam),
+          behavior: { preventDefault: true }
+      })
+
+      const profilePicEl = li.querySelector('.profile-picture')
+      if (profilePicEl) {
+          profilePicEl.style.borderRadius = this.getState('appStyle') === 'circle' ? '50%' : '5px'
+      }
+
+      return li
+  }
+
+  #updateMessageListItemDOM(element, itemData) {
+      const nameEl    = element.querySelector('.name')
+      const contentEl = element.querySelector('.message-content')
+      const timeEl    = element.querySelector('.time-message')
+      const imgEl     = element.querySelector('.profile-picture')
+
+      if (imgEl)     imgEl.src = itemData.profilePicture
+      if (nameEl)    nameEl.textContent = itemData.name
+      if (timeEl)    timeEl.textContent = this.#formatMessageTime(itemData.lastMessage.timeStamp)
+      if (contentEl) contentEl.innerHTML = `
+          <span class="message-status ${itemData.isFromMe ? 'visualized' : ''}"></span>
+          ${this.#resolveLastMessageText(itemData.lastMessage, itemData.isFromMe)}
+      `
+  }
+
+  #resolveLastMessageText(lastMessage, isFromMe) {
+      const prefix = isFromMe ? 'Você: ' : ''
+
+      const typeMap = {
+          'picture':            '📷 Foto',
+          'audio':              '🎵 Áudio',
+          'file':               `📄 ${lastMessage.fileName ?? 'Arquivo'}`,
+          'contact-attachment': `👤 ${lastMessage.contactName ?? 'Contato'}`,
+      }
+
+      if (typeMap[lastMessage.type]) {
+          return `${prefix}${typeMap[lastMessage.type]}`
+      }
+
+      const content = lastMessage.content ?? ''
+      const truncated = content.length > 35 ? `${content.substring(0, 35)}...` : content
+      return `${prefix}${truncated}`
+  }
+
+  #formatMessageTime(timestamp) {
+      if (!timestamp) return ''
+
+      const date = new Date(timestamp)
+      const now  = new Date()
+
+      const isToday = date.toDateString() === now.toDateString()
+
+      if (isToday) {
+          return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      }
+
+      const yesterday = new Date(now)
+      yesterday.setDate(yesterday.getDate() - 1)
+      const isYesterday = date.toDateString() === yesterday.toDateString()
+
+      if (isYesterday) return 'ontem'
+
+      const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24))
+      if (diffDays < 7) {
+          return date.toLocaleDateString('pt-BR', { weekday: 'short' })
+                    .replace('-feira', '')
+                    .replace('.', '')
+                    .trim()
+      }
+
+      return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
   }
 }
 
