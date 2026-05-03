@@ -26,6 +26,7 @@ class AppView extends AbstractView {
       tempRecordedInterval: null,
       scrollThreshold: 150,
       messageListElements: new Map(),
+      isCryptoLoading: false,
     }
   }
 
@@ -576,23 +577,18 @@ class AppView extends AbstractView {
 
   addMessage(data, isFromContact = false) {
     if (!data) return
-
-    const li = document.createElement(`li`)
-    li.className = `message`
-
-    isFromContact === true ? li.classList.add('contact') : li.classList.add('user')
-
+   
+    const li = document.createElement('li')
+    li.className = 'message'
+    isFromContact ? li.classList.add('contact') : li.classList.add('user')
+   
     switch (data.type) {
       case 'contact-attachment':
         li.innerHTML = `
           <div class="content contact-attachment">
             <div class="detail">
               <div class="picture-wrapper">
-                <img 
-                  class="profile-picture"
-                  src="${data.contactPicture}" 
-                  alt="contact picture"
-                >
+                <img class="profile-picture" src="${data.contactPicture}" alt="contact picture">
               </div>
               <p class="contact-name">${data.contactName}</p>
             </div>
@@ -604,8 +600,8 @@ class AppView extends AbstractView {
             </a>
           </div>
         `
-      break
-      
+        break
+   
       case 'picture':
         li.innerHTML = `
           <div class="content picture">
@@ -614,35 +610,29 @@ class AppView extends AbstractView {
             </div>
           </div>
         `
-      break
-
+        break
+   
       case 'file':
         li.innerHTML = `
           <div class="content file">
-          <div>
-            <img 
-              class="file-img"
-              src="./src/assets/document-icon.svg" 
-              alt="file icon"
-            >
-            <p class="file-name">${data.fileName}</p>
+            <div>
+              <img class="file-img" src="./src/assets/document-icon.svg" alt="file icon">
+              <p class="file-name">${data.fileName}</p>
+            </div>
+            <a href="#" class="dowload-btn"
+              data-url="${data.content}"
+              data-filename="${data.fileName}">
+              <img src="./src/assets/download.svg" alt="download icon">
+            </a>
           </div>
-          <a href="#" class="dowload-btn" data-url="${data.content}" data-filename="${data.fileName}">
-            <img src="./src/assets/download.svg" alt="download icon">
-          </a>
-        </div>
         `
-      break
-
+        break
+   
       case 'audio':
         li.innerHTML = `
           <div class="content audio">
             <div class="picture-wrapper">
-              <img 
-                class="profile-picture"
-                src="${data.profilePicture}" 
-                alt="contact picture"
-              >
+              <img class="profile-picture" src="${data.profilePicture}" alt="contact picture">
             </div>
             <div class="detail">
               <div class="player">
@@ -657,18 +647,28 @@ class AppView extends AbstractView {
             </div>
           </div>
         `
-
         this.bindAudioPlayer(li, data.content, data.duration)
-      break
-
-      default:
+        break
+   
+      default: {
+        // ── NOVO: fallback para mensagens criptografadas sem content ────────
+        // data.content é null quando:
+        //   a) A mensagem é E2E e a descriptografia falhou
+        //   b) O serviço E2E não estava inicializado ao receber
+        //   c) A mensagem foi recebida em sessão sem chave disponível
+        const isEncryptedWithoutContent = data.encrypted === true && !data.content
+        const textContent = isEncryptedWithoutContent
+          ? '<em style="opacity:0.6;font-style:italic;font-size:0.82rem">🔒 Mensagem Criptografada</em>'
+          : (data.content ?? '')
+   
         li.innerHTML = `
           <div class="content text">
-            ${data.content}
+            ${textContent}
           </div>
         `
+      }
     }
-
+   
     const { messageList } = this.$()
     messageList.appendChild(li)
   }
@@ -863,22 +863,34 @@ class AppView extends AbstractView {
   }
 
   #resolveLastMessageText(lastMessage, isFromMe) {
-      const prefix = isFromMe ? 'Você: ' : ''
-
-      const typeMap = {
-          'picture':            '📷 Foto',
-          'audio':              '🎵 Áudio',
-          'file':               `📄 ${lastMessage.fileName ?? 'Arquivo'}`,
-          'contact-attachment': `👤 ${lastMessage.contactName ?? 'Contato'}`,
-      }
-
-      if (typeMap[lastMessage.type]) {
-          return `${prefix}${typeMap[lastMessage.type]}`
-      }
-
-      const content = lastMessage.content ?? ''
-      const truncated = content.length > 35 ? `${content.substring(0, 35)}...` : content
-      return `${prefix}${truncated}`
+    const prefix = isFromMe ? 'Você: ' : ''
+   
+    const typeMap = {
+      'picture':            '📷 Foto',
+      'audio':              '🎵 Áudio',
+      'file':               `📄 ${lastMessage.fileName ?? 'Arquivo'}`,
+      'contact-attachment': `👤 ${lastMessage.contactName ?? 'Contato'}`,
+    }
+   
+    if (typeMap[lastMessage.type]) {
+      return `${prefix}${typeMap[lastMessage.type]}`
+    }
+   
+    // ── NOVO: fallback para mensagem criptografada na sidebar ───────────────
+    // Quando a mensagem é E2E, o campo content não existe no lastMessage snapshot
+    // (o snapshot salvo no Firestore pelo Message.js não inclui content plaintext).
+    // Isso garante que o preview na lista de conversas seja genérico e seguro.
+    const isEncryptedWithoutContent =
+      lastMessage.encrypted === true ||
+      (!lastMessage.content && !typeMap[lastMessage.type])
+   
+    if (isEncryptedWithoutContent) {
+      return `${prefix}🔒 Mensagem Criptografada`
+    }
+   
+    const content   = lastMessage.content ?? ''
+    const truncated = content.length > 35 ? `${content.substring(0, 35)}...` : content
+    return `${prefix}${truncated}`
   }
 
   #formatMessageTime(timestamp) {
@@ -908,6 +920,64 @@ class AppView extends AbstractView {
       }
 
       return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+  }
+
+  setCryptoLoadingState(isLoading) {
+    this.setState('isCryptoLoading', isLoading)
+   
+    // Buscar ou criar o elemento de indicador
+    let indicator = document.getElementById('crypto-loading-indicator')
+   
+    if (!indicator) {
+      indicator = document.createElement('div')
+      indicator.id = 'crypto-loading-indicator'
+      indicator.setAttribute('role', 'status')
+      indicator.setAttribute('aria-live', 'polite')
+      indicator.style.cssText = `
+        position: fixed;
+        bottom: 1rem;
+        left: 50%;
+        transform: translateX(-50%);
+        background: rgba(127, 118, 255, 0.9);
+        color: #fff;
+        padding: 0.5rem 1.2rem;
+        border-radius: 2rem;
+        font-size: 0.78rem;
+        z-index: 100;
+        display: flex;
+        align-items: center;
+        gap: 0.5rem;
+        backdrop-filter: blur(4px);
+        transition: opacity 0.3s ease;
+      `
+   
+      const dot = document.createElement('span')
+      dot.style.cssText = `
+        width: 8px; height: 8px;
+        border-radius: 50%;
+        border: 2px solid rgba(255,255,255,0.4);
+        border-top-color: #fff;
+        animation: crypto-spin 0.7s linear infinite;
+      `
+   
+      const style = document.createElement('style')
+      style.textContent = '@keyframes crypto-spin { to { transform: rotate(360deg); } }'
+      document.head.appendChild(style)
+   
+      indicator.appendChild(dot)
+      indicator.appendChild(document.createTextNode(' Configurando criptografia…'))
+      document.body.appendChild(indicator)
+    }
+   
+    if (isLoading) {
+      indicator.style.opacity = '1'
+      indicator.style.pointerEvents = 'auto'
+    } else {
+      indicator.style.opacity = '0'
+      indicator.style.pointerEvents = 'none'
+      // Remover do DOM após a animação de saída
+      setTimeout(() => indicator?.remove(), 400)
+    }
   }
 }
 

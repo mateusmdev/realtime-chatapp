@@ -13,6 +13,7 @@ import CloudinaryService from '../service/CloudinaryService'
 import Authenticator from '../firebase/Authenticator'
 import Firestore from '../firebase/Firestore'
 import NotificationService from '../service/NotificationService'
+import CryptoService, { CryptoInitStatus } from '../service/CryptoService.js'
 
 const TOKEN_VALIDATOR = import.meta.env.VITE_TOKEN_VALIDATOR
 const ICON_KEY = import.meta.env.VITE_ICON_KEY
@@ -30,6 +31,7 @@ class AppController {
   #messageListListeners = []
   #chatContactMap = new Map()
   #messageListMap = new Map() 
+  #cryptoService = CryptoService
   
   async initEvents(){
     
@@ -398,52 +400,108 @@ class AppController {
     this.#notificationService.init(userData, contacts)
   }
 
-  async getUserData(){
+  async getUserData() {
     const accessToken = LocalStorage.getAccessToken()
-
+   
     if (!accessToken) {
       window.location.href = '/'
+      return
     }
-
+   
     try {
       const response = await axios.get(TOKEN_VALIDATOR, {
-        headers: {
-        'Authorization': `Bearer ${accessToken}`
-        }
-      });
-
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      })
+   
       const { data } = response
-
+   
       const user = new User({
         ...data,
         profilePicture: data.picture,
         about: 'I am using Realtime Chat App',
-      });
-
+      })
+   
       await user.findOrCreate()
+   
       const cacheObject = ProfileCache.get()
       const contacts = await user.getContactsFromCache(!cacheObject?.isCached)
-
+   
       const sortedContacts = [...contacts].sort((a, b) =>
         a.name.localeCompare(b.name)
       )
-      
+   
       await user.onSnapshot(() => {
         LocalStorage.setUserData(JSON.stringify(user.data))
         this.#view.loadUserContent(user.data)
       })
-
-      const options = {
-        handleCallback: this.handleContactItem.bind(this)
-      }
-
+   
+      // ── NOVO: inicializar criptografia em paralelo, sem bloquear a UI ───
+      // O estado de loading é exibido; o restante do fluxo prossegue.
+      // A UI já carrega contatos e layout enquanto o PBKDF2 roda no worker.
+      const cryptoPromise = this.#initializeCrypto(user.data)
+   
+      const options = { handleCallback: this.handleContactItem.bind(this) }
+   
       await this.#view.loadContacts(sortedContacts, options)
       this.initMessageList(sortedContacts)
-
+   
+      // Aguardar a conclusão da criptografia antes de liberar envio/recebimento
+      await cryptoPromise
+   
     } catch (error) {
       localStorage.clear()
       window.location.href = '/'
       throw error
+    }
+  }
+
+  async #initializeCrypto(userData) {
+    const uid = LocalStorage.getFirebaseUid()
+    
+    if (!uid) {
+      console.warn('[Crypto] Firebase UID não disponível. E2E desativado para esta sessão.')
+      return
+    }
+   
+    this.#view.setCryptoLoadingState(true)
+   
+    try {
+      const user = new User({ email: userData.email })
+      const persistCallback = async (fields) => {
+        await user.save(fields, { merge: true })
+      }
+
+      const status = await this.#cryptoService.init(uid, userData, persistCallback)
+   
+      switch (status) {
+        case CryptoInitStatus.READY:
+          // Mais comum — sem impacto perceptível
+          break
+   
+        case CryptoInitStatus.LOCAL_FOUND_REMOTE_MISSING:
+          // Chave local existia mas servidor estava desatualizado
+          // O CryptoService já corrigiu — apenas logar para monitoramento
+          console.info('[Crypto] Chave local sincronizada com o servidor.')
+          break
+   
+        case CryptoInitStatus.RECOVERED_FROM_REMOTE:
+          // Novo dispositivo ou cache limpo — recuperação automática bem-sucedida
+          console.info('[Crypto] Chave recuperada do servidor com sucesso.')
+          break
+   
+        case CryptoInitStatus.GENERATED:
+          // Primeiro login — chave criada e persistida
+          console.info('[Crypto] Novo par de chaves gerado.')
+          break
+   
+        case CryptoInitStatus.UNAVAILABLE:
+          // Erro — app funciona sem E2E (mensagens legadas ainda funcionam)
+          console.error('[Crypto] E2E indisponível nesta sessão.')
+          break
+      }
+   
+    } finally {
+      this.#view.setCryptoLoadingState(false)
     }
   }
 
@@ -483,12 +541,17 @@ class AppController {
     const isCorrectTarget = e.currentTarget.id === 'back-btn'
     this.#view.updateMessageScreen(data)
     this.#view.toggleMessageScreen(!isCorrectTarget)
-
-    if (isCorrectTarget){
+   
+    if (isCorrectTarget) {
       this.#view.toggleMediaModal()
       return
     }
-
+   
+    // Buscar publicKey do contato para uso na criptografia
+    // O campo publicKey já vem junto com os dados do contato se
+    // for incluído no User.getContactsFromCache()
+    this.#currentContactData = data
+   
     await this.#openChat(data)
   }
 
@@ -507,27 +570,40 @@ class AppController {
 
     let isInitialLoad = true
 
-    this.#messageListener = Message.listenByChatId(this.#currentChatId, (messages) => {
+    this.#messageListener = Message.listenByChatId(this.#currentChatId, async (messages) => {
       const shouldScroll = isInitialLoad || this.#view.isAtBottom()
-
-      messages.forEach(currentMessage => {
+     
+      for (const currentMessage of messages) {
         const { data } = currentMessage
         const isFromContact = data.from !== userData.email
-
+     
+        let displayContent = data.content ?? null
+     
+        // Descriptografar se for mensagem E2E
+        if (data.encrypted === true) {
+          if (this.#cryptoService.isReady) {
+            try {
+              displayContent = await this.#cryptoService.decryptMessage(data)
+            } catch {
+              displayContent = null   // exibir fallback "[Mensagem Criptografada]"
+            }
+          } else {
+            displayContent = null     // E2E não inicializado nesta sessão
+          }
+        }
+     
         const enrichedData = {
           ...data,
+          content: displayContent,   // null dispara fallback na view
           profilePicture: isFromContact
             ? this.#currentContactData.profileImage
             : (userData.profilePicture ?? userData.picture)
         }
-
+     
         this.#view.addMessage(enrichedData, isFromContact)
-      })
-
-      if (shouldScroll) {
-        this.#view.scrollToBottom()
       }
-
+     
+      if (shouldScroll) this.#view.scrollToBottom()
       isInitialLoad = false
     })
   }
@@ -853,31 +929,60 @@ class AppController {
   async handlerSendMessage() {
     const { messageList, inputContent } = this.#view.$()
     const messageLength = inputContent.innerText.trim().length
-
-    if (messageLength > 0 && this.#currentChatId !== null) {
-      const userData = JSON.parse(LocalStorage.getUserData())
-
-      const messageData = {
-        content: inputContent.innerText.trim(),
-        type: 'text',
-        status: 'wait',
-        timeStamp: Date.now(),
-        from: userData.email,
+   
+    if (messageLength <= 0 || this.#currentChatId === null) return
+   
+    const userData     = JSON.parse(LocalStorage.getUserData())
+    const plaintext    = inputContent.innerText.trim()
+    let   messageData
+   
+    // Tentar criptografar — se falhar ou E2E indisponível, enviar em texto claro
+    const contactPublicKey = this.#currentContactData?.publicKey ?? null
+   
+    if (this.#cryptoService.isReady && contactPublicKey) {
+      try {
+        const payload = await this.#cryptoService.encryptMessage(
+          plaintext,
+          contactPublicKey
+        )
+   
+        messageData = {
+          type:      'text',
+          status:    'wait',
+          timeStamp: Date.now(),
+          from:      userData.email,
+          // Campos E2E (sem content em texto claro)
+          ...payload,
+        }
+      } catch (e) {
+        console.warn('[Crypto] Falha ao criptografar. Enviando sem E2E.', e)
+        // Fallback para texto claro
+        messageData = {
+          content:   plaintext,
+          type:      'text',
+          status:    'wait',
+          timeStamp: Date.now(),
+          from:      userData.email,
+        }
       }
-
-      const message = new Message(messageData, this.#currentChatId)
-
-      const event = new CustomEvent('keyup', {
-        bubbles: false,
-        cancelable: true,
-        composed: false
-      })
-
-      inputContent.textContent = ''
-      inputContent.dispatchEvent(event)
-
-      await message.send()
+    } else {
+      // E2E não disponível (contato sem chave ou serviço não iniciado)
+      messageData = {
+        content:   plaintext,
+        type:      'text',
+        status:    'wait',
+        timeStamp: Date.now(),
+        from:      userData.email,
+      }
     }
+   
+    const event = new CustomEvent('keyup', { bubbles: false, cancelable: true })
+   
+    inputContent.textContent = ''
+    inputContent.dispatchEvent(event)
+   
+    const message = new Message(messageData, this.#currentChatId)
+    await message.send()
   }
 
   handlerUploadFileClick(inputFile, settings = {}) {

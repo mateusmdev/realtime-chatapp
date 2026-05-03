@@ -40,12 +40,18 @@ class IndexController{
     }
   }
 
-  async authenticate(){
+  async authenticate() {
     try {
-      const auth =  new Authenticator()
-      const accessToken = await auth.signIn()
-
-      LocalStorage.setAccessToken(JSON.stringify(accessToken))
+      const auth = new Authenticator()
+   
+      // NOVO: desestruturar token e uid
+      const { token, uid } = await auth.signIn()
+   
+      LocalStorage.setAccessToken(JSON.stringify(token))
+   
+      // NOVO: persistir UID para uso no CryptoService
+      LocalStorage.setFirebaseUid(uid)
+   
       window.location.href = '/app'
     } catch (error) {
       throw error
