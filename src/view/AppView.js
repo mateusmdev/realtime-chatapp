@@ -66,9 +66,10 @@ class AppView extends AbstractView {
       
       const callbackParam = {
         profileImage: dataItem.profilePicture ?? dataItem.picture,
-        name: dataItem.name,
-        email: dataItem.email,
-        chatId: dataItem.chatId,
+        name:         dataItem.name,
+        email:        dataItem.email,
+        chatId:       dataItem.chatId,
+        publicKey:    dataItem.publicKey ?? null,
       } 
  
       this.addEvent(item, {
@@ -651,11 +652,6 @@ class AppView extends AbstractView {
         break
    
       default: {
-        // ── NOVO: fallback para mensagens criptografadas sem content ────────
-        // data.content é null quando:
-        //   a) A mensagem é E2E e a descriptografia falhou
-        //   b) O serviço E2E não estava inicializado ao receber
-        //   c) A mensagem foi recebida em sessão sem chave disponível
         const isEncryptedWithoutContent = data.encrypted === true && !data.content
         const textContent = isEncryptedWithoutContent
           ? '<em style="opacity:0.6;font-style:italic;font-size:0.82rem">🔒 Mensagem Criptografada</em>'
@@ -799,7 +795,7 @@ class AppView extends AbstractView {
             this.#updateMessageListItemDOM(element, itemData)
         }
 
-        messageContainer.appendChild(element)  // move to end = sorted position
+        messageContainer.appendChild(element)
     })
   }
 
@@ -828,9 +824,10 @@ class AppView extends AbstractView {
 
       const callbackParam = {
           profileImage: itemData.profilePicture,
-          name: itemData.name,
-          email: itemData.email,
-          chatId: itemData.chatId,
+          name:         itemData.name,
+          email:        itemData.email,
+          chatId:       itemData.chatId,
+          publicKey:    itemData.publicKey ?? null,   // CORRIGIDO
       }
 
       this.addEvent(li, {
@@ -876,10 +873,6 @@ class AppView extends AbstractView {
       return `${prefix}${typeMap[lastMessage.type]}`
     }
    
-    // ── NOVO: fallback para mensagem criptografada na sidebar ───────────────
-    // Quando a mensagem é E2E, o campo content não existe no lastMessage snapshot
-    // (o snapshot salvo no Firestore pelo Message.js não inclui content plaintext).
-    // Isso garante que o preview na lista de conversas seja genérico e seguro.
     const isEncryptedWithoutContent =
       lastMessage.encrypted === true ||
       (!lastMessage.content && !typeMap[lastMessage.type])
@@ -925,7 +918,6 @@ class AppView extends AbstractView {
   setCryptoLoadingState(isLoading) {
     this.setState('isCryptoLoading', isLoading)
    
-    // Buscar ou criar o elemento de indicador
     let indicator = document.getElementById('crypto-loading-indicator')
    
     if (!indicator) {
@@ -975,7 +967,6 @@ class AppView extends AbstractView {
     } else {
       indicator.style.opacity = '0'
       indicator.style.pointerEvents = 'none'
-      // Remover do DOM após a animação de saída
       setTimeout(() => indicator?.remove(), 400)
     }
   }
