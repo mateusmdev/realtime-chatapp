@@ -20,13 +20,18 @@ class Message extends AbstractModel {
       content:     null,
       fileName:    null,
       contactName: null,
-      // NOVO: propagar flag de criptografia para o snapshot
       encrypted:   data.encrypted === true,
     }
    
-    // Mensagens criptografadas nunca expõem content no snapshot
     if (data.encrypted === true) {
-      return snapshot
+      return {
+        ...snapshot,
+        iv:                 data.iv,
+        encryptedContent:   data.encryptedContent,
+        encryptedKey:       data.encryptedKey,
+        senderKey:          data.senderKey,
+        ephemeralPublicKey: data.ephemeralPublicKey,
+      }
     }
    
     switch (data.type) {

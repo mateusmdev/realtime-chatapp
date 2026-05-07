@@ -114,10 +114,10 @@ class CryptoService {
       'deriveKey', 'deriveBits'
     ])
 
-    const wrapKey = await this.#deriveMessageWrapKey(
-      ephemeralPair.privateKey,
-      recipientPubKey
-    )
+    const [wrapKeyRecipient, wrapKeySender] = await Promise.all([
+      this.#deriveMessageWrapKey(ephemeralPair.privateKey, recipientPubKey),
+      this.#deriveMessageWrapKey(ephemeralPair.privateKey, this.#publicKey)
+    ])
 
     const sessionKey = await crypto.subtle.generateKey(AES_GCM_ALGO, true, [
       'encrypt', 'decrypt'
@@ -125,13 +125,14 @@ class CryptoService {
 
     const iv = crypto.getRandomValues(new Uint8Array(12))
 
-    const [encryptedBuffer, wrappedKeyBuffer, ephemeralPublicKey] = await Promise.all([
+    const [encryptedBuffer, wrappedKeyRecipient, wrappedKeySender, ephemeralPublicKey] = await Promise.all([
       crypto.subtle.encrypt(
         { name: 'AES-GCM', iv },
         sessionKey,
         new TextEncoder().encode(plaintext)
       ),
-      crypto.subtle.wrapKey('raw', sessionKey, wrapKey, { name: 'AES-KW' }),
+      crypto.subtle.wrapKey('raw', sessionKey, wrapKeyRecipient, { name: 'AES-KW' }),
+      crypto.subtle.wrapKey('raw', sessionKey, wrapKeySender, { name: 'AES-KW' }),
       crypto.subtle.exportKey('jwk', ephemeralPair.publicKey),
     ])
 
@@ -139,17 +140,20 @@ class CryptoService {
       encrypted:          true,
       iv:                 this.#bufToB64(iv),
       encryptedContent:   this.#bufToB64(encryptedBuffer),
-      encryptedKey:       this.#bufToB64(wrappedKeyBuffer),
+      encryptedKey:       this.#bufToB64(wrappedKeyRecipient),
+      senderKey:          this.#bufToB64(wrappedKeySender),
       ephemeralPublicKey,
     }
   }
 
-  async decryptMessage(payload) {
+  async decryptMessage(payload, isFromMe = false) {
     this.#assertReady()
 
-    const { iv, encryptedContent, encryptedKey, ephemeralPublicKey } = payload
+    const { iv, encryptedContent, encryptedKey, senderKey, ephemeralPublicKey } = payload
 
     const ephemeralPubKey = await this.#importPublicKeyJwk(ephemeralPublicKey)
+
+    const keyToUnwrap = (isFromMe && senderKey) ? senderKey : encryptedKey
 
     const wrapKey = await this.#deriveMessageWrapKey(
       this.#privateKey,
@@ -158,7 +162,7 @@ class CryptoService {
 
     const sessionKey = await crypto.subtle.unwrapKey(
       'raw',
-      this.#b64ToBuf(encryptedKey),
+      this.#b64ToBuf(keyToUnwrap),
       wrapKey,
       { name: 'AES-KW' },
       AES_GCM_ALGO,

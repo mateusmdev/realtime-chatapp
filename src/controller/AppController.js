@@ -570,7 +570,7 @@ class AppController {
 
       for (const currentMessage of messages) {
         const { data } = currentMessage
-        const isFromContact = data.from !== userData.email
+        const isFromContact = data.from.toLowerCase() !== userData.email.toLowerCase()
 
         let displayContent = data.content ?? null
 
@@ -578,7 +578,7 @@ class AppController {
         if (data.encrypted === true) {
           if (this.#cryptoService.isReady) {
             try {
-              displayContent = await this.#cryptoService.decryptMessage(data)
+              displayContent = await this.#cryptoService.decryptMessage(data, !isFromContact)
             } catch {
               displayContent = null
             }
@@ -1367,42 +1367,47 @@ class AppController {
     })
   }
 
-  #handleMessageListSnapshot(changes) {
-    const { messageContainer } = this.#view.$()
-    messageContainer.innerHTML = ''
-
+  async #handleMessageListSnapshot(changes) {
     const userData = JSON.parse(LocalStorage.getUserData())
     if (!userData) return
 
     let hasUpdates = false
 
-    changes.forEach(({ changeType, chatId, data }) => {
+    for (const { changeType, chatId, data } of changes) {
       if (changeType === 'removed') {
         this.#messageListMap.delete(chatId)
         hasUpdates = true
-        return
+        continue
       }
 
-      if (!data.lastMessage) return
+      if (!data.lastMessage) continue
 
       const contactData = this.#chatContactMap.get(chatId)
-      if (!contactData) return
+      if (!contactData) continue
 
-      const isFromMe = data.lastMessage.from === userData.email
+      const isFromMe = data.lastMessage.from.toLowerCase() === userData.email.toLowerCase()
+      const lastMessage = { ...data.lastMessage }
 
+      if (lastMessage.encrypted === true && this.#cryptoService.isReady) {
+        try {
+          lastMessage.content = await this.#cryptoService.decryptMessage(lastMessage, isFromMe)
+        } catch (e) {
+          lastMessage.content = null
+        }
+      }
 
       this.#messageListMap.set(chatId, {
         chatId,
         name:           contactData.name,
         profilePicture: contactData.profilePicture ?? contactData.picture,
         email:          contactData.email,
-        lastMessage:    data.lastMessage,
+        lastMessage,
         isFromMe,
-        publicKey:      contactData.publicKey ?? null,   // CORRIGIDO
+        publicKey:      contactData.publicKey ?? null,
       })
 
       hasUpdates = true
-    })
+    }
 
     if (!hasUpdates) return
 

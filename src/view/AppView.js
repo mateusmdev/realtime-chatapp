@@ -874,7 +874,7 @@ class AppView extends AbstractView {
     }
    
     const isEncryptedWithoutContent =
-      lastMessage.encrypted === true ||
+      (lastMessage.encrypted === true && !lastMessage.content) ||
       (!lastMessage.content && !typeMap[lastMessage.type])
    
     if (isEncryptedWithoutContent) {
