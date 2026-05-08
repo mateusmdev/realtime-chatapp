@@ -398,7 +398,7 @@ class AppController {
     const contacts = cacheObject?.cache || []
 
     this.#notificationService = new NotificationService()
-    this.#notificationService.init(userData, contacts)
+    this.#notificationService.init(userData, contacts, this.#cryptoService)
   }
 
   async getUserData() {
@@ -436,7 +436,6 @@ class AppController {
         this.#view.loadUserContent(user.data)
       })
 
-      // Inicializar criptografia em paralelo sem bloquear a UI
       const cryptoPromise = this.#initializeCrypto(user.data)
 
       const options = { handleCallback: this.handleContactItem.bind(this) }
@@ -444,7 +443,6 @@ class AppController {
       await this.#view.loadContacts(sortedContacts, options)
       this.initMessageList(sortedContacts)
 
-      // Aguardar a conclusão da criptografia antes de liberar envio/recebimento
       await cryptoPromise
 
     } catch (error) {
