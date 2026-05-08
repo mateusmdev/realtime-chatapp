@@ -60,10 +60,23 @@ class AbstractModel {
       return document
     }
 
+
     async save() {
         const documentId = this.#validatePrimaryKey()
 
         const document = await this.#firestore.save(this.#data, this.#path, documentId)
+        return document?.data()
+    }
+
+    async savePartial(partialData = {}, options = { merge: true }) {
+        const documentId = this.#validatePrimaryKey()
+
+        const document = await this.#firestore.save(
+          partialData,
+          this.#path,
+          documentId,
+          options
+        )
         return document?.data()
     }
 

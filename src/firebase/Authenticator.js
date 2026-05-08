@@ -12,15 +12,21 @@ import AuthenticationException from '../exception/AuthenticationException'
 class Authenticator {
   #provider = new GoogleAuthProvider()
 
-  async signIn(){
+  async signIn() {
     const auth = getAuth(firebaseConfig)
     const result = await signInWithPopup(auth, this.#provider)
     const credential = GoogleAuthProvider.credentialFromResult(result)
     const token = credential.accessToken
-
-    if (!result || !token) throw new AuthenticationException('Failed to obtain access token')
-
-    return token     
+   
+    if (!result || !token) {
+      throw new AuthenticationException('Failed to obtain access token')
+    }
+   
+    // NOVO: retornar uid junto com o token
+    return {
+      token,
+      uid: result.user.uid,
+    }
   }
 
   /**

@@ -13,6 +13,7 @@ import CloudinaryService from '../service/CloudinaryService'
 import Authenticator from '../firebase/Authenticator'
 import Firestore from '../firebase/Firestore'
 import NotificationService from '../service/NotificationService'
+import CryptoService, { CryptoInitStatus } from '../service/CryptoService.js'
 
 const TOKEN_VALIDATOR = import.meta.env.VITE_TOKEN_VALIDATOR
 const ICON_KEY = import.meta.env.VITE_ICON_KEY
@@ -29,10 +30,11 @@ class AppController {
   #notificationService = null
   #messageListListeners = []
   #chatContactMap = new Map()
-  #messageListMap = new Map() 
-  
+  #messageListMap = new Map()
+  #cryptoService = CryptoService
+
   async initEvents(){
-    
+
     this.#view.addEvent(document, {
       eventName: 'DOMContentLoaded',
       fn: () => this.initApp(),
@@ -138,7 +140,7 @@ class AppController {
         stopPropagation: true
       }
     })
-    
+
     this.#view.addEventAll(['#userNameContent', '#userAboutContent'], {
       eventName: 'keypress blur',
       fn: (e) => this.#view.setUserContent(e)
@@ -146,7 +148,7 @@ class AppController {
 
     this.#view.addEvent('#changeImgBtn', {
       eventName: 'click',
-      fn: (e) =>  this.#view.$('profileImageFile').click(),
+      fn: (e) => this.#view.$('profileImageFile').click(),
       behavior: {
         preventDefault: true,
       }
@@ -279,7 +281,7 @@ class AppController {
         preventDefault: true,
       }
     })
-    
+
     this.#view.addEvent('#sendPdfActionBtn', {
       eventName: 'click',
       fn: async () => this.handleSendDocument(),
@@ -332,6 +334,7 @@ class AppController {
       fn: () => this.handleDeleteAccount(),
       behavior: { preventDefault: true }
     })
+
     this.#view.addEvent(document, {
       eventName: 'notificationEvent',
       fn: async () => this.#initNotifications(),
@@ -341,7 +344,7 @@ class AppController {
 
   async initApp(){
     this.#view.setState('blockMedia', BLOCK_MEDIA || false)
-    
+
     const blockMediaState = this.#view.getState('blockMedia')
 
     if (typeof blockMediaState === 'string') {
@@ -351,7 +354,7 @@ class AppController {
     const preferences = JSON.parse(LocalStorage.getUserPreferences()) || {}
     const params = new URLSearchParams(window.location.search)
     const mode = params.get('mode')
-    const isPreview = mode === 'preview' ? true : false 
+    const isPreview = mode === 'preview' ? true : false
 
     this.#view.setState('isPreviewMode', isPreview)
 
@@ -361,18 +364,18 @@ class AppController {
 
     await this.getIconData()
     await this.#view.initLayout(preferences)
-    
+
     if (!isPreview) {
       const cacheObject = ProfileCache.get()
       const contacts = cacheObject?.cache || []
       const sortedContacts = [...contacts].sort((a, b) =>
         a.name.localeCompare(b.name)
       )
-    
+
       const options = {
         handleCallback: this.handleSendContact.bind(this)
       }
-    
+
       this.#view.loadContactsModal(sortedContacts, options)
 
       const event = new CustomEvent('notificationEvent', {
@@ -394,23 +397,23 @@ class AppController {
     const cacheObject = ProfileCache.get()
     const contacts = cacheObject?.cache || []
 
+    this.#notificationService?.destroy()
     this.#notificationService = new NotificationService()
-    this.#notificationService.init(userData, contacts)
+    this.#notificationService.init(userData, contacts, this.#cryptoService)
   }
 
-  async getUserData(){
+  async getUserData() {
     const accessToken = LocalStorage.getAccessToken()
 
     if (!accessToken) {
       window.location.href = '/'
+      return
     }
 
     try {
       const response = await axios.get(TOKEN_VALIDATOR, {
-        headers: {
-        'Authorization': `Bearer ${accessToken}`
-        }
-      });
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      })
 
       const { data } = response
 
@@ -418,27 +421,31 @@ class AppController {
         ...data,
         profilePicture: data.picture,
         about: 'I am using Realtime Chat App',
-      });
+      })
 
       await user.findOrCreate()
+      LocalStorage.setUserData(JSON.stringify(user.data))
+
       const cacheObject = ProfileCache.get()
       const contacts = await user.getContactsFromCache(!cacheObject?.isCached)
 
       const sortedContacts = [...contacts].sort((a, b) =>
         a.name.localeCompare(b.name)
       )
-      
+
       await user.onSnapshot(() => {
         LocalStorage.setUserData(JSON.stringify(user.data))
         this.#view.loadUserContent(user.data)
       })
 
-      const options = {
-        handleCallback: this.handleContactItem.bind(this)
-      }
+      const cryptoPromise = this.#initializeCrypto(user.data)
+
+      const options = { handleCallback: this.handleContactItem.bind(this) }
 
       await this.#view.loadContacts(sortedContacts, options)
       this.initMessageList(sortedContacts)
+
+      await cryptoPromise
 
     } catch (error) {
       localStorage.clear()
@@ -447,23 +454,72 @@ class AppController {
     }
   }
 
+  async #initializeCrypto(userData) {
+    const uid = LocalStorage.getFirebaseUid()
+
+    if (!uid) {
+      console.warn('[Crypto] Firebase UID não disponível. E2E desativado para esta sessão.')
+      return
+    }
+
+    this.#view.setCryptoLoadingState(true)
+
+    try {
+      const user = new User({ email: userData.email })
+
+      const persistCallback = async (fields) => {
+        await user.savePartial(fields, { merge: true })
+      }
+
+      const status = await this.#cryptoService.init(uid, userData, persistCallback)
+
+      switch (status) {
+        case CryptoInitStatus.READY:
+          
+          break
+
+        case CryptoInitStatus.LOCAL_FOUND_REMOTE_MISSING:
+          
+          console.info('[Crypto] Chave local sincronizada com o servidor.')
+          break
+
+        case CryptoInitStatus.REMOTE_FOUND_LOCAL_MISSING:
+          
+          console.info('[Crypto] Chave recuperada do servidor com sucesso.')
+          break
+
+        case CryptoInitStatus.GENERATED:
+          
+          console.info('[Crypto] Novo par de chaves gerado.')
+          break
+
+        case CryptoInitStatus.ERROR:
+          
+          console.error('[Crypto] E2E indisponível nesta sessão.')
+          break
+      }
+
+    } finally {
+      this.#view.setCryptoLoadingState(false)
+    }
+  }
+
   async getIconData(){
     let iconList = LocalStorage.getIconList() ?? []
     if (typeof iconList === 'string') iconList = JSON.parse(iconList)
 
     const isEmpty = !Array.isArray(iconList) || iconList.length < 1
-    
+
     if (isEmpty) {
       try {
-        const response = await axios.get(`https://emoji-api.com/emojis?access_key=${ICON_KEY}`);
-        
+        const response = await axios.get(`https://emoji-api.com/emojis?access_key=${ICON_KEY}`)
         iconList = response.data || []
         LocalStorage.setIconList(JSON.stringify(iconList))
       } catch (error) {
         iconList = []
       }
     }
-    
+
     this.#view.loadEmoji(iconList)
   }
 
@@ -478,16 +534,18 @@ class AppController {
   handleMenuBtnClick(e){
     this.#view.changeSection(e.currentTarget)
   }
-  
+
   async handleContactItem(e, data) {
     const isCorrectTarget = e.currentTarget.id === 'back-btn'
     this.#view.updateMessageScreen(data)
     this.#view.toggleMessageScreen(!isCorrectTarget)
 
-    if (isCorrectTarget){
+    if (isCorrectTarget) {
       this.#view.toggleMediaModal()
       return
     }
+
+    this.#currentContactData = data
 
     await this.#openChat(data)
   }
@@ -507,27 +565,40 @@ class AppController {
 
     let isInitialLoad = true
 
-    this.#messageListener = Message.listenByChatId(this.#currentChatId, (messages) => {
+    this.#messageListener = Message.listenByChatId(this.#currentChatId, async (messages) => {
       const shouldScroll = isInitialLoad || this.#view.isAtBottom()
 
-      messages.forEach(currentMessage => {
+      for (const currentMessage of messages) {
         const { data } = currentMessage
-        const isFromContact = data.from !== userData.email
+        const isFromContact = data.from.toLowerCase() !== userData.email.toLowerCase()
+
+        let displayContent = data.content ?? null
+
+        
+        if (data.encrypted === true) {
+          if (this.#cryptoService.isReady) {
+            try {
+              displayContent = await this.#cryptoService.decryptMessage(data, !isFromContact)
+            } catch {
+              displayContent = null
+            }
+          } else {
+            displayContent = null
+          }
+        }
 
         const enrichedData = {
           ...data,
+          content: displayContent,
           profilePicture: isFromContact
             ? this.#currentContactData.profileImage
             : (userData.profilePicture ?? userData.picture)
         }
 
         this.#view.addMessage(enrichedData, isFromContact)
-      })
-
-      if (shouldScroll) {
-        this.#view.scrollToBottom()
       }
 
+      if (shouldScroll) this.#view.scrollToBottom()
       isInitialLoad = false
     })
   }
@@ -535,7 +606,7 @@ class AppController {
   handleMessageItem(e){
     const isCorrectTarget = e.currentTarget.id === 'back-btn'
     this.#view.toggleMessageScreen(!isCorrectTarget)
-    
+
     if (isCorrectTarget){
       this.#view.toggleMediaModal()
     }
@@ -549,7 +620,6 @@ class AppController {
     if (this.#view.getState('isVideoRecording')) {
       const camera = Camera.getInstance()
       camera.stop()
-
       this.#view.setState('isVideoRecording', false)
     }
 
@@ -576,94 +646,65 @@ class AppController {
         break
 
       case 'send-document-btn':
-        if (this.#view.getState('blockMedia') === true) {
-          blockMessage()
-          return
-        }
-
-        this.handlerUploadFileClick(uploadFile, {
-          idMedia: 'send-document-btn'
-        })
-
+        if (this.#view.getState('blockMedia') === true) { blockMessage(); return }
+        this.handlerUploadFileClick(uploadFile, { idMedia: 'send-document-btn' })
         break
 
       case 'take-photo-btn':
-        if (this.#view.getState('blockMedia') === true) {
-          blockMessage()
-          return
-        }
-
+        if (this.#view.getState('blockMedia') === true) { blockMessage(); return }
         this.#view.setDefaultMode(e)
         await this.openCamera()
         break
-        
+
       case 'send-picture-btn':
-        if (this.#view.getState('blockMedia') === true) {
-          blockMessage()
-          return
-        }
-
-        this.handlerUploadFileClick(uploadFile, {
-          idMedia: 'send-picture-btn'
-        })
-
+        if (this.#view.getState('blockMedia') === true) { blockMessage(); return }
+        this.handlerUploadFileClick(uploadFile, { idMedia: 'send-picture-btn' })
         break
     }
   }
-  
+
   async handleChangeInputFile(event) {
     const id = this.#view.getState('mediaButtonId')
     const [uploadedFile] = event.target.files
     const { pdfArea, fileArea, sentImagePreview, sentImageName } = this.#view.$()
     this.#view.clearMediaProperties()
-  
+
     if (!uploadedFile) return
-  
+
     const isPdf = uploadedFile?.type === 'application/pdf'
     const componentData = {}
-  
+
     if (uploadedFile.type.startsWith('image/') && id === 'send-document-btn') {
       this.#pendingDocumentFile = uploadedFile
       this.#view.updateDocumentPreview(uploadedFile.name)
-  
       componentData.selectedArea = fileArea
       componentData.modalClass = 'documents'
-  
+
     } else if (uploadedFile.type.startsWith('image/') && id === 'send-picture-btn') {
       this.#pendingMediaFile = uploadedFile
-  
-      componentData.selectedArea = {
-        image: sentImagePreview,
-        name: sentImageName
-      }
-  
+      componentData.selectedArea = { image: sentImagePreview, name: sentImageName }
       componentData.modalClass = 'image-preview'
-  
+
     } else if (isPdf) {
       this.#pendingDocumentFile = uploadedFile
-  
       componentData.selectedArea = pdfArea
       componentData.modalClass = 'pdf-preview'
-  
+
     } else {
       this.#pendingDocumentFile = uploadedFile
       this.#view.updateDocumentPreview(uploadedFile.name)
-  
       componentData.selectedArea = fileArea
       componentData.modalClass = 'documents'
     }
-  
+
     const mediaInstance = MediaFactory.getInstance(id)
     const mediaHandler = new MediaContext(mediaInstance)
-    const uploadData = {
-      file: uploadedFile,
-      area: componentData.selectedArea
-    }
-  
+    const uploadData = { file: uploadedFile, area: componentData.selectedArea }
+
     if (mediaInstance != null) {
       await mediaHandler.execute(uploadData)
     }
-  
+
     await this.#view.toggleMediaModal(componentData.modalClass)
     this.#view.setDefaultMode(event)
   }
@@ -679,14 +720,13 @@ class AppController {
   }
 
   async handleSendMessage(event) {
-    const isModifiedPressed = event.shiftKey  === true || event.ctrlKey === true
+    const isModifiedPressed = event.shiftKey === true || event.ctrlKey === true
     const keyPressed = event.key === 'Enter' ?? event.code === 'Enter'
-    
+
     if (keyPressed === true && !isModifiedPressed === true) {
       event.preventDefault()
       const { sendBtn } = this.#view.$()
       sendBtn.click()
-
       return
     }
   }
@@ -694,25 +734,24 @@ class AppController {
   async handleUpdateUserData(event) {
     const changesValues = Object.values(event.detail.changes)
     const userData = JSON.parse(LocalStorage.getUserData())
-    const { fieldName, value }= event.detail
+    const { fieldName, value } = event.detail
 
     const wasModified = changesValues.some(currentValue => {
       if (currentValue === true && userData[fieldName] !== value) {
         return true
       }
-
       return false
     })
-    
+
     if (wasModified) {
       const { changes, value } = event.detail
 
       const user = new User({
         ...userData,
-        name: changes.name ? value : userData.name,
+        name:  changes.name  ? value : userData.name,
         about: changes.about ? value : userData.about,
       })
-  
+
       await user.save()
     }
   }
@@ -720,25 +759,25 @@ class AppController {
   async handleAddContact(event) {
     const value = this.#view.$('contactInput').value
     const userData = JSON.parse(LocalStorage.getUserData())
-  
+
     if (value.trim() === '' || value.trim() === userData.email) return
-  
+
     const contact = new User({ email: value })
     const result = await contact.getDocument()
-  
+
     if (result !== null) {
       try {
         const userA = new User(userData)
         const userB = new User(result)
-  
+
         let chat = await Chat.findByUsers(userData.email, result.email)
-  
+
         if (!chat) {
           chat = await Chat.create(userData.email, result.email)
         }
-  
+
         const chatId = chat.data.id
-  
+
         await userA.saveContact({
           email: result.email,
           profilePicture: result.profilePicture,
@@ -746,7 +785,7 @@ class AppController {
           name: result.name,
           chatId,
         })
-  
+
         await userB.saveContact({
           email: userData.email,
           profilePicture: userData.profilePicture,
@@ -754,16 +793,16 @@ class AppController {
           name: userData.name,
           chatId,
         })
-  
+
         const freshContacts = await userA.getContactsFromCache(true)
         const sortedContacts = [...freshContacts].sort((a, b) =>
           a.name.localeCompare(b.name)
         )
-  
+
         await this.#view.loadContacts(sortedContacts, {
           handleCallback: this.handleContactItem.bind(this)
         })
-  
+
         this.#view.loadContactsModal(sortedContacts, {
           handleCallback: this.handleSendContact.bind(this)
         })
@@ -772,7 +811,7 @@ class AppController {
       } catch (error) {
         throw error
       }
-  
+
       this.#view.setAddContactModal(this.#view.$('cancelAddContact'))
     } else {
       this.#view.toggleContactError(true)
@@ -784,48 +823,43 @@ class AppController {
 
     const appStyle = this.#view.getState('appStyle') === 'circle' ? 'square' : 'circle'
     this.#view.setState('appStyle', appStyle)
-    
+
     preferences = {
       ...preferences,
       appStyle: this.#view.getState('appStyle')
     }
-    
+
     LocalStorage.setUserPreferences(JSON.stringify(preferences))
     this.#view.setAppStyle()
   }
 
   async openCamera() {
     const camera = Camera.getInstance()
-    
+
     if (!camera.isSupported()) {
       alert("Your browser does not support camera access or the page is not using HTTPS.")
       return
     }
-    
+
     this.#view.toggleMediaModal('take-photo')
 
     try {
       if (!this.#view.getState('isVideoRecording')) {
         const { videoArea } = this.#view.$()
-
         videoArea.srcObject = await camera.getStream()
         videoArea.play()
-
         this.#view.setState('isVideoRecording', true)
       }
-
     } catch (error) {
       alert("An error occurred while trying to access the camera.")
-    }    
+    }
   }
 
   async handleRepeatTakePhoto() {
     this.#view.setState('isPhotoAreaVisible', false)
-        
     this.#view.clearPhotoArea()
     this.#view.togglePhotoArea()
     this.#view.togglePhotoAction()
-
     await this.openCamera()
   }
 
@@ -840,12 +874,11 @@ class AppController {
       renderArea: photoArea
     }
 
-    const result = camera.takePhoto(photoSettings)
+    camera.takePhoto(photoSettings)
     camera.stop()
-    
+
     this.#view.setState('isVideoRecording', false)
     this.#view.setState('isPhotoAreaVisible', true)
-  
     this.#view.togglePhotoArea()
     this.#view.togglePhotoAction()
   }
@@ -854,50 +887,70 @@ class AppController {
     const { messageList, inputContent } = this.#view.$()
     const messageLength = inputContent.innerText.trim().length
 
-    if (messageLength > 0 && this.#currentChatId !== null) {
-      const userData = JSON.parse(LocalStorage.getUserData())
+    if (messageLength <= 0 || this.#currentChatId === null) return
 
-      const messageData = {
-        content: inputContent.innerText.trim(),
-        type: 'text',
-        status: 'wait',
-        timeStamp: Date.now(),
-        from: userData.email,
+    const userData  = JSON.parse(LocalStorage.getUserData())
+    const plaintext = inputContent.innerText.trim()
+    let   messageData
+
+    const contactPublicKey = this.#currentContactData?.publicKey ?? null
+
+    if (this.#cryptoService.isReady && contactPublicKey) {
+      try {
+        const payload = await this.#cryptoService.encryptMessage(
+          plaintext,
+          contactPublicKey
+        )
+
+        messageData = {
+          type:      'text',
+          status:    'wait',
+          timeStamp: Date.now(),
+          from:      userData.email,
+          ...payload,
+        }
+      } catch (e) {
+        console.warn('[Crypto] Falha ao criptografar. Enviando sem E2E.', e)
+        messageData = {
+          content:   plaintext,
+          type:      'text',
+          status:    'wait',
+          timeStamp: Date.now(),
+          from:      userData.email,
+        }
       }
-
-      const message = new Message(messageData, this.#currentChatId)
-
-      const event = new CustomEvent('keyup', {
-        bubbles: false,
-        cancelable: true,
-        composed: false
-      })
-
-      inputContent.textContent = ''
-      inputContent.dispatchEvent(event)
-
-      await message.send()
+    } else {
+      messageData = {
+        content:   plaintext,
+        type:      'text',
+        status:    'wait',
+        timeStamp: Date.now(),
+        from:      userData.email,
+      }
     }
+
+    const event = new CustomEvent('keyup', { bubbles: false, cancelable: true })
+    inputContent.textContent = ''
+    inputContent.dispatchEvent(event)
+
+    const message = new Message(messageData, this.#currentChatId)
+    await message.send()
   }
 
   handlerUploadFileClick(inputFile, settings = {}) {
     const { idMedia } = settings
-
     const dictionary = {
       'send-document-btn': '*',
       'send-picture-btn': 'image/*'
     }
-
     const mediaType = dictionary[idMedia]
     inputFile.setAttribute('accept', mediaType)
-
     inputFile.click()
   }
 
   async handleBackBtn(event) {
     await this.handleMessageItem(event)
     const state = this.#view.getState('isMediaModalOpen')
-
     if (state === true) {
       this.handleCloseMediaModal(event)
     }
@@ -913,7 +966,6 @@ class AppController {
 
     try {
       await recorder.start()
-
       this.#view.toggleSendAudioSection(true)
 
       const start = Date.now()
@@ -927,7 +979,6 @@ class AppController {
       }, 100)
 
       this.#view.setState('tempRecordedInterval', recordedTime)
-
     } catch (error) {
       alert('Erro ao acessar o microfone. Verifique as permissões.')
     }
@@ -1008,7 +1059,6 @@ class AppController {
 
       this.#pendingMediaFile = null
       this.handleCloseMediaModal()
-
     } catch (error) {
       alert('Erro ao enviar a imagem. Tente novamente.')
     }
@@ -1016,14 +1066,14 @@ class AppController {
 
   async handleSendPhotoImage() {
     if (!this.#currentChatId) return
-  
+
     try {
       const { photoArea } = this.#view.$()
       const base64 = photoArea.toDataURL('image/png')
-  
+
       const { url, publicId } = await CloudinaryService.uploadBase64(base64)
       const userData = JSON.parse(LocalStorage.getUserData())
-  
+
       const messageData = {
         content: url,
         publicId,
@@ -1032,12 +1082,11 @@ class AppController {
         timeStamp: Date.now(),
         from: userData.email,
       }
-  
+
       const message = new Message(messageData, this.#currentChatId)
       await message.send()
-  
+
       this.handleCloseMediaModal()
-  
     } catch (error) {
       alert(error.message || 'Erro ao enviar a imagem. Tente novamente.')
     }
@@ -1045,11 +1094,11 @@ class AppController {
 
   async handleSendDocument() {
     if (!this.#pendingDocumentFile || !this.#currentChatId) return
-  
+
     try {
       const { url, publicId } = await CloudinaryService.uploadRaw(this.#pendingDocumentFile)
       const userData = JSON.parse(LocalStorage.getUserData())
-  
+
       const messageData = {
         content: url,
         publicId,
@@ -1059,13 +1108,12 @@ class AppController {
         timeStamp: Date.now(),
         from: userData.email,
       }
-  
+
       const message = new Message(messageData, this.#currentChatId)
       await message.send()
-  
+
       this.#pendingDocumentFile = null
       this.handleCloseMediaModal()
-  
     } catch (error) {
       alert(error.message || 'Erro ao enviar o arquivo. Tente novamente.')
     }
@@ -1074,27 +1122,25 @@ class AppController {
   async handleDownloadFile(event) {
     const downloadBtn = event.target.closest('.dowload-btn')
     if (!downloadBtn) return
-  
+
     const url = downloadBtn.dataset.url
     const fileName = downloadBtn.dataset.filename
-  
+
     if (!url || !fileName) return
-  
+
     try {
       const response = await fetch(url)
-  
       if (!response.ok) throw new Error('Falha ao baixar o arquivo.')
-  
+
       const blob = await response.blob()
       const blobUrl = URL.createObjectURL(blob)
-  
+
       const anchor = document.createElement('a')
       anchor.href = blobUrl
       anchor.download = fileName
       anchor.click()
-  
+
       URL.revokeObjectURL(blobUrl)
-  
     } catch (error) {
       alert('Erro ao baixar o arquivo. Tente novamente.')
     }
@@ -1124,7 +1170,6 @@ class AppController {
   async handlePictureFromContact(e) {
     const sentPicture = e.target.closest('.picture')
     if (!sentPicture) return
-    
     await this.#view.openPicture(sentPicture)
   }
 
@@ -1189,9 +1234,10 @@ class AppController {
 
       const openData = {
         profileImage: contactData.profilePicture ?? contactData.picture,
-        name: contactData.name,
-        email: contactData.email,
+        name:         contactData.name,
+        email:        contactData.email,
         chatId,
+        publicKey:    contactData.publicKey ?? null,
       }
 
       this.#view.updateMessageScreen(openData)
@@ -1208,10 +1254,10 @@ class AppController {
 
   async handleSendContact(contact) {
     if (!this.#currentChatId) return
-  
+
     try {
       const userData = JSON.parse(LocalStorage.getUserData())
-  
+
       const messageData = {
         type: 'contact-attachment',
         contactName: contact.name,
@@ -1222,12 +1268,11 @@ class AppController {
         status: 'wait',
         timeStamp: Date.now(),
       }
-  
+
       const message = new Message(messageData, this.#currentChatId)
       await message.send()
-  
+
       this.handleCloseMediaModal()
-  
     } catch (error) {
       alert('Erro ao enviar o contato. Tente novamente.')
     }
@@ -1272,7 +1317,6 @@ class AppController {
 
     for (const chat of chats) {
       const otherEmail = chat.getOtherParticipantEmail(userData.email)
-
       if (!otherEmail) continue
 
       const otherUser = new User({ email: otherEmail })
@@ -1285,7 +1329,6 @@ class AppController {
 
       const chatId = chat.data.id
       const messages = await Message.findAllByChatId(chatId)
-
       const mediaMessages = messages.filter(msg => msg.data.hasMedia)
 
       await Promise.all(
@@ -1299,7 +1342,6 @@ class AppController {
       )
 
       await Chat.deleteChat(chatId)
-
       await firestore.delete('user', otherEmail)
     }
 
@@ -1312,73 +1354,79 @@ class AppController {
     this.#destroyMessageListListeners()
 
     contacts.forEach(contact => {
-        if (contact.chatId) {
-            this.#chatContactMap.set(contact.chatId, contact)
-        }
+      if (contact.chatId) {
+        this.#chatContactMap.set(contact.chatId, contact)
+      }
     })
 
     const chatIds = [...this.#chatContactMap.keys()]
     if (chatIds.length === 0) return
 
     this.#messageListListeners = Chat.listenLastMessages(chatIds, (changes) => {
-        this.#handleMessageListSnapshot(changes)
+      this.#handleMessageListSnapshot(changes)
     })
   }
 
-  #handleMessageListSnapshot(changes) {
-      const { messageContainer } = this.#view.$()
-      messageContainer.innerHTML = ''
+  async #handleMessageListSnapshot(changes) {
+    const userData = JSON.parse(LocalStorage.getUserData())
+    if (!userData) return
 
-      const userData = JSON.parse(LocalStorage.getUserData())
-      if (!userData) return
+    let hasUpdates = false
 
-      let hasUpdates = false
+    for (const { changeType, chatId, data } of changes) {
+      if (changeType === 'removed') {
+        this.#messageListMap.delete(chatId)
+        hasUpdates = true
+        continue
+      }
 
-      changes.forEach(({ changeType, chatId, data }) => {
-          if (changeType === 'removed') {
-              this.#messageListMap.delete(chatId)
-              hasUpdates = true
-              return
-          }
+      if (!data.lastMessage) continue
 
-          if (!data.lastMessage) return
+      const contactData = this.#chatContactMap.get(chatId)
+      if (!contactData) continue
 
-          const contactData = this.#chatContactMap.get(chatId)
-          if (!contactData) return
+      const isFromMe = data.lastMessage.from.toLowerCase() === userData.email.toLowerCase()
+      const lastMessage = { ...data.lastMessage }
 
-          const isFromMe = data.lastMessage.from === userData.email
+      if (lastMessage.encrypted === true && this.#cryptoService.isReady) {
+        try {
+          lastMessage.content = await this.#cryptoService.decryptMessage(lastMessage, isFromMe)
+        } catch (e) {
+          lastMessage.content = null
+        }
+      }
 
-          this.#messageListMap.set(chatId, {
-              chatId,
-              name: contactData.name,
-              profilePicture: contactData.profilePicture ?? contactData.picture,
-              email: contactData.email,
-              lastMessage: data.lastMessage,
-              isFromMe,
-          })
-
-          hasUpdates = true
+      this.#messageListMap.set(chatId, {
+        chatId,
+        name:           contactData.name,
+        profilePicture: contactData.profilePicture ?? contactData.picture,
+        email:          contactData.email,
+        lastMessage,
+        isFromMe,
+        publicKey:      contactData.publicKey ?? null,
       })
 
-      if (!hasUpdates) return
+      hasUpdates = true
+    }
 
-      const sortedItems = [...this.#messageListMap.values()]
-          .sort((a, b) => b.lastMessage.timeStamp - a.lastMessage.timeStamp)
+    if (!hasUpdates) return
 
-      this.#view.renderMessageList(sortedItems, {
-        handleCallback: this.handleConversationItem.bind(this) 
-      })
+    const sortedItems = [...this.#messageListMap.values()]
+      .sort((a, b) => b.lastMessage.timeStamp - a.lastMessage.timeStamp)
+
+    this.#view.renderMessageList(sortedItems, {
+      handleCallback: this.handleConversationItem.bind(this)
+    })
   }
 
   #destroyMessageListListeners() {
-      this.#messageListListeners.forEach(unsubscribe => {
-          if (typeof unsubscribe === 'function') unsubscribe()
-      })
-      this.#messageListListeners = []
+    this.#messageListListeners.forEach(unsubscribe => {
+      if (typeof unsubscribe === 'function') unsubscribe()
+    })
+    this.#messageListListeners = []
   }
 
   async handleConversationItem(e, data) {
-    console.log('aa')
     this.#view.updateMessageScreen(data)
     this.#view.toggleMessageScreen(true)
     await this.#openChat(data)

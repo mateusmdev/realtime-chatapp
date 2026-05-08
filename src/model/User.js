@@ -26,26 +26,28 @@ class User extends AbstractModel {
   }
 
   async getContactsFromCache(updateCache = false) {
-    const contacts = await this.getContacts()
+    const contacts    = await this.getContacts()
     const cacheObject = ProfileCache.get()
-    const cache = cacheObject?.cache || []
-
+    const cache       = cacheObject?.cache || []
+   
     if (updateCache === false && cache.length === contacts.length) {
       return cache
     }
-    
+   
     const enrichedContacts = await Promise.all(
       contacts.map(async contact => {
-        const user = new User({ email: contact.email })
+        const user      = new User({ email: contact.email })
         const freshData = await user.getDocument()
-        
+   
         return {
           ...contact,
-          about: freshData?.about ?? ''
+          about:     freshData?.about      ?? '',
+          // NOVO: incluir chave pública do contato para uso na criptografia E2E
+          publicKey: freshData?.publicKey  ?? null,
         }
       })
     )
-    
+   
     ProfileCache.set(enrichedContacts)
     return enrichedContacts
   }

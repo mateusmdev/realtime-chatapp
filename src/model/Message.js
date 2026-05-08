@@ -14,28 +14,40 @@ class Message extends AbstractModel {
 
   static #buildLastMessageSnapshot(data) {
     const snapshot = {
-        type: data.type,
-        from: data.from,
-        timeStamp: data.timeStamp,
-        content: null,
-        fileName: null,
-        contactName: null,
+      type:        data.type,
+      from:        data.from,
+      timeStamp:   data.timeStamp,
+      content:     null,
+      fileName:    null,
+      contactName: null,
+      encrypted:   data.encrypted === true,
     }
-
+   
+    if (data.encrypted === true) {
+      return {
+        ...snapshot,
+        iv:                 data.iv,
+        encryptedContent:   data.encryptedContent,
+        encryptedKey:       data.encryptedKey,
+        senderKey:          data.senderKey,
+        ephemeralPublicKey: data.ephemeralPublicKey,
+      }
+    }
+   
     switch (data.type) {
-        case 'text':
-            snapshot.content = data.content ?? null
-            break
-        case 'file':
-            snapshot.fileName = data.fileName ?? null
-            break
-        case 'contact-attachment':
-            snapshot.contactName = data.contactName ?? null
-            break
+      case 'text':
+        snapshot.content = data.content ?? null
+        break
+      case 'file':
+        snapshot.fileName = data.fileName ?? null
+        break
+      case 'contact-attachment':
+        snapshot.contactName = data.contactName ?? null
+        break
     }
-
+   
     return snapshot
-}
+  }
 
   async send() {
     const firestore = this.getModelAttr('firestore')

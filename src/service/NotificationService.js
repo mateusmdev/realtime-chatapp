@@ -3,6 +3,7 @@ import { orderBy } from 'firebase/firestore'
 
 class NotificationService {
   #userData = null
+  #cryptoService = null
   #listeners = []
   #initialSnapshots = new Map()
   #queue = []
@@ -18,8 +19,9 @@ class NotificationService {
     return result === 'granted'
   }
 
-  init(userData, contacts) {
+  init(userData, contacts, cryptoService = null) {
     this.#userData = userData
+    this.#cryptoService = cryptoService
 
     const firestore = Firestore.instance
     const constraints = [orderBy('timeStamp')]
@@ -50,6 +52,7 @@ class NotificationService {
     this.#queue = []
     this.#isConsuming = false
     this.#userData = null
+    this.#cryptoService = null
   }
 
   #handleSnapshot(snapshot, chatId, contact) {
@@ -65,7 +68,7 @@ class NotificationService {
       .map(change => change.doc.data())
 
     newMessages.forEach(data => {
-      if (data.from === this.#userData?.email) return
+      if (data.from?.toLowerCase() === this.#userData?.email?.toLowerCase()) return
       this.#enqueue(data, contact)
     })
   }
@@ -79,7 +82,7 @@ class NotificationService {
     }
   }
 
-  #consume() {
+  async #consume() {
     if (this.#queue.length === 0) {
       this.#isConsuming = false
       return
@@ -89,8 +92,21 @@ class NotificationService {
 
     const { data, contact } = this.#queue.shift()
 
+    let resolvedData = data
+
+    if (data.encrypted === true) {
+      if (this.#cryptoService?.isReady) {
+        try {
+          const plaintext = await this.#cryptoService.decryptMessage(data, false)
+          resolvedData = { ...data, content: plaintext }
+        } catch {
+          resolvedData = { ...data, content: null }
+        }
+      }
+    }
+
     if (!document.hasFocus()) {
-      this.showNotification(data, contact)
+      this.showNotification(resolvedData, contact)
     }
 
     setTimeout(() => this.#consume(), this.#intervalMs)
@@ -118,6 +134,11 @@ class NotificationService {
     }
 
     if (typeMap[data.type]) return typeMap[data.type]
+
+
+    if (data.encrypted === true && !data.content) {
+      return '🔒 Mensagem criptografada'
+    }
 
     const text = data.content ?? ''
     return text.length > 50 ? `${text.substring(0, 50)}...` : text
