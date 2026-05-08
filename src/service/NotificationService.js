@@ -68,7 +68,7 @@ class NotificationService {
       .map(change => change.doc.data())
 
     newMessages.forEach(data => {
-      if (data.from === this.#userData?.email) return
+      if (data.from?.toLowerCase() === this.#userData?.email?.toLowerCase()) return
       this.#enqueue(data, contact)
     })
   }

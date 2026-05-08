@@ -397,6 +397,7 @@ class AppController {
     const cacheObject = ProfileCache.get()
     const contacts = cacheObject?.cache || []
 
+    this.#notificationService?.destroy()
     this.#notificationService = new NotificationService()
     this.#notificationService.init(userData, contacts, this.#cryptoService)
   }
@@ -423,6 +424,7 @@ class AppController {
       })
 
       await user.findOrCreate()
+      LocalStorage.setUserData(JSON.stringify(user.data))
 
       const cacheObject = ProfileCache.get()
       const contacts = await user.getContactsFromCache(!cacheObject?.isCached)
