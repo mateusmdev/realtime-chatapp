@@ -14,6 +14,8 @@ import Authenticator from '../firebase/Authenticator'
 import Firestore from '../firebase/Firestore'
 import NotificationService from '../service/NotificationService'
 import CryptoService, { CryptoInitStatus } from '../service/CryptoService.js'
+import SystemDocumentManager from '../destroyer/system/SystemDocumentManager'
+import DestroyerOrchestrator from '../destroyer/DestroyerOrchestrator'
 
 const TOKEN_VALIDATOR = import.meta.env.VITE_TOKEN_VALIDATOR
 const ICON_KEY = import.meta.env.VITE_ICON_KEY
@@ -359,6 +361,7 @@ class AppController {
     this.#view.setState('isPreviewMode', isPreview)
 
     if (!isPreview) {
+      await SystemDocumentManager.initializeIfNeeded()
       await this.getUserData()
     }
 
@@ -423,8 +426,14 @@ class AppController {
         about: 'I am using Realtime Chat App',
       })
 
-      await user.findOrCreate()
+      await DestroyerOrchestrator.evaluateAndExecute()
+
+      const { wasCreated } = await user.findOrCreate()
       LocalStorage.setUserData(JSON.stringify(user.data))
+
+      if (wasCreated) {
+        await SystemDocumentManager.incrementUserCount()
+      }
 
       const cacheObject = ProfileCache.get()
       const contacts = await user.getContactsFromCache(!cacheObject?.isCached)
@@ -475,26 +484,17 @@ class AppController {
 
       switch (status) {
         case CryptoInitStatus.READY:
-          
           break
-
         case CryptoInitStatus.LOCAL_FOUND_REMOTE_MISSING:
-          
           console.info('[Crypto] Chave local sincronizada com o servidor.')
           break
-
         case CryptoInitStatus.REMOTE_FOUND_LOCAL_MISSING:
-          
           console.info('[Crypto] Chave recuperada do servidor com sucesso.')
           break
-
         case CryptoInitStatus.GENERATED:
-          
           console.info('[Crypto] Novo par de chaves gerado.')
           break
-
         case CryptoInitStatus.ERROR:
-          
           console.error('[Crypto] E2E indisponível nesta sessão.')
           break
       }
@@ -574,7 +574,6 @@ class AppController {
 
         let displayContent = data.content ?? null
 
-        
         if (data.encrypted === true) {
           if (this.#cryptoService.isReady) {
             try {
@@ -1291,6 +1290,10 @@ class AppController {
 
       const auth = new Authenticator()
       await auth.deleteAccount()
+
+      try {
+        await SystemDocumentManager.decrementUserCount()
+      } catch (_) {}
 
       this.#notificationService?.destroy()
       LocalStorage.clearSession()

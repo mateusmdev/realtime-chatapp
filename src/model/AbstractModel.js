@@ -49,17 +49,25 @@ class AbstractModel {
     }
 
     async findOrCreate() {
+      const existingData = await this.getDocument(this.data)
 
-      let document = await this.getDocument(this.data)
-      
-      if (!document) {
-        const firestore = this.getModelAttr('firestore')
-        document = await firestore.save(this.data, this.getModelAttr('path'), this.data[this.getModelAttr('primaryKeyProp')])
+      if (existingData) {
+        return { data: this.data, wasCreated: false }
       }
-  
-      return document
-    }
 
+      const firestore = this.getModelAttr('firestore')
+      const docSnap   = await firestore.save(
+        this.data,
+        this.getModelAttr('path'),
+        this.data[this.getModelAttr('primaryKeyProp')]
+      )
+
+      if (docSnap && docSnap.exists()) {
+        this.#data = docSnap.data()
+      }
+
+      return { data: this.data, wasCreated: true }
+    }
 
     async save() {
         const documentId = this.#validatePrimaryKey()
