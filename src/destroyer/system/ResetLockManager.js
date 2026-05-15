@@ -2,8 +2,8 @@ import Firestore from '../../firebase/Firestore'
 import { getFirestore, runTransaction, doc } from 'firebase/firestore'
 import '../../firebase/firebaseConfig'
 
-const COLLECTION = '_system'
-const DOC_LOCK   = 'reset_lock'
+const COLLECTION      = '_system'
+const DOC_LOCK        = 'reset_lock'
 const LOCK_TIMEOUT_MS = 120_000
 
 class ResetLockManager {
@@ -50,7 +50,7 @@ class ResetLockManager {
 
     const { locked, locked_at } = snap.data()
 
-    if (!locked) return false
+    if (!locked)                      return false
     if (this.#isLockStale(locked_at)) return false
 
     return true
@@ -63,17 +63,17 @@ class ResetLockManager {
 
   #buildAcquiredState(holderId) {
     return {
-      locked:          true,
-      locked_at:       Date.now(),
-      lock_holder_id:  holderId,
+      locked:         true,
+      locked_at:      Date.now(),
+      lock_holder_id: holderId,
     }
   }
 
   #buildReleasedState() {
     return {
-      locked:          false,
-      locked_at:       null,
-      lock_holder_id:  null,
+      locked:         false,
+      locked_at:      null,
+      lock_holder_id: null,
     }
   }
 }

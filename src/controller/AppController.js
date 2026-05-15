@@ -18,8 +18,8 @@ import SystemDocumentManager from '../destroyer/system/SystemDocumentManager'
 import DestroyerOrchestrator from '../destroyer/DestroyerOrchestrator'
 
 const TOKEN_VALIDATOR = import.meta.env.VITE_TOKEN_VALIDATOR
-const ICON_KEY = import.meta.env.VITE_ICON_KEY
-const BLOCK_MEDIA = import.meta.env.VITE_BLOCK_MEDIA
+const ICON_KEY        = import.meta.env.VITE_ICON_KEY
+const BLOCK_MEDIA     = import.meta.env.VITE_BLOCK_MEDIA
 
 class AppController {
   #view = new AppView()
@@ -34,6 +34,7 @@ class AppController {
   #chatContactMap = new Map()
   #messageListMap = new Map()
   #cryptoService = CryptoService
+  #resetListener = null
 
   async initEvents(){
 
@@ -125,7 +126,7 @@ class AppController {
         stopPropagation: true
       }
     })
-    
+
     this.#view.addEvent('#mediaBar', {
       eventName: 'click',
       fn: (e) => e.stopPropagation(),
@@ -354,9 +355,9 @@ class AppController {
     }
 
     const preferences = JSON.parse(LocalStorage.getUserPreferences()) || {}
-    const params = new URLSearchParams(window.location.search)
-    const mode = params.get('mode')
-    const isPreview = mode === 'preview' ? true : false
+    const params      = new URLSearchParams(window.location.search)
+    const mode        = params.get('mode')
+    const isPreview   = mode === 'preview' ? true : false
 
     this.#view.setState('isPreviewMode', isPreview)
 
@@ -369,8 +370,8 @@ class AppController {
     await this.#view.initLayout(preferences)
 
     if (!isPreview) {
-      const cacheObject = ProfileCache.get()
-      const contacts = cacheObject?.cache || []
+      const cacheObject    = ProfileCache.get()
+      const contacts       = cacheObject?.cache || []
       const sortedContacts = [...contacts].sort((a, b) =>
         a.name.localeCompare(b.name)
       )
@@ -396,13 +397,35 @@ class AppController {
 
     if (!granted) return
 
-    const userData = JSON.parse(LocalStorage.getUserData())
+    const userData   = JSON.parse(LocalStorage.getUserData())
     const cacheObject = ProfileCache.get()
-    const contacts = cacheObject?.cache || []
+    const contacts   = cacheObject?.cache || []
 
     this.#notificationService?.destroy()
     this.#notificationService = new NotificationService()
     this.#notificationService.init(userData, contacts, this.#cryptoService)
+  }
+
+  #initResetListener() {
+    let knownResetCount = null
+
+    this.#resetListener = SystemDocumentManager.listenResetCount((resetCount) => {
+      if (knownResetCount === null) {
+        knownResetCount = resetCount
+        return
+      }
+
+      if (resetCount !== knownResetCount) {
+        window.location.href = '/'
+      }
+    })
+  }
+
+  #destroyResetListener() {
+    if (this.#resetListener) {
+      this.#resetListener()
+      this.#resetListener = null
+    }
   }
 
   async getUserData() {
@@ -436,7 +459,7 @@ class AppController {
       }
 
       const cacheObject = ProfileCache.get()
-      const contacts = await user.getContactsFromCache(!cacheObject?.isCached)
+      const contacts    = await user.getContactsFromCache(!cacheObject?.isCached)
 
       const sortedContacts = [...contacts].sort((a, b) =>
         a.name.localeCompare(b.name)
@@ -455,6 +478,8 @@ class AppController {
       this.initMessageList(sortedContacts)
 
       await cryptoPromise
+
+      this.#initResetListener()
 
     } catch (error) {
       localStorage.clear()
@@ -526,6 +551,7 @@ class AppController {
   signOut(){
     this.#notificationService?.destroy()
     this.#destroyMessageListListeners()
+    this.#destroyResetListener()
     LocalStorage.clearSession()
     ProfileCache.clear()
     window.location.href = '/'
@@ -556,10 +582,10 @@ class AppController {
       this.#messageListener = null
     }
 
-    this.#currentChatId = data.chatId
+    this.#currentChatId     = data.chatId
     this.#currentContactData = data
-    const { messageList } = this.#view.$()
-    const userData = JSON.parse(LocalStorage.getUserData())
+    const { messageList }   = this.#view.$()
+    const userData          = JSON.parse(LocalStorage.getUserData())
 
     messageList.innerHTML = ''
 
@@ -569,8 +595,8 @@ class AppController {
       const shouldScroll = isInitialLoad || this.#view.isAtBottom()
 
       for (const currentMessage of messages) {
-        const { data } = currentMessage
-        const isFromContact = data.from.toLowerCase() !== userData.email.toLowerCase()
+        const { data }       = currentMessage
+        const isFromContact  = data.from.toLowerCase() !== userData.email.toLowerCase()
 
         let displayContent = data.content ?? null
 
@@ -612,7 +638,7 @@ class AppController {
   }
 
   handleCloseMediaModal(){
-    this.#pendingMediaFile = null
+    this.#pendingMediaFile    = null
     this.#pendingDocumentFile = null
     this.#view.toggleMediaModal()
 
@@ -630,7 +656,7 @@ class AppController {
   }
 
   async handleMediaButton(e) {
-    const { id } = e.currentTarget
+    const { id }        = e.currentTarget
     const { uploadFile } = this.#view.$()
 
     this.#view.setState('mediaButtonId', id)
@@ -663,42 +689,42 @@ class AppController {
   }
 
   async handleChangeInputFile(event) {
-    const id = this.#view.getState('mediaButtonId')
+    const id           = this.#view.getState('mediaButtonId')
     const [uploadedFile] = event.target.files
     const { pdfArea, fileArea, sentImagePreview, sentImageName } = this.#view.$()
     this.#view.clearMediaProperties()
 
     if (!uploadedFile) return
 
-    const isPdf = uploadedFile?.type === 'application/pdf'
+    const isPdf        = uploadedFile?.type === 'application/pdf'
     const componentData = {}
 
     if (uploadedFile.type.startsWith('image/') && id === 'send-document-btn') {
       this.#pendingDocumentFile = uploadedFile
       this.#view.updateDocumentPreview(uploadedFile.name)
       componentData.selectedArea = fileArea
-      componentData.modalClass = 'documents'
+      componentData.modalClass   = 'documents'
 
     } else if (uploadedFile.type.startsWith('image/') && id === 'send-picture-btn') {
-      this.#pendingMediaFile = uploadedFile
+      this.#pendingMediaFile     = uploadedFile
       componentData.selectedArea = { image: sentImagePreview, name: sentImageName }
-      componentData.modalClass = 'image-preview'
+      componentData.modalClass   = 'image-preview'
 
     } else if (isPdf) {
       this.#pendingDocumentFile = uploadedFile
       componentData.selectedArea = pdfArea
-      componentData.modalClass = 'pdf-preview'
+      componentData.modalClass   = 'pdf-preview'
 
     } else {
       this.#pendingDocumentFile = uploadedFile
       this.#view.updateDocumentPreview(uploadedFile.name)
       componentData.selectedArea = fileArea
-      componentData.modalClass = 'documents'
+      componentData.modalClass   = 'documents'
     }
 
     const mediaInstance = MediaFactory.getInstance(id)
-    const mediaHandler = new MediaContext(mediaInstance)
-    const uploadData = { file: uploadedFile, area: componentData.selectedArea }
+    const mediaHandler  = new MediaContext(mediaInstance)
+    const uploadData    = { file: uploadedFile, area: componentData.selectedArea }
 
     if (mediaInstance != null) {
       await mediaHandler.execute(uploadData)
@@ -709,8 +735,8 @@ class AppController {
   }
 
   async handleProfileImageFile(e) {
-    const [uploadedFile] = e.target.files
-    const imageUrl = URL.createObjectURL(uploadedFile)
+    const [uploadedFile]  = e.target.files
+    const imageUrl        = URL.createObjectURL(uploadedFile)
     const profilePictures = document.querySelectorAll('.profile-picture');
 
     [...profilePictures].forEach(picture => {
@@ -720,7 +746,7 @@ class AppController {
 
   async handleSendMessage(event) {
     const isModifiedPressed = event.shiftKey === true || event.ctrlKey === true
-    const keyPressed = event.key === 'Enter' ?? event.code === 'Enter'
+    const keyPressed        = event.key === 'Enter' ?? event.code === 'Enter'
 
     if (keyPressed === true && !isModifiedPressed === true) {
       event.preventDefault()
@@ -732,7 +758,7 @@ class AppController {
 
   async handleUpdateUserData(event) {
     const changesValues = Object.values(event.detail.changes)
-    const userData = JSON.parse(LocalStorage.getUserData())
+    const userData      = JSON.parse(LocalStorage.getUserData())
     const { fieldName, value } = event.detail
 
     const wasModified = changesValues.some(currentValue => {
@@ -756,13 +782,13 @@ class AppController {
   }
 
   async handleAddContact(event) {
-    const value = this.#view.$('contactInput').value
+    const value    = this.#view.$('contactInput').value
     const userData = JSON.parse(LocalStorage.getUserData())
 
     if (value.trim() === '' || value.trim() === userData.email) return
 
     const contact = new User({ email: value })
-    const result = await contact.getDocument()
+    const result  = await contact.getDocument()
 
     if (result !== null) {
       try {
@@ -778,22 +804,22 @@ class AppController {
         const chatId = chat.data.id
 
         await userA.saveContact({
-          email: result.email,
+          email:          result.email,
           profilePicture: result.profilePicture,
-          picture: result.picture,
-          name: result.name,
+          picture:        result.picture,
+          name:           result.name,
           chatId,
         })
 
         await userB.saveContact({
-          email: userData.email,
+          email:          userData.email,
           profilePicture: userData.profilePicture,
-          picture: userData.picture,
-          name: userData.name,
+          picture:        userData.picture,
+          name:           userData.name,
           chatId,
         })
 
-        const freshContacts = await userA.getContactsFromCache(true)
+        const freshContacts  = await userA.getContactsFromCache(true)
         const sortedContacts = [...freshContacts].sort((a, b) =>
           a.name.localeCompare(b.name)
         )
@@ -845,7 +871,7 @@ class AppController {
     try {
       if (!this.#view.getState('isVideoRecording')) {
         const { videoArea } = this.#view.$()
-        videoArea.srcObject = await camera.getStream()
+        videoArea.srcObject  = await camera.getStream()
         videoArea.play()
         this.#view.setState('isVideoRecording', true)
       }
@@ -864,12 +890,12 @@ class AppController {
 
   async takePhotoActionBtn() {
     const { photoArea, videoArea } = this.#view.$()
-    const camera = Camera.getInstance()
+    const camera        = Camera.getInstance()
     const photoSettings = {
-      mimeType: 'image/png',
-      origin: videoArea,
-      width: videoArea.videoWidth,
-      height: videoArea.videoHeight,
+      mimeType:   'image/png',
+      origin:     videoArea,
+      width:      videoArea.videoWidth,
+      height:     videoArea.videoHeight,
       renderArea: photoArea
     }
 
@@ -937,10 +963,10 @@ class AppController {
   }
 
   handlerUploadFileClick(inputFile, settings = {}) {
-    const { idMedia } = settings
-    const dictionary = {
+    const { idMedia }  = settings
+    const dictionary   = {
       'send-document-btn': '*',
-      'send-picture-btn': 'image/*'
+      'send-picture-btn':  'image/*'
     }
     const mediaType = dictionary[idMedia]
     inputFile.setAttribute('accept', mediaType)
@@ -967,11 +993,11 @@ class AppController {
       await recorder.start()
       this.#view.toggleSendAudioSection(true)
 
-      const start = Date.now()
+      const start              = Date.now()
       const { microphoneTimer } = this.#view.$()
 
       const recordedTime = setInterval(() => {
-        const time = Date.now() - start
+        const time    = Date.now() - start
         const seconds = parseInt((time / 1000) % 60)
         const minutes = parseInt((time / (1000 * 60)) % 60)
         microphoneTimer.innerText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
@@ -1008,23 +1034,23 @@ class AppController {
     try {
       const blob = await recorder.stop()
 
-      const audioContext = new AudioContext()
-      const arrayBuffer = await blob.arrayBuffer()
-      const audioBuffer = await audioContext.decodeAudioData(arrayBuffer)
-      const duration = parseFloat(audioBuffer.duration.toFixed(2))
+      const audioContext  = new AudioContext()
+      const arrayBuffer   = await blob.arrayBuffer()
+      const audioBuffer   = await audioContext.decodeAudioData(arrayBuffer)
+      const duration      = parseFloat(audioBuffer.duration.toFixed(2))
       audioContext.close()
 
       const { url, publicId } = await CloudinaryService.uploadAudio(blob)
-      const userData = JSON.parse(LocalStorage.getUserData())
+      const userData          = JSON.parse(LocalStorage.getUserData())
 
       const messageData = {
-        type: 'audio',
-        content: url,
+        type:      'audio',
+        content:   url,
         publicId,
         duration,
-        status: 'wait',
+        status:    'wait',
         timeStamp: Date.now(),
-        from: userData.email,
+        from:      userData.email,
       }
 
       const message = new Message(messageData, this.#currentChatId)
@@ -1042,15 +1068,15 @@ class AppController {
 
     try {
       const { url, publicId } = await CloudinaryService.upload(this.#pendingMediaFile)
-      const userData = JSON.parse(LocalStorage.getUserData())
+      const userData          = JSON.parse(LocalStorage.getUserData())
 
       const messageData = {
-        content: url,
+        content:   url,
         publicId,
-        type: 'picture',
-        status: 'wait',
+        type:      'picture',
+        status:    'wait',
         timeStamp: Date.now(),
-        from: userData.email,
+        from:      userData.email,
       }
 
       const message = new Message(messageData, this.#currentChatId)
@@ -1067,19 +1093,18 @@ class AppController {
     if (!this.#currentChatId) return
 
     try {
-      const { photoArea } = this.#view.$()
-      const base64 = photoArea.toDataURL('image/png')
-
+      const { photoArea }     = this.#view.$()
+      const base64            = photoArea.toDataURL('image/png')
       const { url, publicId } = await CloudinaryService.uploadBase64(base64)
-      const userData = JSON.parse(LocalStorage.getUserData())
+      const userData          = JSON.parse(LocalStorage.getUserData())
 
       const messageData = {
-        content: url,
+        content:   url,
         publicId,
-        type: 'picture',
-        status: 'wait',
+        type:      'picture',
+        status:    'wait',
         timeStamp: Date.now(),
-        from: userData.email,
+        from:      userData.email,
       }
 
       const message = new Message(messageData, this.#currentChatId)
@@ -1096,16 +1121,16 @@ class AppController {
 
     try {
       const { url, publicId } = await CloudinaryService.uploadRaw(this.#pendingDocumentFile)
-      const userData = JSON.parse(LocalStorage.getUserData())
+      const userData          = JSON.parse(LocalStorage.getUserData())
 
       const messageData = {
-        content: url,
+        content:   url,
         publicId,
-        fileName: this.#pendingDocumentFile.name,
-        type: 'file',
-        status: 'wait',
+        fileName:  this.#pendingDocumentFile.name,
+        type:      'file',
+        status:    'wait',
         timeStamp: Date.now(),
-        from: userData.email,
+        from:      userData.email,
       }
 
       const message = new Message(messageData, this.#currentChatId)
@@ -1122,7 +1147,7 @@ class AppController {
     const downloadBtn = event.target.closest('.dowload-btn')
     if (!downloadBtn) return
 
-    const url = downloadBtn.dataset.url
+    const url      = downloadBtn.dataset.url
     const fileName = downloadBtn.dataset.filename
 
     if (!url || !fileName) return
@@ -1131,12 +1156,12 @@ class AppController {
       const response = await fetch(url)
       if (!response.ok) throw new Error('Falha ao baixar o arquivo.')
 
-      const blob = await response.blob()
+      const blob    = await response.blob()
       const blobUrl = URL.createObjectURL(blob)
 
-      const anchor = document.createElement('a')
-      anchor.href = blobUrl
-      anchor.download = fileName
+      const anchor      = document.createElement('a')
+      anchor.href       = blobUrl
+      anchor.download   = fileName
       anchor.click()
 
       URL.revokeObjectURL(blobUrl)
@@ -1158,8 +1183,8 @@ class AppController {
     }
 
     this.#pendingContactData = {
-      name: contactName,
-      email: contactEmail,
+      name:           contactName,
+      email:          contactEmail,
       profilePicture: contactPicture,
     }
 
@@ -1176,8 +1201,8 @@ class AppController {
     if (!this.#pendingContactData) return
 
     try {
-      const userData = JSON.parse(LocalStorage.getUserData())
-      const contact = this.#pendingContactData
+      const userData   = JSON.parse(LocalStorage.getUserData())
+      const contact    = this.#pendingContactData
 
       const contactUser = new User({ email: contact.email })
       const contactData = await contactUser.getDocument()
@@ -1200,22 +1225,22 @@ class AppController {
       const userB = new User(contactData)
 
       await userA.saveContact({
-        email: contactData.email,
+        email:          contactData.email,
         profilePicture: contactData.profilePicture ?? contactData.picture,
-        picture: contactData.picture,
-        name: contactData.name,
+        picture:        contactData.picture,
+        name:           contactData.name,
         chatId,
       })
 
       await userB.saveContact({
-        email: userData.email,
+        email:          userData.email,
         profilePicture: userData.profilePicture ?? userData.picture,
-        picture: userData.picture,
-        name: userData.name,
+        picture:        userData.picture,
+        name:           userData.name,
         chatId,
       })
 
-      const freshContacts = await userA.getContactsFromCache(true)
+      const freshContacts  = await userA.getContactsFromCache(true)
       const sortedContacts = [...freshContacts].sort((a, b) =>
         a.name.localeCompare(b.name)
       )
@@ -1258,14 +1283,14 @@ class AppController {
       const userData = JSON.parse(LocalStorage.getUserData())
 
       const messageData = {
-        type: 'contact-attachment',
-        contactName: contact.name,
-        contactEmail: contact.email,
+        type:           'contact-attachment',
+        contactName:    contact.name,
+        contactEmail:   contact.email,
         contactPicture: contact.profilePicture ?? contact.picture,
-        contactChatId: contact.chatId,
-        from: userData.email,
-        status: 'wait',
-        timeStamp: Date.now(),
+        contactChatId:  contact.chatId,
+        from:           userData.email,
+        status:         'wait',
+        timeStamp:      Date.now(),
       }
 
       const message = new Message(messageData, this.#currentChatId)
@@ -1282,7 +1307,7 @@ class AppController {
 
     try {
       const userData = JSON.parse(LocalStorage.getUserData())
-      const user = new User(userData)
+      const user     = new User(userData)
 
       await user.markContactAsDeleted(userData.email)
       await user.delete()
@@ -1296,6 +1321,8 @@ class AppController {
       } catch (_) {}
 
       this.#notificationService?.destroy()
+      this.#destroyResetListener()
+
       LocalStorage.clearSession()
       ProfileCache.clear()
 
@@ -1309,7 +1336,7 @@ class AppController {
   }
 
   async #handleMutualDeletionCascade(userData) {
-    const chats = await Chat.findAllByUser(userData.email)
+    const chats    = await Chat.findAllByUser(userData.email)
     const firestore = Firestore.instance
     let hasActiveConnections = false
 
@@ -1322,7 +1349,7 @@ class AppController {
       const otherEmail = chat.getOtherParticipantEmail(userData.email)
       if (!otherEmail) continue
 
-      const otherUser = new User({ email: otherEmail })
+      const otherUser     = new User({ email: otherEmail })
       const otherUserData = await otherUser.getDocument()
 
       if (!otherUserData?.isDeleted) {
@@ -1330,7 +1357,7 @@ class AppController {
         continue
       }
 
-      const chatId = chat.data.id
+      const chatId   = chat.data.id
       const messages = await Message.findAllByChatId(chatId)
       const mediaMessages = messages.filter(msg => msg.data.hasMedia)
 
@@ -1388,7 +1415,7 @@ class AppController {
       const contactData = this.#chatContactMap.get(chatId)
       if (!contactData) continue
 
-      const isFromMe = data.lastMessage.from.toLowerCase() === userData.email.toLowerCase()
+      const isFromMe    = data.lastMessage.from.toLowerCase() === userData.email.toLowerCase()
       const lastMessage = { ...data.lastMessage }
 
       if (lastMessage.encrypted === true && this.#cryptoService.isReady) {

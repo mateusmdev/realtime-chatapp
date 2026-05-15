@@ -1,5 +1,5 @@
 import Firestore from '../../firebase/Firestore'
-import { getFirestore, runTransaction, doc } from 'firebase/firestore'
+import { getFirestore, runTransaction, doc, onSnapshot } from 'firebase/firestore'
 import '../../firebase/firebaseConfig'
 
 const COLLECTION = '_system'
@@ -97,11 +97,32 @@ class SystemDocumentManager {
   }
 
   async reinitialize() {
+    const currentMeta    = await this.#getDocument(DOCS.METADATA)
+    const nextResetCount = (currentMeta?.reset_count ?? 0) + 1
+
     await Promise.all([
-      this.#firestore.save(this.#buildInitialMetadata(), COLLECTION, DOCS.METADATA),
+      this.#firestore.save(
+        { ...this.#buildInitialMetadata(), reset_count: nextResetCount },
+        COLLECTION,
+        DOCS.METADATA
+      ),
       this.#firestore.save(this.#buildInitialSchedule(), COLLECTION, DOCS.SCHEDULE),
       this.#firestore.save(this.#buildInitialLock(),    COLLECTION, DOCS.LOCK),
     ])
+  }
+
+  listenResetCount(callback) {
+    const metaRef = doc(this.#db, COLLECTION, DOCS.METADATA)
+
+    return onSnapshot(
+      metaRef,
+      (snap) => {
+        if (!snap.exists()) return
+        const { reset_count } = snap.data()
+        callback(reset_count ?? 0)
+      },
+      () => {}
+    )
   }
 
   async #documentExists(docId) {
@@ -117,8 +138,9 @@ class SystemDocumentManager {
 
   #buildInitialMetadata() {
     return {
-      user_count: 0,
-      created_at: Date.now(),
+      user_count:  0,
+      reset_count: 0,
+      created_at:  Date.now(),
     }
   }
 
