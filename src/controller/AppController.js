@@ -416,6 +416,11 @@ class AppController {
       }
 
       if (resetCount !== knownResetCount) {
+        this.#notificationService?.destroy()
+        this.#destroyMessageListListeners()
+        this.#destroyResetListener()
+        LocalStorage.clearSession()
+        ProfileCache.clear()
         window.location.href = '/'
       }
     })

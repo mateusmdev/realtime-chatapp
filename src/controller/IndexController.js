@@ -1,11 +1,14 @@
 import IndexView from './../view/IndexView'
 import Authenticator from './../firebase/Authenticator'
 import LocalStorage from '../utils/LocalStorage'
+import ProfileCache from '../utils/ProfileCache'
+import SystemDocumentManager from '../destroyer/system/SystemDocumentManager'
 
 const BACKGROUND = import.meta.env.VITE_BACKGROUND
 
-class IndexController{
+class IndexController {
   #view = new IndexView()
+  #resetListener = null
 
   async initEvents(){
 
@@ -34,24 +37,48 @@ class IndexController{
 
   redirectUser(){
     const accessToken = LocalStorage.getAccessToken()
-    
+
     if (accessToken) {
       window.location.href = '/app'
+      return
+    }
+
+    this.#initResetListener()
+  }
+
+  #initResetListener() {
+    let knownResetCount = null
+
+    this.#resetListener = SystemDocumentManager.listenResetCount((resetCount) => {
+      if (knownResetCount === null) {
+        knownResetCount = resetCount
+        return
+      }
+
+      if (resetCount !== knownResetCount) {
+        LocalStorage.clearSession()
+        ProfileCache.clear()
+        knownResetCount = resetCount
+      }
+    })
+  }
+
+  #destroyResetListener() {
+    if (this.#resetListener) {
+      this.#resetListener()
+      this.#resetListener = null
     }
   }
 
   async authenticate() {
     try {
       const auth = new Authenticator()
-   
-      // NOVO: desestruturar token e uid
+
       const { token, uid } = await auth.signIn()
-   
+
       LocalStorage.setAccessToken(JSON.stringify(token))
-   
-      // NOVO: persistir UID para uso no CryptoService
       LocalStorage.setFirebaseUid(uid)
-   
+
       window.location.href = '/app'
     } catch (error) {
       throw error
