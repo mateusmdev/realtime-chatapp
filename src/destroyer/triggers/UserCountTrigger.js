@@ -1,9 +1,9 @@
-const MAX_USERS = Number(import.meta.env.VITE_MAX_USERS) || 0
+const MAX_USERS = Math.floor(Number(import.meta.env.VITE_MAX_USERS) || 0)
 
 class UserCountTrigger {
 
   isEnabled() {
-    return Number.isInteger(MAX_USERS) && MAX_USERS > 0
+    return MAX_USERS > 0
   }
 
   evaluate(currentCount) {

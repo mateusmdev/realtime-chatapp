@@ -81,18 +81,18 @@ class SystemDocumentManager {
   async getSchedule() {
     const data = await this.#getDocument(DOCS.SCHEDULE)
     return {
-      next_reset_at:  data?.next_reset_at  ?? null,
-      interval_hours: data?.interval_hours ?? 0,
+      next_reset_at: data?.next_reset_at ?? null,
     }
   }
 
-  async scheduleNextReset(intervalHours) {
-    const next_reset_at = Date.now() + intervalHours * 3_600_000
+  async scheduleNextReset(triggeredAt, intervalMs) {
+    const next_reset_at = triggeredAt + intervalMs
 
     await this.#firestore.save(
-      { next_reset_at, interval_hours: intervalHours },
+      { next_reset_at },
       COLLECTION,
-      DOCS.SCHEDULE
+      DOCS.SCHEDULE,
+      { merge: true }
     )
   }
 
@@ -106,8 +106,7 @@ class SystemDocumentManager {
         COLLECTION,
         DOCS.METADATA
       ),
-      this.#firestore.save(this.#buildInitialSchedule(), COLLECTION, DOCS.SCHEDULE),
-      this.#firestore.save(this.#buildInitialLock(),    COLLECTION, DOCS.LOCK),
+      this.#firestore.save(this.#buildInitialLock(), COLLECTION, DOCS.LOCK),
     ])
   }
 
@@ -145,22 +144,19 @@ class SystemDocumentManager {
   }
 
   #buildInitialSchedule() {
-    const intervalHours = Number(import.meta.env.VITE_RESET_INTERVAL_HOURS) || 0
-    const next_reset_at = intervalHours > 0
-      ? Date.now() + intervalHours * 3_600_000
-      : null
+    const hours      = Math.floor(Number(import.meta.env.VITE_RESET_INTERVAL_HOURS)   || 0)
+    const minutes    = Math.floor(Number(import.meta.env.VITE_RESET_INTERVAL_MINUTES) || 0)
+    const intervalMs = (hours * 3_600_000) + (minutes * 60_000)
+    const next_reset_at = intervalMs > 0 ? Date.now() + intervalMs : null
 
-    return {
-      next_reset_at,
-      interval_hours: intervalHours,
-    }
+    return { next_reset_at }
   }
 
   #buildInitialLock() {
     return {
-      locked:          false,
-      locked_at:       null,
-      lock_holder_id:  null,
+      locked:         false,
+      locked_at:      null,
+      lock_holder_id: null,
     }
   }
 }

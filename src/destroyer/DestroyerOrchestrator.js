@@ -7,23 +7,23 @@ import UserCountTrigger        from './triggers/UserCountTrigger'
 import TimerTrigger            from './triggers/TimerTrigger'
 
 class DestroyerOrchestrator {
-  #systemManager      = SystemDocumentManager
-  #lockManager        = ResetLockManager
-  #firestoreDestroyer = FirestoreDestroyer
+  #systemManager       = SystemDocumentManager
+  #lockManager         = ResetLockManager
+  #firestoreDestroyer  = FirestoreDestroyer
   #cloudinaryDestroyer = CloudinaryDestroyer
-  #authDestroyer      = AuthDestroyer
+  #authDestroyer       = AuthDestroyer
 
   async evaluateAndExecute() {
     try {
-      const shouldReset = await this.#shouldReset()
-      if (!shouldReset) return
+      const triggerType = await this.#shouldReset()
+      if (triggerType === null) return
 
       const holderId = crypto.randomUUID()
       const acquired = await this.#lockManager.acquireLock(holderId)
 
       if (!acquired) return
 
-      await this.#executeReset()
+      await this.#executeReset(triggerType)
 
     } catch (_) {
 
@@ -36,16 +36,20 @@ class DestroyerOrchestrator {
       this.#systemManager.getSchedule(),
     ])
 
-    const byUserCount = UserCountTrigger.isEnabled()
-                     && UserCountTrigger.evaluate(userCount)
+    if (TimerTrigger.isEnabled() && TimerTrigger.evaluate(schedule.next_reset_at)) {
+      return 'timer'
+    }
 
-    const byTimer     = TimerTrigger.isEnabled()
-                     && TimerTrigger.evaluate(schedule.next_reset_at)
+    if (UserCountTrigger.isEnabled() && UserCountTrigger.evaluate(userCount)) {
+      return 'userCount'
+    }
 
-    return byUserCount || byTimer
+    return null
   }
 
-  async #executeReset() {
+  async #executeReset(triggerType) {
+    const triggeredAt = Date.now()
+
     await Promise.allSettled([
       this.#firestoreDestroyer.destroy(),
       this.#cloudinaryDestroyer.destroy(),
@@ -54,6 +58,10 @@ class DestroyerOrchestrator {
 
     try {
       await this.#systemManager.reinitialize()
+
+      if (triggerType === 'timer') {
+        await this.#systemManager.scheduleNextReset(triggeredAt, TimerTrigger.getIntervalMs())
+      }
     } catch (_) {
       try {
         await this.#lockManager.releaseLock()

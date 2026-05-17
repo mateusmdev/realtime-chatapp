@@ -1,15 +1,21 @@
-const INTERVAL_HOURS = Number(import.meta.env.VITE_RESET_INTERVAL_HOURS) || 0
+const INTERVAL_HOURS   = Math.floor(Number(import.meta.env.VITE_RESET_INTERVAL_HOURS)   || 0)
+const INTERVAL_MINUTES = Math.floor(Number(import.meta.env.VITE_RESET_INTERVAL_MINUTES) || 0)
+const INTERVAL_MS      = (INTERVAL_HOURS * 3_600_000) + (INTERVAL_MINUTES * 60_000)
 
 class TimerTrigger {
-  
+
   isEnabled() {
-    return Number.isFinite(INTERVAL_HOURS) && INTERVAL_HOURS > 0
+    return INTERVAL_MS > 0
   }
 
   evaluate(nextResetAt) {
-    if (!this.isEnabled())      return false
-    if (nextResetAt == null)    return false
+    if (!this.isEnabled())   return false
+    if (nextResetAt == null) return false
     return Date.now() >= nextResetAt
+  }
+
+  getIntervalMs() {
+    return INTERVAL_MS
   }
 }
 
