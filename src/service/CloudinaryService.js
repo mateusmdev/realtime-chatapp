@@ -1,4 +1,4 @@
-const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
+const CLOUD_NAME    = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
 
 class CloudinaryService {
@@ -15,10 +15,7 @@ class CloudinaryService {
 
     const response = await fetch(
       `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
-      {
-        method: 'POST',
-        body: formData
-      }
+      { method: 'POST', body: formData }
     )
 
     if (!response.ok) {
@@ -42,10 +39,7 @@ class CloudinaryService {
 
     const response = await fetch(
       `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
-      {
-        method: 'POST',
-        body: formData
-      }
+      { method: 'POST', body: formData }
     )
 
     if (!response.ok) {
@@ -67,10 +61,7 @@ class CloudinaryService {
 
     const response = await fetch(
       `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/raw/upload`,
-      {
-        method: 'POST',
-        body: formData
-      }
+      { method: 'POST', body: formData }
     )
 
     if (!response.ok) {
@@ -92,10 +83,7 @@ class CloudinaryService {
 
     const response = await fetch(
       `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/video/upload`,
-      {
-        method: 'POST',
-        body: formData
-      }
+      { method: 'POST', body: formData }
     )
 
     if (!response.ok) {
@@ -109,24 +97,7 @@ class CloudinaryService {
   static async delete(publicId, resourceType = 'image') {
     if (!publicId) return
 
-    const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${resourceType}/destroy`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          public_id: publicId,
-          upload_preset: UPLOAD_PRESET
-        })
-      }
-    )
-
-    if (!response.ok) {
-      throw new Error(`Cloudinary delete failed with status ${response.status}`)
-    }
-
-    const data = await response.json()
-    return data
+    return { result: 'skipped', reason: 'unsigned_preset_no_delete_support' }
   }
 }
 

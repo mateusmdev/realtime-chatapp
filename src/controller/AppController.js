@@ -787,13 +787,21 @@ class AppController {
   }
 
   async handleAddContact(event) {
-    const value    = this.#view.$('contactInput').value
     const userData = JSON.parse(LocalStorage.getUserData())
+    const value = this.#view.$('contactInput').value
 
     if (value.trim() === '' || value.trim() === userData.email) return
 
+    const MIN_RESPONSE_MS = 800
+    const startedAt       = Date.now()
+
     const contact = new User({ email: value })
     const result  = await contact.getDocument()
+
+    const elapsed = Date.now() - startedAt
+    if (elapsed < MIN_RESPONSE_MS) {
+      await new Promise(resolve => setTimeout(resolve, MIN_RESPONSE_MS - elapsed))
+    }
 
     if (result !== null) {
       try {
@@ -987,6 +995,11 @@ class AppController {
   }
 
   async startRecordMicrophoneAudio() {
+    if (this.#view.getState('blockMedia') === true) {
+      alert('This feature is not allowed on my server. Run the project on your machine and enable it for use.')
+      return
+    }
+
     const recorder = AudioRecorder.getInstance()
 
     if (!recorder.isSupported()) {
@@ -1025,6 +1038,11 @@ class AppController {
   }
 
   async handleSendAudio() {
+    if (this.#view.getState('blockMedia') === true) {
+      await this.handleStopRecordAudio()
+      return
+    }
+
     const interval = this.#view.getState('tempRecordedInterval')
     clearInterval(interval)
 
@@ -1069,6 +1087,7 @@ class AppController {
   }
 
   async handleSendImage() {
+    if (this.#view.getState('blockMedia') === true) return
     if (!this.#pendingMediaFile || !this.#currentChatId) return
 
     try {
@@ -1095,6 +1114,7 @@ class AppController {
   }
 
   async handleSendPhotoImage() {
+    if (this.#view.getState('blockMedia') === true) return
     if (!this.#currentChatId) return
 
     try {
@@ -1122,6 +1142,7 @@ class AppController {
   }
 
   async handleSendDocument() {
+    if (this.#view.getState('blockMedia') === true) return
     if (!this.#pendingDocumentFile || !this.#currentChatId) return
 
     try {
@@ -1469,5 +1490,4 @@ class AppController {
 }
 
 const appController = new AppController()
-window.app = appController
-window.app.initEvents()
+appController.initEvents()

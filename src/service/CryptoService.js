@@ -1,4 +1,3 @@
-
 export const CryptoInitStatus = Object.freeze({
   GENERATED:                   'GENERATED',
   READY:                       'READY',
@@ -7,7 +6,7 @@ export const CryptoInitStatus = Object.freeze({
   ERROR:                       'ERROR',
 })
 
-const APP_HARDCODED_SALT = 'y0hZ1WY1IrO3uKfrAcjVgkhdZfaGnnDeyzSlg7DMrOc='
+const APP_HARDCODED_SALT = import.meta.env.VITE_CRYPTO_SALT
 
 const ECDH_ALGO    = { name: 'ECDH', namedCurve: 'P-256' }
 const HKDF_HASH    = 'SHA-256'

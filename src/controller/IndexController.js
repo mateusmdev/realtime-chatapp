@@ -87,5 +87,4 @@ class IndexController {
 }
 
 const indexController = new IndexController()
-window.app = indexController
-window.app.initEvents()
+indexController.initEvents()

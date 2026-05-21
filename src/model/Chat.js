@@ -25,11 +25,13 @@ class Chat extends AbstractModel {
 
   static async create(emailA, emailB) {
     const firestore = Firestore.instance
+
     const chatData = {
       users: {
         [btoa(emailA)]: true,
         [btoa(emailB)]: true,
-      }
+      },
+      participantEmails: [emailA, emailB],
     }
     
     const docSnap = await firestore.save(chatData, 'chats', null)
