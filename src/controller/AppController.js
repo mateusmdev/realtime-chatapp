@@ -362,6 +362,9 @@ class AppController {
     this.#view.setState('isPreviewMode', isPreview)
 
     if (!isPreview) {
+      const auth = new Authenticator()
+      await auth.waitForAuth()
+
       await SystemDocumentManager.initializeIfNeeded()
       await this.getUserData()
     }

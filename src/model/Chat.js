@@ -10,9 +10,12 @@ class Chat extends AbstractModel {
 
   static async findByUsers(emailA, emailB) {
     const firestore = Firestore.instance
+    const a = emailA.toLowerCase()
+    const b = emailB.toLowerCase()
+
     const constraints = [
-      where(`users.${btoa(emailA)}`, '==', true),
-      where(`users.${btoa(emailB)}`, '==', true),
+      where(`users.${btoa(a)}`, '==', true),
+      where(`users.${btoa(b)}`, '==', true),
     ]
 
     const result = await firestore.findDocs('chats', constraints)
@@ -25,13 +28,15 @@ class Chat extends AbstractModel {
 
   static async create(emailA, emailB) {
     const firestore = Firestore.instance
+    const a = emailA.toLowerCase()
+    const b = emailB.toLowerCase()
 
     const chatData = {
       users: {
-        [btoa(emailA)]: true,
-        [btoa(emailB)]: true,
+        [btoa(a)]: true,
+        [btoa(b)]: true,
       },
-      participantEmails: [emailA, emailB],
+      participantEmails: [a, b],
     }
     
     const docSnap = await firestore.save(chatData, 'chats', null)
@@ -40,8 +45,10 @@ class Chat extends AbstractModel {
 
   static async findAllByUser(email) {
     const firestore = Firestore.instance
+    const e = email.toLowerCase()
+
     const constraints = [
-      where(`users.${btoa(email)}`, '==', true),
+      where(`users.${btoa(e)}`, '==', true),
     ]
 
     const result = await firestore.findDocs('chats', constraints)
@@ -52,9 +59,10 @@ class Chat extends AbstractModel {
   }
 
   getOtherParticipantEmail(currentUserEmail) {
+    const email = currentUserEmail.toLowerCase()
     const users = this.data.users ?? {}
-    const otherKey = Object.keys(users).find(key => atob(key) !== currentUserEmail)
-    return otherKey ? atob(otherKey) : null
+    const otherKey = Object.keys(users).find(key => atob(key).toLowerCase() !== email)
+    return otherKey ? atob(otherKey).toLowerCase() : null
   }
 
   static async deleteChat(chatId) {

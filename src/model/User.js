@@ -4,10 +4,16 @@ import AbstractModel from "./AbstractModel"
 class User extends AbstractModel {
   
   constructor(data = {}){
+    if (data.email) {
+      data.email = data.email.toLowerCase()
+    }
     super(data, 'user', 'email')
   }
 
   async saveContact(contactData) {
+    if (contactData.email) {
+      contactData.email = contactData.email.toLowerCase()
+    }
     const documentPath = `${this.getModelAttr('path')}/${this.data[this.getModelAttr('primaryKeyProp')]}/contacts`
     const documentRef = await this.getModelAttr('firestore').save(contactData, documentPath, contactData[this.getModelAttr('primaryKeyProp')])
     
@@ -21,7 +27,11 @@ class User extends AbstractModel {
 
     if (docs.length === 0) return []
 
-    const contacts = docs.map(doc => doc.data())
+    const contacts = docs.map(doc => {
+      const data = doc.data()
+      if (data.email) data.email = data.email.toLowerCase()
+      return data
+    })
     return contacts
   }
 
@@ -36,13 +46,13 @@ class User extends AbstractModel {
    
     const enrichedContacts = await Promise.all(
       contacts.map(async contact => {
-        const user      = new User({ email: contact.email })
+        const user      = new User({ email: contact.email.toLowerCase() })
         const freshData = await user.getDocument()
    
         return {
           ...contact,
+          email:     contact.email.toLowerCase(),
           about:     freshData?.about      ?? '',
-          // NOVO: incluir chave pública do contato para uso na criptografia E2E
           publicKey: freshData?.publicKey  ?? null,
         }
       })
@@ -52,13 +62,8 @@ class User extends AbstractModel {
     return enrichedContacts
   }
 
-  /**
-   * For each contact of the deleted user, updates the corresponding entry
-   * in that contact's subcollection marking it as deleted.
-   * Must be called before delete() so the contacts list is still available.
-   * @param {string} deletedEmail - Email of the user being deleted.
-   */
   async markContactAsDeleted(deletedEmail) {
+    const email = deletedEmail.toLowerCase()
     const contacts = await this.getContacts()
 
     if (contacts.length === 0) return
@@ -67,24 +72,26 @@ class User extends AbstractModel {
     const path = this.getModelAttr('path')
 
     const updatePromises = contacts.map(async contact => {
-      const contactEntryPath = `${path}/${contact.email}/contacts`
-      const existingEntry = await firestore.findById(contactEntryPath, deletedEmail)
+      const contactEmail = contact.email.toLowerCase()
+      const contactEntryPath = `${path}/${contactEmail}/contacts`
+      const existingEntry = await firestore.findById(contactEntryPath, email)
 
       if (!existingEntry || !existingEntry.exists()) return
 
       const updatedEntry = {
         ...existingEntry.data(),
+        email: email,
         isDeleted: true,
       }
 
-      await firestore.save(updatedEntry, contactEntryPath, deletedEmail)
+      await firestore.save(updatedEntry, contactEntryPath, email)
     })
 
     await Promise.all(updatePromises)
   }
 
   async delete() {
-    const email = this.data[this.getModelAttr('primaryKeyProp')]
+    const email = this.data[this.getModelAttr('primaryKeyProp')].toLowerCase()
     const firestore = this.getModelAttr('firestore')
     const path = this.getModelAttr('path')
 

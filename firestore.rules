@@ -1,0 +1,67 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Helpers ────────────────────────────────────────────────────────────
+
+    function isAuthenticated() {
+      return request.auth != null && request.auth.token.email != null;
+    }
+
+    function isOwner(email) {
+      return request.auth.token.email == email;
+    }
+
+    function isParticipantOf(chatData) {
+      return 'participantEmails' in chatData
+          && request.auth.token.email in chatData.participantEmails;
+    }
+
+    function isResetActive() {
+      return get(/databases/$(database)/documents/_system/reset_lock).data.locked == true;
+    }
+
+    match /_system/metadata {
+      allow read:  if true;
+      allow write: if isAuthenticated();
+    }
+
+    match /_system/{document} {
+      allow read:  if isAuthenticated();
+      allow write: if isAuthenticated();
+    }
+
+    match /user/{email} {
+      allow read:           if isAuthenticated();
+      allow create, update: if isAuthenticated() && isOwner(email);
+      allow delete:         if isAuthenticated() && isResetActive();
+
+      match /contacts/{contactEmail} {
+        allow read:  if isAuthenticated() && (isOwner(email) || isResetActive());
+        allow write: if isAuthenticated()
+                     && (isOwner(email) || isOwner(contactEmail) || isResetActive());
+      }
+    }
+
+    match /chats/{chatId} {
+      allow read:   if isAuthenticated()
+                    && (isParticipantOf(resource.data) || isResetActive());
+
+      allow create: if isAuthenticated()
+                    && 'participantEmails' in request.resource.data
+                    && request.auth.token.email in request.resource.data.participantEmails;
+
+      allow update: if isAuthenticated()
+                    && (isParticipantOf(resource.data) || isResetActive());
+
+      allow delete: if isAuthenticated() && isResetActive();
+
+      match /messages/{messageId} {
+        allow read, write: if isAuthenticated()
+          && (isParticipantOf(
+               get(/databases/$(database)/documents/chats/$(chatId)).data
+             ) || isResetActive());
+      }
+    }
+  }
+}
