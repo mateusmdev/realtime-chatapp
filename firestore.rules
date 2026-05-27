@@ -37,7 +37,8 @@ service cloud.firestore {
       allow delete:         if isAuthenticated() && isResetActive();
 
       match /contacts/{contactEmail} {
-        allow read:  if isAuthenticated() && (isOwner(email) || isResetActive());
+        allow read:  if isAuthenticated()
+                     && (isOwner(email) || isOwner(contactEmail) || isResetActive());
         allow write: if isAuthenticated()
                      && (isOwner(email) || isOwner(contactEmail) || isResetActive());
       }

@@ -14,7 +14,7 @@ class Chat extends AbstractModel {
     const b = emailB.toLowerCase()
 
     const constraints = [
-      where(`users.${btoa(a)}`, '==', true),
+      where('participantEmails', 'array-contains', a),
       where(`users.${btoa(b)}`, '==', true),
     ]
 
@@ -48,7 +48,7 @@ class Chat extends AbstractModel {
     const e = email.toLowerCase()
 
     const constraints = [
-      where(`users.${btoa(e)}`, '==', true),
+      where('participantEmails', 'array-contains', e),
     ]
 
     const result = await firestore.findDocs('chats', constraints)
@@ -74,7 +74,7 @@ class Chat extends AbstractModel {
     await firestore.delete('chats', chatId)
   }
 
-  static listenLastMessages(chatIds, callback) {
+  static listenLastMessages(chatIds, currentUserEmail, callback) {
     if (!chatIds?.length) return []
 
     const firestore = Firestore.instance
@@ -83,7 +83,10 @@ class Chat extends AbstractModel {
 
     for (let i = 0; i < chatIds.length; i += BATCH_SIZE) {
         const batchIds = chatIds.slice(i, i + BATCH_SIZE)
-        const constraints = [where(documentId(), 'in', batchIds)]
+        const constraints = [
+          where(documentId(), 'in', batchIds),
+          where('participantEmails', 'array-contains', currentUserEmail.toLowerCase())
+        ]
 
         const unsubscribe = firestore.onSnapshot('chats', null, (snapshot) => {
             const changes = snapshot.docChanges().map(change => ({

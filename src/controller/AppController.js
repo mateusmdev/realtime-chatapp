@@ -1421,7 +1421,10 @@ class AppController {
     const chatIds = [...this.#chatContactMap.keys()]
     if (chatIds.length === 0) return
 
-    this.#messageListListeners = Chat.listenLastMessages(chatIds, (changes) => {
+    const userData = JSON.parse(LocalStorage.getUserData())
+    if (!userData?.email) return
+
+    this.#messageListListeners = Chat.listenLastMessages(chatIds, userData.email, (changes) => {
       this.#handleMessageListSnapshot(changes)
     })
   }
