@@ -1,3 +1,5 @@
+import MediaPolicy from './MediaPolicy.js'
+
 const CLOUD_NAME    = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
 
@@ -5,6 +7,8 @@ class CloudinaryService {
   static #MAX_SIZE_BYTES = 5 * 1024 * 1024
 
   static async upload(file) {
+    MediaPolicy.assertUploadAllowed()
+
     if (file.size > CloudinaryService.#MAX_SIZE_BYTES) {
       throw new Error('O arquivo excede o tamanho máximo permitido de 5MB.')
     }
@@ -27,6 +31,8 @@ class CloudinaryService {
   }
 
   static async uploadBase64(base64DataUrl) {
+    MediaPolicy.assertUploadAllowed()
+
     const base64Regex = /^data:(.+);base64,(.*)$/
 
     if (!base64DataUrl.match(base64Regex)) {
@@ -51,6 +57,8 @@ class CloudinaryService {
   }
 
   static async uploadRaw(file) {
+    MediaPolicy.assertUploadAllowed()
+
     if (file.size > CloudinaryService.#MAX_SIZE_BYTES) {
       throw new Error('O arquivo excede o tamanho máximo permitido de 5MB.')
     }
@@ -73,6 +81,8 @@ class CloudinaryService {
   }
 
   static async uploadAudio(blob) {
+    MediaPolicy.assertUploadAllowed()
+
     if (blob.size > CloudinaryService.#MAX_SIZE_BYTES) {
       throw new Error('O arquivo de áudio excede o tamanho máximo permitido de 5MB.')
     }

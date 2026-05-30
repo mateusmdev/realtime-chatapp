@@ -400,9 +400,9 @@ class AppController {
 
     if (!granted) return
 
-    const userData   = JSON.parse(LocalStorage.getUserData())
+    const userData    = JSON.parse(LocalStorage.getUserData())
     const cacheObject = ProfileCache.get()
-    const contacts   = cacheObject?.cache || []
+    const contacts    = cacheObject?.cache || []
 
     this.#notificationService?.destroy()
     this.#notificationService = new NotificationService()
@@ -509,11 +509,13 @@ class AppController {
     try {
       const user = new User({ email: userData.email })
 
+      const dynamicSalt = await SystemDocumentManager.getCryptoDynamicSalt()
+
       const persistCallback = async (fields) => {
         await user.savePartial(fields, { merge: true })
       }
 
-      const status = await this.#cryptoService.init(uid, userData, persistCallback)
+      const status = await this.#cryptoService.init(uid, userData, persistCallback, dynamicSalt)
 
       switch (status) {
         case CryptoInitStatus.READY:
@@ -556,10 +558,17 @@ class AppController {
     this.#view.loadEmoji(iconList)
   }
 
-  signOut(){
+  async signOut(){
     this.#notificationService?.destroy()
     this.#destroyMessageListListeners()
     this.#destroyResetListener()
+
+    try {
+      const auth = new Authenticator()
+      await auth.signOut()
+    } catch (_) {
+    }
+
     LocalStorage.clearSession()
     ProfileCache.clear()
     window.location.href = '/'
@@ -590,10 +599,10 @@ class AppController {
       this.#messageListener = null
     }
 
-    this.#currentChatId     = data.chatId
+    this.#currentChatId      = data.chatId
     this.#currentContactData = data
-    const { messageList }   = this.#view.$()
-    const userData          = JSON.parse(LocalStorage.getUserData())
+    const { messageList }    = this.#view.$()
+    const userData           = JSON.parse(LocalStorage.getUserData())
 
     messageList.innerHTML = ''
 
@@ -603,8 +612,8 @@ class AppController {
       const shouldScroll = isInitialLoad || this.#view.isAtBottom()
 
       for (const currentMessage of messages) {
-        const { data }       = currentMessage
-        const isFromContact  = data.from.toLowerCase() !== userData.email.toLowerCase()
+        const { data }      = currentMessage
+        const isFromContact = data.from.toLowerCase() !== userData.email.toLowerCase()
 
         let displayContent = data.content ?? null
 
@@ -664,7 +673,7 @@ class AppController {
   }
 
   async handleMediaButton(e) {
-    const { id }        = e.currentTarget
+    const { id }         = e.currentTarget
     const { uploadFile } = this.#view.$()
 
     this.#view.setState('mediaButtonId', id)
@@ -697,14 +706,14 @@ class AppController {
   }
 
   async handleChangeInputFile(event) {
-    const id           = this.#view.getState('mediaButtonId')
+    const id            = this.#view.getState('mediaButtonId')
     const [uploadedFile] = event.target.files
     const { pdfArea, fileArea, sentImagePreview, sentImageName } = this.#view.$()
     this.#view.clearMediaProperties()
 
     if (!uploadedFile) return
 
-    const isPdf        = uploadedFile?.type === 'application/pdf'
+    const isPdf         = uploadedFile?.type === 'application/pdf'
     const componentData = {}
 
     if (uploadedFile.type.startsWith('image/') && id === 'send-document-btn') {
@@ -1014,7 +1023,7 @@ class AppController {
       await recorder.start()
       this.#view.toggleSendAudioSection(true)
 
-      const start              = Date.now()
+      const start               = Date.now()
       const { microphoneTimer } = this.#view.$()
 
       const recordedTime = setInterval(() => {
@@ -1230,8 +1239,8 @@ class AppController {
     if (!this.#pendingContactData) return
 
     try {
-      const userData   = JSON.parse(LocalStorage.getUserData())
-      const contact    = this.#pendingContactData
+      const userData  = JSON.parse(LocalStorage.getUserData())
+      const contact   = this.#pendingContactData
 
       const contactUser = new User({ email: contact.email })
       const contactData = await contactUser.getDocument()
@@ -1365,7 +1374,7 @@ class AppController {
   }
 
   async #handleMutualDeletionCascade(userData) {
-    const chats    = await Chat.findAllByUser(userData.email)
+    const chats     = await Chat.findAllByUser(userData.email)
     const firestore = Firestore.instance
     let hasActiveConnections = false
 

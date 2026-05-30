@@ -15,18 +15,31 @@ class SystemDocumentManager {
   #db        = getFirestore()
 
   async initializeIfNeeded() {
-    const [metadataExists, scheduleExists, lockExists] = await Promise.all([
-      this.#documentExists(DOCS.METADATA),
+    const [metadataSnap, scheduleExists, lockExists] = await Promise.all([
+      this.#firestore.findById(COLLECTION, DOCS.METADATA),
       this.#documentExists(DOCS.SCHEDULE),
       this.#documentExists(DOCS.LOCK),
     ])
 
+    const metadataExists = metadataSnap != null && metadataSnap.exists()
     const creates = []
 
     if (!metadataExists) {
       creates.push(
         this.#firestore.save(this.#buildInitialMetadata(), COLLECTION, DOCS.METADATA)
       )
+    } else {
+      const metaData = metadataSnap.data()
+      if (!metaData?.cryptoDynamicSalt) {
+        creates.push(
+          this.#firestore.save(
+            { cryptoDynamicSalt: this.#generateDynamicSalt() },
+            COLLECTION,
+            DOCS.METADATA,
+            { merge: true }
+          )
+        )
+      }
     }
 
     if (!scheduleExists) {
@@ -54,7 +67,12 @@ class SystemDocumentManager {
       const currentData = snap.exists() ? snap.data() : this.#buildInitialMetadata()
       const updated     = (currentData.user_count ?? 0) + 1
 
-      transaction.set(metadataRef, { ...currentData, user_count: updated })
+      transaction.set(metadataRef, {
+        ...currentData,
+        user_count:        updated,
+        cryptoDynamicSalt: currentData.cryptoDynamicSalt ?? this.#generateDynamicSalt(),
+      })
+
       return updated
     })
 
@@ -69,7 +87,11 @@ class SystemDocumentManager {
       const currentData = snap.exists() ? snap.data() : this.#buildInitialMetadata()
       const updated     = Math.max(0, (currentData.user_count ?? 0) - 1)
 
-      transaction.set(metadataRef, { ...currentData, user_count: updated })
+      transaction.set(metadataRef, {
+        ...currentData,
+        user_count:        updated,
+        cryptoDynamicSalt: currentData.cryptoDynamicSalt ?? this.#generateDynamicSalt(),
+      })
     })
   }
 
@@ -85,6 +107,27 @@ class SystemDocumentManager {
     }
   }
 
+  async getCryptoDynamicSalt() {
+    const data = await this.#getDocument(DOCS.METADATA)
+    const salt = data?.cryptoDynamicSalt
+
+    if (!salt || typeof salt !== 'string' || salt.trim().length === 0) {
+      const newSalt = this.#generateDynamicSalt()
+
+      await this.#firestore.save(
+        { cryptoDynamicSalt: newSalt },
+        COLLECTION,
+        DOCS.METADATA,
+        { merge: true }
+      )
+
+      return newSalt
+    }
+
+    return salt
+  }
+
+
   async scheduleNextReset(triggeredAt, intervalMs) {
     const next_reset_at = triggeredAt + intervalMs
 
@@ -99,10 +142,14 @@ class SystemDocumentManager {
   async reinitialize() {
     const currentMeta    = await this.#getDocument(DOCS.METADATA)
     const nextResetCount = (currentMeta?.reset_count ?? 0) + 1
+    const newDynamicSalt = this.#generateDynamicSalt()
 
     await Promise.all([
       this.#firestore.save(
-        { ...this.#buildInitialMetadata(), reset_count: nextResetCount },
+        {
+          ...this.#buildInitialMetadata(newDynamicSalt),
+          reset_count: nextResetCount,
+        },
         COLLECTION,
         DOCS.METADATA
       ),
@@ -135,11 +182,17 @@ class SystemDocumentManager {
     return null
   }
 
-  #buildInitialMetadata() {
+  #generateDynamicSalt() {
+    const bytes = crypto.getRandomValues(new Uint8Array(32))
+    return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')
+  }
+
+  #buildInitialMetadata(dynamicSalt = null) {
     return {
-      user_count:  0,
-      reset_count: 0,
-      created_at:  Date.now(),
+      user_count:        0,
+      reset_count:       0,
+      created_at:        Date.now(),
+      cryptoDynamicSalt: dynamicSalt ?? this.#generateDynamicSalt(),
     }
   }
 

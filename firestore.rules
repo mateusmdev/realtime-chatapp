@@ -23,12 +23,39 @@ service cloud.firestore {
 
     match /_system/metadata {
       allow read:  if true;
-      allow write: if isAuthenticated();
+      allow write: if isAuthenticated()
+        && request.resource.data.keys().hasOnly([
+             'user_count', 'reset_count', 'created_at', 'cryptoDynamicSalt'
+           ])
+        && request.resource.data.user_count is int
+        && request.resource.data.reset_count is int
+        && request.resource.data.created_at is int
+        && request.resource.data.cryptoDynamicSalt is string
+        && request.resource.data.cryptoDynamicSalt.size() > 0;
+    }
+
+    match /_system/schedule {
+      allow read:  if isAuthenticated();
+      allow write: if isAuthenticated()
+        && request.resource.data.keys().hasOnly(['next_reset_at'])
+        && (request.resource.data.next_reset_at == null
+            || request.resource.data.next_reset_at is int);
+    }
+
+    match /_system/reset_lock {
+      allow read:  if isAuthenticated();
+      allow write: if isAuthenticated()
+        && request.resource.data.keys().hasOnly(['locked', 'locked_at', 'lock_holder_id'])
+        && request.resource.data.locked is bool
+        && (request.resource.data.locked_at == null
+            || request.resource.data.locked_at is int)
+        && (request.resource.data.lock_holder_id == null
+            || request.resource.data.lock_holder_id is string);
     }
 
     match /_system/{document} {
-      allow read:  if isAuthenticated();
-      allow write: if isAuthenticated();
+      allow read:  if false;
+      allow write: if false;
     }
 
     match /user/{email} {
