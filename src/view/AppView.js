@@ -100,7 +100,16 @@ class AppView extends AbstractView {
     const isPreviewMode = this.getState('isPreviewMode')
   
     if (blockMediaState === true || isPreviewMode === true) {
-      const { takePhotoBtn, sendPictureBtn, sendDocumentBtn, userAboutContent, userAbout } = this.$()
+      const {
+        takePhotoBtn,
+        sendPictureBtn,
+        sendDocumentBtn,
+        userAboutContent,
+        userAbout,
+        btnContainer,
+        profileImageFile,
+      } = this.$()
+
       const blockedElements = [takePhotoBtn, sendPictureBtn, sendDocumentBtn]
       
       blockedElements.forEach(element => {
@@ -119,6 +128,14 @@ class AppView extends AbstractView {
       })
   
       userAboutContent.setAttribute('contenteditable', false)
+
+      this.setStyle(btnContainer, {
+        opacity: '0',
+        visibility: 'hidden',
+        display: 'none',
+      })
+
+      profileImageFile.disabled = true
     }
   
     if (isIconListBlock === true) {
@@ -737,7 +754,6 @@ class AppView extends AbstractView {
 
     li.appendChild(content)
 
-
     if (data.type === 'audio') {
       this.bindAudioPlayer(li, data.content, data.duration)
     }
@@ -910,7 +926,7 @@ class AppView extends AbstractView {
 
     const timeEl = document.createElement('p')
     timeEl.className = 'time-message'
-    timeEl.textContent = this.#formatMessageTime(itemData.lastMessage.timeStamp) // seguro: data formatada
+    timeEl.textContent = this.#formatMessageTime(itemData.lastMessage.timeStamp)
 
     messageData.appendChild(nameEl)
     messageData.appendChild(messageContent)
@@ -945,11 +961,10 @@ class AppView extends AbstractView {
     const imgEl     = element.querySelector('.profile-picture')
 
     if (imgEl)  imgEl.src = itemData.profilePicture ?? ''
-    if (nameEl) nameEl.textContent = itemData.name // seguro
-    if (timeEl) timeEl.textContent = this.#formatMessageTime(itemData.lastMessage.timeStamp) // seguro
+    if (nameEl) nameEl.textContent = itemData.name
+    if (timeEl) timeEl.textContent = this.#formatMessageTime(itemData.lastMessage.timeStamp)
 
     if (contentEl) {
-      
       contentEl.textContent = ''
       const statusSpan = document.createElement('span')
       statusSpan.className = `message-status${itemData.isFromMe ? ' visualized' : ''}`
@@ -971,12 +986,10 @@ class AppView extends AbstractView {
       return
     }
     if (lastMessage.type === 'file') {
-      
       container.appendChild(document.createTextNode(`${prefix}📄 ${lastMessage.fileName ?? 'Arquivo'}`))
       return
     }
     if (lastMessage.type === 'contact-attachment') {
-      
       container.appendChild(document.createTextNode(`${prefix}👤 ${lastMessage.contactName ?? 'Contato'}`))
       return
     }

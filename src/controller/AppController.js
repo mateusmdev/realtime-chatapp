@@ -752,6 +752,8 @@ class AppController {
   }
 
   async handleProfileImageFile(e) {
+    if (this.#view.getState('blockMedia') === true) return
+
     const [uploadedFile]  = e.target.files
     const imageUrl        = URL.createObjectURL(uploadedFile)
     const profilePictures = document.querySelectorAll('.profile-picture');
