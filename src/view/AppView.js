@@ -108,9 +108,12 @@ class AppView extends AbstractView {
         userAbout,
         btnContainer,
         profileImageFile,
+        uploadFile,
+        microphoneBtn,
+        sendBtn
       } = this.$()
 
-      const blockedElements = [takePhotoBtn, sendPictureBtn, sendDocumentBtn]
+      const blockedElements = [takePhotoBtn, sendPictureBtn, sendDocumentBtn, microphoneBtn]
       
       blockedElements.forEach(element => {
         this.setStyle(element, {
@@ -136,6 +139,14 @@ class AppView extends AbstractView {
       })
 
       profileImageFile.disabled = true
+      uploadFile.disabled = true
+      microphoneBtn.classList.add('hidden')
+
+      sendBtn.classList.remove('hidden')
+      this.setStyle(sendBtn, {
+        opacity: '0.3',
+        cursor: 'initial',
+      })
     }
   
     if (isIconListBlock === true) {
@@ -392,12 +403,33 @@ class AppView extends AbstractView {
     this.saveCursor()
     const { inputContent, placeholder, microphoneBtn, sendBtn } = this.$()
     const message = inputContent.innerText.trim()
+    const isBlockMedia = this.getState('blockMedia')
 
     if (message.length < 1) {
       placeholder.innerText = this.getState('placeholderText')
+
+      if (isBlockMedia) {
+        this.setStyle(sendBtn, {
+          opacity: '0.3',
+          cursor: 'initial'
+        })
+
+        return
+      }
+
       microphoneBtn.classList.remove('hidden')
       sendBtn.classList.add('hidden')
     } else {
+
+      if (isBlockMedia) {
+        this.setStyle(sendBtn, {
+          opacity: '1',
+          cursor: 'pointer'
+        })
+
+        return
+      }
+
       placeholder.innerText = ''
       microphoneBtn.classList.add('hidden')
       sendBtn.classList.remove('hidden')   
@@ -569,7 +601,7 @@ class AppView extends AbstractView {
 
       player.play(
         (currentTime, totalDuration) => {
-          const ratio = currentTime / totalDuration
+          const ratio = range.value / 100
           range.value = ratio * 100
           timeDisplay.innerText = this.#formatTime(currentTime)
         },
@@ -1011,7 +1043,11 @@ class AppView extends AbstractView {
   #formatMessageTime(timestamp) {
     if (!timestamp) return ''
 
-    const date = new Date(timestamp)
+    const ms = typeof timestamp?.toMillis === 'function'
+      ? timestamp.toMillis()
+      : timestamp
+
+    const date = new Date(ms)
     const now  = new Date()
 
     const isToday = date.toDateString() === now.toDateString()

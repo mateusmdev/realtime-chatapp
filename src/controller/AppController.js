@@ -706,6 +706,8 @@ class AppController {
   }
 
   async handleChangeInputFile(event) {
+    if (this.#view.getState('blockMedia') === true) return
+
     const id            = this.#view.getState('mediaButtonId')
     const [uploadedFile] = event.target.files
     const { pdfArea, fileArea, sentImagePreview, sentImageName } = this.#view.$()
@@ -990,6 +992,8 @@ class AppController {
   }
 
   handlerUploadFileClick(inputFile, settings = {}) {
+    if (this.#view.getState('blockMedia') === true) return
+
     const { idMedia }  = settings
     const dictionary   = {
       'send-document-btn': '*',
@@ -1484,8 +1488,11 @@ class AppController {
 
     if (!hasUpdates) return
 
+    const toMs = (ts) =>
+      typeof ts?.toMillis === 'function' ? ts.toMillis() : (ts ?? 0)
+
     const sortedItems = [...this.#messageListMap.values()]
-      .sort((a, b) => b.lastMessage.timeStamp - a.lastMessage.timeStamp)
+      .sort((a, b) => toMs(b.lastMessage.timeStamp) - toMs(a.lastMessage.timeStamp))
 
     this.#view.renderMessageList(sortedItems, {
       handleCallback: this.handleConversationItem.bind(this)

@@ -60,7 +60,17 @@ service cloud.firestore {
 
     match /user/{email} {
       allow read:           if isAuthenticated();
-      allow create, update: if isAuthenticated() && isOwner(email);
+
+      allow create, update: if isAuthenticated() && isOwner(email)
+        && (!('isDeleted' in request.resource.data)
+            || request.resource.data.isDeleted is bool)
+        && (!('publicKey' in request.resource.data)
+            || request.resource.data.publicKey is map)
+        && (!('encryptedPrivateKey' in request.resource.data)
+            || request.resource.data.encryptedPrivateKey is string)
+        && (!('email' in request.resource.data)
+            || request.resource.data.email == email);
+
       allow delete:         if isAuthenticated() && isResetActive();
 
       match /contacts/{contactEmail} {
@@ -85,7 +95,20 @@ service cloud.firestore {
       allow delete: if isAuthenticated() && isResetActive();
 
       match /messages/{messageId} {
-        allow read, write: if isAuthenticated()
+
+        allow read: if isAuthenticated()
+          && (isParticipantOf(
+               get(/databases/$(database)/documents/chats/$(chatId)).data
+             ) || isResetActive());
+
+        allow create: if isAuthenticated()
+          && isParticipantOf(
+               get(/databases/$(database)/documents/chats/$(chatId)).data
+             )
+          && request.resource.data.from.lower() == request.auth.token.email.lower();
+
+        // Deleção: participante (deleção de conta) ou reset ativo (reset do sistema).
+        allow delete: if isAuthenticated()
           && (isParticipantOf(
                get(/databases/$(database)/documents/chats/$(chatId)).data
              ) || isResetActive());
