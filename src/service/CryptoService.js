@@ -78,8 +78,8 @@ class CryptoService {
 
         this.#ready = true
         return CryptoInitStatus.REMOTE_FOUND_LOCAL_MISSING
-      } catch {
-        console.error('[Crypto] Falha ao recuperar chave remota. Gerando novo par de chaves.', { error: err })
+      } catch (err) {
+        console.error('[Crypto] Falha ao recuperar chave remota. Gerando novo par de chaves.', err)
       }
     }
 

@@ -73,10 +73,9 @@ class IndexController {
   async authenticate() {
     try {
       const auth = new Authenticator()
-
       const { token, uid } = await auth.signIn()
 
-      LocalStorage.setAccessToken(JSON.stringify(token))
+      LocalStorage.setAccessToken(token)
       LocalStorage.setFirebaseUid(uid)
 
       window.location.href = '/app'

@@ -20,6 +20,7 @@ import DestroyerOrchestrator from '../destroyer/DestroyerOrchestrator'
 const TOKEN_VALIDATOR = import.meta.env.VITE_TOKEN_VALIDATOR
 const ICON_KEY        = import.meta.env.VITE_ICON_KEY
 const BLOCK_MEDIA     = import.meta.env.VITE_BLOCK_MEDIA
+const MAX_MESSAGE_LENGTH = 200
 
 class AppController {
   #view = new AppView()
@@ -35,6 +36,9 @@ class AppController {
   #messageListMap = new Map()
   #cryptoService = CryptoService
   #resetListener = null
+
+  #authStateUnsubscribe  = null
+  #tokenPollingInterval  = null
 
   async initEvents(){
 
@@ -392,6 +396,8 @@ class AppController {
       })
 
       document.dispatchEvent(event)
+      this.#setupAuthStateSync()
+      this.#startTokenValidationPolling()
     }
   }
 
@@ -436,6 +442,57 @@ class AppController {
     }
   }
 
+  #setupAuthStateSync() {
+    const auth = new Authenticator()
+    this.#authStateUnsubscribe = auth.setupAuthStateListener((user) => {
+      if (!user && !this.#view.getState('isPreviewMode')) {
+        this.#handleSessionExpired()
+      }
+    })
+  }
+
+  #startTokenValidationPolling() {
+    const POLLING_INTERVAL_MS = 30 * 60 * 1000 // 30 minutes
+
+    const validate = async () => {
+      const accessToken = LocalStorage.getAccessToken()
+      if (!accessToken) return
+
+      try {
+        await axios.get(TOKEN_VALIDATOR, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        })
+      } catch {
+        await this.#handleSessionExpired()
+      }
+    }
+
+    this.#tokenPollingInterval = setInterval(validate, POLLING_INTERVAL_MS)
+  }
+
+  async #handleSessionExpired() {
+    if (this.#authStateUnsubscribe) {
+      this.#authStateUnsubscribe()
+      this.#authStateUnsubscribe = null
+    }
+
+    clearInterval(this.#tokenPollingInterval)
+    this.#tokenPollingInterval = null
+
+    this.#notificationService?.destroy()
+    this.#destroyMessageListListeners()
+    this.#destroyResetListener()
+
+    try {
+      const auth = new Authenticator()
+      await auth.signOut()
+    } catch (_) {}
+
+    LocalStorage.clearSession()
+    ProfileCache.clear()
+    window.location.href = '/'
+  }
+
   async getUserData() {
     const accessToken = LocalStorage.getAccessToken()
 
@@ -452,9 +509,11 @@ class AppController {
       const { data } = response
 
       const user = new User({
-        ...data,
+        email:          data.email,
+        name:           data.name,
+        picture:        data.picture,
         profilePicture: data.picture,
-        about: 'I am using Realtime Chat App',
+        about:          'I am using Realtime Chat App',
       })
 
       await DestroyerOrchestrator.evaluateAndExecute()
@@ -490,9 +549,14 @@ class AppController {
       this.#initResetListener()
 
     } catch (error) {
-      localStorage.clear()
+      try {
+        const auth = new Authenticator()
+        await auth.signOut()
+      } catch (_) {}
+
+      LocalStorage.clearSession()
+      ProfileCache.clear()
       window.location.href = '/'
-      throw error
     }
   }
 
@@ -559,6 +623,14 @@ class AppController {
   }
 
   async signOut(){
+    if (this.#authStateUnsubscribe) {
+      this.#authStateUnsubscribe()
+      this.#authStateUnsubscribe = null
+    }
+
+    clearInterval(this.#tokenPollingInterval)
+    this.#tokenPollingInterval = null
+
     this.#notificationService?.destroy()
     this.#destroyMessageListListeners()
     this.#destroyResetListener()
@@ -939,12 +1011,14 @@ class AppController {
 
   async handlerSendMessage() {
     const { messageList, inputContent } = this.#view.$()
-    const messageLength = inputContent.innerText.trim().length
+    const plaintext     = inputContent.innerText.trim()
+    const messageLength = plaintext.length
 
     if (messageLength <= 0 || this.#currentChatId === null) return
+    if (messageLength > MAX_MESSAGE_LENGTH) return
 
     const userData  = JSON.parse(LocalStorage.getUserData())
-    const plaintext = inputContent.innerText.trim()
+
     let   messageData
 
     const contactPublicKey = this.#currentContactData?.publicKey ?? null
@@ -1350,6 +1424,15 @@ class AppController {
     this.#view.setDeleteAccountLoading(true)
 
     try {
+
+      if (this.#authStateUnsubscribe) {
+        this.#authStateUnsubscribe()
+        this.#authStateUnsubscribe = null
+      }
+
+      clearInterval(this.#tokenPollingInterval)
+      this.#tokenPollingInterval = null
+
       const userData = JSON.parse(LocalStorage.getUserData())
       const user     = new User(userData)
 

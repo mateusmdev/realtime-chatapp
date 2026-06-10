@@ -44,6 +44,11 @@ class Authenticator {
     })
   }
 
+  setupAuthStateListener(callback) {
+    const auth = getAuth(firebaseConfig)
+    return onAuthStateChanged(auth, callback)
+  }
+
   async reauthenticate() {
     const currentUser = await this.waitForAuth()
 

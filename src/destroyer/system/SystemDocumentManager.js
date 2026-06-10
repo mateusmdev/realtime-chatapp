@@ -8,6 +8,7 @@ const DOCS = Object.freeze({
   METADATA: 'metadata',
   SCHEDULE: 'schedule',
   LOCK:     'reset_lock',
+  CRYPTO:   'crypto',
 })
 
 class SystemDocumentManager {
@@ -15,10 +16,11 @@ class SystemDocumentManager {
   #db        = getFirestore()
 
   async initializeIfNeeded() {
-    const [metadataSnap, scheduleExists, lockExists] = await Promise.all([
+    const [metadataSnap, scheduleExists, lockExists, cryptoExists] = await Promise.all([
       this.#firestore.findById(COLLECTION, DOCS.METADATA),
       this.#documentExists(DOCS.SCHEDULE),
       this.#documentExists(DOCS.LOCK),
+      this.#documentExists(DOCS.CRYPTO),
     ])
 
     const metadataExists = metadataSnap != null && metadataSnap.exists()
@@ -28,18 +30,12 @@ class SystemDocumentManager {
       creates.push(
         this.#firestore.save(this.#buildInitialMetadata(), COLLECTION, DOCS.METADATA)
       )
-    } else {
-      const metaData = metadataSnap.data()
-      if (!metaData?.cryptoDynamicSalt) {
-        creates.push(
-          this.#firestore.save(
-            { cryptoDynamicSalt: this.#generateDynamicSalt() },
-            COLLECTION,
-            DOCS.METADATA,
-            { merge: true }
-          )
-        )
-      }
+    }
+
+    if (!cryptoExists) {
+      creates.push(
+        this.#firestore.save(this.#buildInitialCrypto(), COLLECTION, DOCS.CRYPTO)
+      )
     }
 
     if (!scheduleExists) {
@@ -68,9 +64,9 @@ class SystemDocumentManager {
       const updated     = (currentData.user_count ?? 0) + 1
 
       transaction.set(metadataRef, {
-        ...currentData,
-        user_count:        updated,
-        cryptoDynamicSalt: currentData.cryptoDynamicSalt ?? this.#generateDynamicSalt(),
+        user_count:  updated,
+        reset_count: currentData.reset_count ?? 0,
+        created_at:  currentData.created_at  ?? Date.now(),
       })
 
       return updated
@@ -88,9 +84,9 @@ class SystemDocumentManager {
       const updated     = Math.max(0, (currentData.user_count ?? 0) - 1)
 
       transaction.set(metadataRef, {
-        ...currentData,
-        user_count:        updated,
-        cryptoDynamicSalt: currentData.cryptoDynamicSalt ?? this.#generateDynamicSalt(),
+        user_count:  updated,
+        reset_count: currentData.reset_count ?? 0,
+        created_at:  currentData.created_at  ?? Date.now(),
       })
     })
   }
@@ -108,7 +104,7 @@ class SystemDocumentManager {
   }
 
   async getCryptoDynamicSalt() {
-    const data = await this.#getDocument(DOCS.METADATA)
+    const data = await this.#getDocument(DOCS.CRYPTO)
     const salt = data?.cryptoDynamicSalt
 
     if (!salt || typeof salt !== 'string' || salt.trim().length === 0) {
@@ -117,8 +113,7 @@ class SystemDocumentManager {
       await this.#firestore.save(
         { cryptoDynamicSalt: newSalt },
         COLLECTION,
-        DOCS.METADATA,
-        { merge: true }
+        DOCS.CRYPTO
       )
 
       return newSalt
@@ -126,7 +121,6 @@ class SystemDocumentManager {
 
     return salt
   }
-
 
   async scheduleNextReset(triggeredAt, intervalMs) {
     const next_reset_at = triggeredAt + intervalMs
@@ -147,11 +141,17 @@ class SystemDocumentManager {
     await Promise.all([
       this.#firestore.save(
         {
-          ...this.#buildInitialMetadata(newDynamicSalt),
+          ...this.#buildInitialMetadata(),
           reset_count: nextResetCount,
         },
         COLLECTION,
         DOCS.METADATA
+      ),
+      
+      this.#firestore.save(
+        { cryptoDynamicSalt: newDynamicSalt },
+        COLLECTION,
+        DOCS.CRYPTO
       ),
       this.#firestore.save(this.#buildInitialLock(), COLLECTION, DOCS.LOCK),
     ])
@@ -187,12 +187,17 @@ class SystemDocumentManager {
     return Array.from(bytes).map(b => b.toString(16).padStart(2, '0')).join('')
   }
 
-  #buildInitialMetadata(dynamicSalt = null) {
+  #buildInitialMetadata() {
     return {
-      user_count:        0,
-      reset_count:       0,
-      created_at:        Date.now(),
-      cryptoDynamicSalt: dynamicSalt ?? this.#generateDynamicSalt(),
+      user_count:  0,
+      reset_count: 0,
+      created_at:  Date.now(),
+    }
+  }
+
+  #buildInitialCrypto() {
+    return {
+      cryptoDynamicSalt: this.#generateDynamicSalt(),
     }
   }
 
