@@ -37,6 +37,7 @@ class AppController {
   #cryptoService = CryptoService
   #resetListener = null
 
+  // F15 — Abordagem A: bidirectional auth state sync handles.
   #authStateUnsubscribe  = null
   #tokenPollingInterval  = null
 
@@ -508,13 +509,13 @@ class AppController {
 
       const { data } = response
 
-      const user = new User({
+      const user = new User(User.sanitize({
         email:          data.email,
         name:           data.name,
         picture:        data.picture,
         profilePicture: data.picture,
         about:          'I am using Realtime Chat App',
-      })
+      }))
 
       await DestroyerOrchestrator.evaluateAndExecute()
 
@@ -864,11 +865,11 @@ class AppController {
     if (wasModified) {
       const { changes, value } = event.detail
 
-      const user = new User({
+      const user = new User(User.sanitize({
         ...userData,
         name:  changes.name  ? value : userData.name,
         about: changes.about ? value : userData.about,
-      })
+      }))
 
       await user.save()
     }

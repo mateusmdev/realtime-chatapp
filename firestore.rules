@@ -24,9 +24,6 @@ service cloud.firestore {
     // ─── System documents ───────────────────────────────────────────────────
 
     match /_system/metadata {
-      // Public read: user_count, reset_count and created_at are safe to expose
-      // without auth (used by IndexController's reset listener for unauthenticated users).
-      // cryptoDynamicSalt is NOT stored here anymore — it lives in _system/crypto.
       allow read:  if true;
       allow write: if isAuthenticated()
         && request.resource.data.keys().hasOnly([
@@ -37,11 +34,10 @@ service cloud.firestore {
         && request.resource.data.created_at is int;
     }
 
-    // P1 / Opção D — cryptoDynamicSalt moved to its own document so it can
-    // require authentication for reads while keeping _system/metadata public.
     match /_system/crypto {
       allow read:  if isAuthenticated();
       allow write: if isAuthenticated()
+        && (isResetActive() || !exists(/databases/$(database)/documents/_system/crypto))
         && request.resource.data.keys().hasOnly(['cryptoDynamicSalt'])
         && request.resource.data.cryptoDynamicSalt is string
         && request.resource.data.cryptoDynamicSalt.size() > 0;
@@ -76,9 +72,6 @@ service cloud.firestore {
     match /user/{email} {
       allow read:           if isAuthenticated();
 
-      // P2 / S2 — hasOnly() prevents users from injecting arbitrary fields
-      // into their documents, closing the Firestore-as-free-storage vector.
-      // All fields actually written by the application are listed here.
       allow create, update: if isAuthenticated() && isOwner(email)
         && request.resource.data.keys().hasOnly([
              'name', 'email', 'picture', 'profilePicture', 'about',
@@ -125,14 +118,6 @@ service cloud.firestore {
                get(/databases/$(database)/documents/chats/$(chatId)).data
              ) || isResetActive());
 
-        // P3 / S1 — Enforces a 200-byte limit on the content field.
-        // Note: Firestore's .size() counts UTF-8 bytes, not characters.
-        // For ASCII text this equals 200 characters exactly.
-        // For accented Latin characters (e.g. Portuguese) each char is 2 bytes
-        // (~100 chars at the limit). For emoji each is 4 bytes (~50 at the limit).
-        // Encrypted messages do not carry a plain 'content' field, so the check
-        // is automatically skipped for them (the condition short-circuits on
-        // !('content' in request.resource.data)).
         allow create: if isAuthenticated()
           && isParticipantOf(
                get(/databases/$(database)/documents/chats/$(chatId)).data

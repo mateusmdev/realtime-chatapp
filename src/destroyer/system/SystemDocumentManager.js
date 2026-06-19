@@ -147,14 +147,13 @@ class SystemDocumentManager {
         COLLECTION,
         DOCS.METADATA
       ),
-      
       this.#firestore.save(
         { cryptoDynamicSalt: newDynamicSalt },
         COLLECTION,
         DOCS.CRYPTO
       ),
-      this.#firestore.save(this.#buildInitialLock(), COLLECTION, DOCS.LOCK),
     ])
+    await this.#firestore.save(this.#buildInitialLock(), COLLECTION, DOCS.LOCK)
   }
 
   listenResetCount(callback) {
