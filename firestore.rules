@@ -21,6 +21,59 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/_system/reset_lock).data.locked == true;
     }
 
+    function isLockStale() {
+      return resource == null
+          || !('locked' in resource.data)
+          || resource.data.locked != true
+          || !('locked_at' in resource.data)
+          || resource.data.locked_at == null
+          || (request.time.toMillis() - resource.data.locked_at) > 120000;
+    }
+
+    function bothParticipantsDeleted(chatData) {
+      let p = chatData.participantEmails;
+      return p.size() == 2
+          && get(/databases/$(database)/documents/user/$(p[0])).data.get('isDeleted', false) == true
+          && get(/databases/$(database)/documents/user/$(p[1])).data.get('isDeleted', false) == true;
+    }
+
+    function isValidMessagePayload(data) {
+      return data.from is string
+          && data.type in ['text', 'contact-attachment']
+          && (!('content' in data)
+              || (data.content is string && data.content.size() <= 200))
+          && (!('encryptedContent' in data)
+              || (
+                data.encryptedContent is string && data.encryptedContent.size() <= 400
+                && data.iv is string && data.iv.size() <= 32
+                && data.encryptedKey is string && data.encryptedKey.size() <= 150
+                && data.senderKey is string && data.senderKey.size() <= 150
+                && data.ephemeralPublicKey is map
+              ))
+          && (!('encrypted' in data) || data.encrypted is bool)
+          && (!('status' in data) || (data.status is string && data.status.size() <= 20))
+          && (data.type != 'contact-attachment'
+              || (
+                data.contactName is string && data.contactName.size() <= 100
+                && data.contactEmail is string && data.contactEmail.size() <= 200
+                && (!('contactPicture' in data)
+                    || (data.contactPicture is string && data.contactPicture.size() <= 500))
+                && (!('contactChatId' in data)
+                    || (data.contactChatId is string && data.contactChatId.size() <= 200))
+              ));
+    }
+
+    function isValidLastMessage(data) {
+      return data.type is string
+          && data.from is string
+          && (!('content' in data) || data.content == null
+              || (data.content is string && data.content.size() <= 200))
+          && (!('fileName' in data) || data.fileName == null
+              || (data.fileName is string && data.fileName.size() <= 150))
+          && (!('contactName' in data) || data.contactName == null
+              || (data.contactName is string && data.contactName.size() <= 100));
+    }
+
     // ─── System documents ───────────────────────────────────────────────────
 
     match /_system/metadata {
@@ -48,7 +101,11 @@ service cloud.firestore {
       allow write: if isAuthenticated()
         && request.resource.data.keys().hasOnly(['next_reset_at'])
         && (request.resource.data.next_reset_at == null
-            || request.resource.data.next_reset_at is int);
+            || request.resource.data.next_reset_at is int)
+        && (resource == null
+            || resource.data.next_reset_at == null
+            || request.resource.data.next_reset_at == null
+            || request.resource.data.next_reset_at >= resource.data.next_reset_at);
     }
 
     match /_system/reset_lock {
@@ -59,7 +116,11 @@ service cloud.firestore {
         && (request.resource.data.locked_at == null
             || request.resource.data.locked_at is int)
         && (request.resource.data.lock_holder_id == null
-            || request.resource.data.lock_holder_id is string);
+            || request.resource.data.lock_holder_id is string)
+        && (request.resource.data.locked == false || isLockStale())
+        && (request.resource.data.locked_at == null
+            || (request.resource.data.locked_at >= request.time.toMillis() - 5000
+                && request.resource.data.locked_at <= request.time.toMillis() + 5000));
     }
 
     match /_system/{document} {
@@ -86,13 +147,37 @@ service cloud.firestore {
         && (!('email' in request.resource.data)
             || request.resource.data.email == email);
 
-      allow delete:         if isAuthenticated() && isResetActive();
+      allow delete:         if isAuthenticated()
+        && (
+          (resource.data.get('isDeleted', false) == true
+           && get(/databases/$(database)/documents/user/$(request.auth.token.email)).data.get('isDeleted', false) == true)
+          || isResetActive()
+        );
 
       match /contacts/{contactEmail} {
         allow read:  if isAuthenticated()
                      && (isOwner(email) || isOwner(contactEmail) || isResetActive());
+
         allow write: if isAuthenticated()
-                     && (isOwner(email) || isOwner(contactEmail) || isResetActive());
+                     && (isOwner(email) || isOwner(contactEmail) || isResetActive())
+                     && (
+                       request.resource == null
+                       || isResetActive()
+                       || (
+                         request.resource.data.keys().hasOnly([
+                           'email', 'profilePicture', 'picture', 'name', 'chatId', 'isDeleted'
+                         ])
+                         && request.resource.data.email == contactEmail
+                         && (!('isDeleted' in request.resource.data)
+                             || request.resource.data.isDeleted is bool)
+                         && (!('chatId' in request.resource.data)
+                             || (
+                               request.resource.data.chatId is string
+                               && get(/databases/$(database)/documents/chats/$(request.resource.data.chatId))
+                                    .data.participantEmails.hasAll([email, contactEmail])
+                             ))
+                       )
+                     );
       }
     }
 
@@ -107,9 +192,23 @@ service cloud.firestore {
                     && request.auth.token.email in request.resource.data.participantEmails;
 
       allow update: if isAuthenticated()
-                    && (isParticipantOf(resource.data) || isResetActive());
+                    && (
+                      isResetActive()
+                      || (
+                        isParticipantOf(resource.data)
+                        && request.resource.data.keys().hasOnly(['participantEmails', 'users', 'lastMessage'])
+                        && request.resource.data.participantEmails == resource.data.participantEmails
+                        && request.resource.data.users == resource.data.users
+                        && (!('lastMessage' in request.resource.data)
+                            || isValidLastMessage(request.resource.data.lastMessage))
+                      )
+                    );
 
-      allow delete: if isAuthenticated() && isResetActive();
+      allow delete: if isAuthenticated()
+                    && (
+                      (isParticipantOf(resource.data) && bothParticipantsDeleted(resource.data))
+                      || isResetActive()
+                    );
 
       match /messages/{messageId} {
 
@@ -123,14 +222,17 @@ service cloud.firestore {
                get(/databases/$(database)/documents/chats/$(chatId)).data
              )
           && request.resource.data.from.lower() == request.auth.token.email.lower()
-          && (!('content' in request.resource.data)
-              || (request.resource.data.content is string
-                  && request.resource.data.content.size() <= 200));
+          && isValidMessagePayload(request.resource.data);
 
         allow delete: if isAuthenticated()
-          && (isParticipantOf(
-               get(/databases/$(database)/documents/chats/$(chatId)).data
-             ) || isResetActive());
+          && (
+            resource.data.from.lower() == request.auth.token.email.lower()
+            || (
+              isParticipantOf(get(/databases/$(database)/documents/chats/$(chatId)).data)
+              && bothParticipantsDeleted(get(/databases/$(database)/documents/chats/$(chatId)).data)
+            )
+            || isResetActive()
+          );
       }
     }
   }

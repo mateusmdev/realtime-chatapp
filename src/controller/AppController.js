@@ -523,7 +523,11 @@ class AppController {
       LocalStorage.setUserData(JSON.stringify(user.data))
 
       if (wasCreated) {
-        await SystemDocumentManager.incrementUserCount()
+        try {
+          await SystemDocumentManager.incrementUserCount()
+        } catch (error) {
+          console.error('[SystemDocumentManager] Falha ao incrementar contador de usuários — contagem pode ficar desalinhada.', error)
+        }
       }
 
       const cacheObject = ProfileCache.get()
@@ -1425,14 +1429,12 @@ class AppController {
     this.#view.setDeleteAccountLoading(true)
 
     try {
+      const auth = new Authenticator()
 
-      if (this.#authStateUnsubscribe) {
-        this.#authStateUnsubscribe()
-        this.#authStateUnsubscribe = null
-      }
-
-      clearInterval(this.#tokenPollingInterval)
-      this.#tokenPollingInterval = null
+      // NOVO — reautentica e CONFIRMA sucesso antes de destruir qualquer
+      // dado. Se o popup falhar ou for cancelado aqui, nada no Firestore
+      // foi tocado ainda, então não há estado inconsistente para limpar.
+      await auth.reauthenticate()
 
       const userData = JSON.parse(LocalStorage.getUserData())
       const user     = new User(userData)
@@ -1441,12 +1443,20 @@ class AppController {
       await user.delete()
       await this.#handleMutualDeletionCascade(userData)
 
-      const auth = new Authenticator()
-      await auth.deleteAccount()
+      if (this.#authStateUnsubscribe) {
+        this.#authStateUnsubscribe()
+        this.#authStateUnsubscribe = null
+      }
+
+      clearInterval(this.#tokenPollingInterval)
+      this.#tokenPollingInterval = null
+      await auth.finalizeAccountDeletion()
 
       try {
         await SystemDocumentManager.decrementUserCount()
-      } catch (_) {}
+      } catch (error) {
+        console.error('[SystemDocumentManager] Falha ao decrementar contador de usuários — contagem pode ficar desalinhada.', error)
+      }
 
       this.#notificationService?.destroy()
       this.#destroyResetListener()

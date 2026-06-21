@@ -69,6 +69,16 @@ class Authenticator {
     await reauthenticateWithPopup(currentUser, this.#provider)
     await deleteUser(currentUser)
   }
+
+  async finalizeAccountDeletion() {
+    const currentUser = await this.waitForAuth()
+
+    if (!currentUser) {
+      throw new AuthenticationException('No authenticated user found for account deletion.')
+    }
+
+    await deleteUser(currentUser)
+  }
 }
 
 export default Authenticator
