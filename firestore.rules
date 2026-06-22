@@ -32,26 +32,30 @@ service cloud.firestore {
 
     function bothParticipantsDeleted(chatData) {
       let p = chatData.participantEmails;
+      let pathA = /databases/$(database)/documents/user/$(p[0]);
+      let pathB = /databases/$(database)/documents/user/$(p[1]);
       return p.size() == 2
-          && get(/databases/$(database)/documents/user/$(p[0])).data.get('isDeleted', false) == true
-          && get(/databases/$(database)/documents/user/$(p[1])).data.get('isDeleted', false) == true;
+          && exists(pathA) && get(pathA).data.get('isDeleted', false) == true
+          && exists(pathB) && get(pathB).data.get('isDeleted', false) == true;
     }
 
     function isValidMessagePayload(data) {
       return data.from is string
           && data.type in ['text', 'contact-attachment']
           && (!('content' in data)
-              || (data.content is string && data.content.size() <= 200))
+              || (data.content is string && data.content.size() <= 600))
           && (!('encryptedContent' in data)
               || (
-                data.encryptedContent is string && data.encryptedContent.size() <= 400
-                && data.iv is string && data.iv.size() <= 32
-                && data.encryptedKey is string && data.encryptedKey.size() <= 150
-                && data.senderKey is string && data.senderKey.size() <= 150
+                data.encryptedContent is string && data.encryptedContent.size() <= 824
+                && data.iv is string && data.iv.size() <= 16
+                && data.encryptedKey is string && data.encryptedKey.size() <= 56
+                && data.senderKey is string && data.senderKey.size() <= 56
                 && data.ephemeralPublicKey is map
               ))
           && (!('encrypted' in data) || data.encrypted is bool)
           && (!('status' in data) || (data.status is string && data.status.size() <= 20))
+          && (data.type != 'text' || ('content' in data) || ('encryptedContent' in data))
+          && (!('timeStamp' in data) || data.timeStamp == request.time)
           && (data.type != 'contact-attachment'
               || (
                 data.contactName is string && data.contactName.size() <= 100
@@ -65,9 +69,10 @@ service cloud.firestore {
 
     function isValidLastMessage(data) {
       return data.type is string
+          && data.type in ['text', 'contact-attachment']
           && data.from is string
           && (!('content' in data) || data.content == null
-              || (data.content is string && data.content.size() <= 200))
+              || (data.content is string && data.content.size() <= 600))
           && (!('fileName' in data) || data.fileName == null
               || (data.fileName is string && data.fileName.size() <= 150))
           && (!('contactName' in data) || data.contactName == null
@@ -77,14 +82,36 @@ service cloud.firestore {
     // ─── System documents ───────────────────────────────────────────────────
 
     match /_system/metadata {
-      allow read:  if true;
+      allow read: if true;
       allow write: if isAuthenticated()
         && request.resource.data.keys().hasOnly([
              'user_count', 'reset_count', 'created_at'
            ])
-        && request.resource.data.user_count is int
-        && request.resource.data.reset_count is int
-        && request.resource.data.created_at is int;
+        && request.resource.data.user_count is int && request.resource.data.user_count >= 0
+        && request.resource.data.reset_count is int && request.resource.data.reset_count >= 0
+        && request.resource.data.created_at is int
+        && (
+          resource == null
+          || (
+            request.resource.data.reset_count >= resource.data.reset_count
+            && request.resource.data.reset_count <= resource.data.reset_count + 1
+            && (
+              (request.resource.data.reset_count == resource.data.reset_count
+               && request.resource.data.created_at == resource.data.created_at
+               && request.resource.data.user_count == resource.data.user_count + 1)
+
+              || (request.resource.data.reset_count == resource.data.reset_count
+                  && request.resource.data.created_at == resource.data.created_at
+                  && (
+                    request.resource.data.user_count == resource.data.user_count - 1
+                    || (resource.data.user_count == 0 && request.resource.data.user_count == 0)
+                  ))
+
+              || (request.resource.data.reset_count == resource.data.reset_count + 1
+                  && request.resource.data.user_count == 0)
+            )
+          )
+        );
     }
 
     match /_system/crypto {
@@ -102,10 +129,14 @@ service cloud.firestore {
         && request.resource.data.keys().hasOnly(['next_reset_at'])
         && (request.resource.data.next_reset_at == null
             || request.resource.data.next_reset_at is int)
-        && (resource == null
-            || resource.data.next_reset_at == null
-            || request.resource.data.next_reset_at == null
-            || request.resource.data.next_reset_at >= resource.data.next_reset_at);
+        && (
+          resource == null
+          || (
+            resource.data.next_reset_at != null
+            && request.resource.data.next_reset_at != null
+            && request.resource.data.next_reset_at >= resource.data.next_reset_at
+          )
+        );
     }
 
     match /_system/reset_lock {
@@ -150,6 +181,7 @@ service cloud.firestore {
       allow delete:         if isAuthenticated()
         && (
           (resource.data.get('isDeleted', false) == true
+           && exists(/databases/$(database)/documents/user/$(request.auth.token.email))
            && get(/databases/$(database)/documents/user/$(request.auth.token.email)).data.get('isDeleted', false) == true)
           || isResetActive()
         );
@@ -162,7 +194,6 @@ service cloud.firestore {
                      && (isOwner(email) || isOwner(contactEmail) || isResetActive())
                      && (
                        request.resource == null
-                       || isResetActive()
                        || (
                          request.resource.data.keys().hasOnly([
                            'email', 'profilePicture', 'picture', 'name', 'chatId', 'isDeleted'
@@ -192,17 +223,12 @@ service cloud.firestore {
                     && request.auth.token.email in request.resource.data.participantEmails;
 
       allow update: if isAuthenticated()
-                    && (
-                      isResetActive()
-                      || (
-                        isParticipantOf(resource.data)
-                        && request.resource.data.keys().hasOnly(['participantEmails', 'users', 'lastMessage'])
-                        && request.resource.data.participantEmails == resource.data.participantEmails
-                        && request.resource.data.users == resource.data.users
-                        && (!('lastMessage' in request.resource.data)
-                            || isValidLastMessage(request.resource.data.lastMessage))
-                      )
-                    );
+                    && isParticipantOf(resource.data)
+                    && request.resource.data.keys().hasOnly(['participantEmails', 'users', 'lastMessage'])
+                    && request.resource.data.participantEmails == resource.data.participantEmails
+                    && request.resource.data.users == resource.data.users
+                    && (!('lastMessage' in request.resource.data)
+                        || isValidLastMessage(request.resource.data.lastMessage));
 
       allow delete: if isAuthenticated()
                     && (
