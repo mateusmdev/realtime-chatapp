@@ -22,6 +22,10 @@ const ICON_KEY        = import.meta.env.VITE_ICON_KEY
 const BLOCK_MEDIA     = import.meta.env.VITE_BLOCK_MEDIA
 const MAX_MESSAGE_LENGTH = 200
 
+// F4 — debounce local; espelha o limite de 1500ms exigido por
+// canSendMessage() em firestore.rules. Mudar um exige mudar o outro.
+const MIN_MESSAGE_INTERVAL_MS = 1500
+
 class AppController {
   #view = new AppView()
   #currentChatId = null
@@ -36,6 +40,10 @@ class AppController {
   #messageListMap = new Map()
   #cryptoService = CryptoService
   #resetListener = null
+
+  // F4 — timestamp do último envio de mensagem, usado para o debounce
+  // local (espelha o rate limit real em firestore.rules).
+  #lastMessageSentAt = 0
 
   // F15 — Abordagem A: bidirectional auth state sync handles.
   #authStateUnsubscribe  = null
@@ -524,7 +532,7 @@ class AppController {
 
       if (wasCreated) {
         try {
-          await SystemDocumentManager.incrementUserCount()
+          await SystemDocumentManager.incrementUserCount(user.data.email)
         } catch (error) {
           console.error('[SystemDocumentManager] Falha ao incrementar contador de usuários — contagem pode ficar desalinhada.', error)
         }
@@ -1015,6 +1023,9 @@ class AppController {
   }
 
   async handlerSendMessage() {
+    const now = Date.now()
+    if (now - this.#lastMessageSentAt < MIN_MESSAGE_INTERVAL_MS) return
+
     const { messageList, inputContent } = this.#view.$()
     const plaintext     = inputContent.innerText.trim()
     const messageLength = plaintext.length
@@ -1062,12 +1073,25 @@ class AppController {
       }
     }
 
+    this.#lastMessageSentAt = now
+
     const event = new CustomEvent('keyup', { bubbles: false, cancelable: true })
     inputContent.textContent = ''
     inputContent.dispatchEvent(event)
 
     const message = new Message(messageData, this.#currentChatId)
-    await message.send()
+
+    // F5 — antes desta correção, qualquer falha aqui (cota do Firestore
+    // esgotada, rede, regra negada) fazia a mensagem desaparecer
+    // silenciosamente, já que o input já tinha sido limpo. Agora o texto
+    // é restaurado e o usuário é avisado.
+    try {
+      await message.send()
+    } catch (error) {
+      inputContent.textContent = plaintext
+      inputContent.dispatchEvent(new CustomEvent('keyup', { bubbles: false, cancelable: true }))
+      alert('Não foi possível enviar a mensagem. Aguarde um instante e tente novamente.')
+    }
   }
 
   handlerUploadFileClick(inputFile, settings = {}) {

@@ -54,7 +54,11 @@ class Message extends AbstractModel {
     const messagePath = `chats/${this.#chatId}/messages`
     const writeData   = { ...this.data, timeStamp: serverTimestamp() }
     const lastMessage = Message.#buildLastMessageSnapshot(writeData)
+    const senderEmail = writeData.from.toLowerCase()
 
+    // F4 — a regra canSendMessage() em firestore.rules exige que esta
+    // escrita companheira aconteça no MESMO batch; sem ela, a criação da
+    // mensagem é rejeitada (getAfter() não veria a atualização).
     await firestore.batchWrite([
       {
         path:       messagePath,
@@ -65,6 +69,12 @@ class Message extends AbstractModel {
         path:       'chats',
         documentId: this.#chatId,
         data:       { lastMessage },
+        merge:      true,
+      },
+      {
+        path:       'user',
+        documentId: senderEmail,
+        data:       { lastMessageAt: serverTimestamp() },
         merge:      true,
       }
     ])

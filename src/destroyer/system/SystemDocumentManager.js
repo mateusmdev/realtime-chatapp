@@ -1,8 +1,17 @@
 import Firestore from '../../firebase/Firestore'
-import { getFirestore, runTransaction, doc, onSnapshot } from 'firebase/firestore'
+import {
+  getFirestore, runTransaction, doc, onSnapshot,
+  collection, getCountFromServer, query, where,
+} from 'firebase/firestore'
 import '../../firebase/firebaseConfig'
 
 const COLLECTION = '_system'
+
+// F6 — evita repetir 4 leituras de existência a cada login; esses
+// documentos só mudam de estado de existência em deploys novos ou após
+// limpeza manual do Firestore, então um cache curto é seguro.
+const INIT_CHECK_CACHE_KEY = 'system-init-checked-at'
+const INIT_CHECK_TTL_MS    = 60 * 60 * 1000 // 1 hora
 
 const DOCS = Object.freeze({
   METADATA: 'metadata',
@@ -16,6 +25,8 @@ class SystemDocumentManager {
   #db        = getFirestore()
 
   async initializeIfNeeded() {
+    if (this.#wasRecentlyChecked()) return
+
     const [metadataSnap, scheduleExists, lockExists, cryptoExists] = await Promise.all([
       this.#firestore.findById(COLLECTION, DOCS.METADATA),
       this.#documentExists(DOCS.SCHEDULE),
@@ -53,10 +64,17 @@ class SystemDocumentManager {
     if (creates.length > 0) {
       await Promise.all(creates)
     }
+
+    this.#markRecentlyChecked()
   }
 
-  async incrementUserCount() {
+  // F2 — exige o e-mail de quem está sendo contabilizado, para gravar,
+  // na MESMA transação, a marcação countedInMetadata no doc do usuário.
+  // Sem essa marcação a regra do Firestore rejeita o incremento (ver
+  // justClaimedMetadataCredit() em firestore.rules).
+  async incrementUserCount(email) {
     const metadataRef = doc(this.#db, COLLECTION, DOCS.METADATA)
+    const userRef      = doc(this.#db, 'user', email)
 
     const newCount = await runTransaction(this.#db, async (transaction) => {
       const snap        = await transaction.get(metadataRef)
@@ -67,7 +85,10 @@ class SystemDocumentManager {
         user_count:  updated,
         reset_count: currentData.reset_count ?? 0,
         created_at:  currentData.created_at  ?? Date.now(),
+        max_users:   currentData.max_users   ?? this.#getConfiguredMaxUsers(),
       })
+
+      transaction.set(userRef, { countedInMetadata: true }, { merge: true })
 
       return updated
     })
@@ -87,13 +108,30 @@ class SystemDocumentManager {
         user_count:  updated,
         reset_count: currentData.reset_count ?? 0,
         created_at:  currentData.created_at  ?? Date.now(),
+        max_users:   currentData.max_users   ?? this.#getConfiguredMaxUsers(),
       })
     })
   }
 
+  // F2 — não confia mais no campo armazenado (livremente incrementável
+  // antes desta correção); conta usuários ativos ao vivo. count() é
+  // cobrado como leitura normal (1 leitura por até 1000 entradas de
+  // índice) e está disponível no plano Spark.
   async getUserCount() {
-    const data = await this.#getDocument(DOCS.METADATA)
-    return data?.user_count ?? 0
+    try {
+      const usersRef = collection(this.#db, 'user')
+
+      const [totalSnap, deletedSnap] = await Promise.all([
+        getCountFromServer(usersRef),
+        getCountFromServer(query(usersRef, where('isDeleted', '==', true))),
+      ])
+
+      return Math.max(0, totalSnap.data().count - deletedSnap.data().count)
+    } catch (error) {
+      console.error('[SystemDocumentManager] Falha ao contar usuários via agregação; usando contador armazenado como fallback.', error)
+      const data = await this.#getDocument(DOCS.METADATA)
+      return data?.user_count ?? 0
+    }
   }
 
   async getSchedule() {
@@ -191,7 +229,15 @@ class SystemDocumentManager {
       user_count:  0,
       reset_count: 0,
       created_at:  Date.now(),
+      max_users:   this.#getConfiguredMaxUsers(),
     }
+  }
+
+  // F2 — lido a cada (re)inicialização do metadata, permitindo que você
+  // reduza VITE_MAX_USERS após o pico inicial; o novo valor passa a valer
+  // a partir do próximo ciclo de reset real.
+  #getConfiguredMaxUsers() {
+    return Math.max(0, Math.floor(Number(import.meta.env.VITE_MAX_USERS) || 0))
   }
 
   #buildInitialCrypto() {
@@ -215,6 +261,15 @@ class SystemDocumentManager {
       locked_at:      null,
       lock_holder_id: null,
     }
+  }
+
+  #wasRecentlyChecked() {
+    const lastChecked = Number(localStorage.getItem(INIT_CHECK_CACHE_KEY) || 0)
+    return (Date.now() - lastChecked) < INIT_CHECK_TTL_MS
+  }
+
+  #markRecentlyChecked() {
+    localStorage.setItem(INIT_CHECK_CACHE_KEY, String(Date.now()))
   }
 }
 
