@@ -1,14 +1,3 @@
-/**
- * LocalStorage.js — versão atualizada
- *
- * ÚNICA ADIÇÃO em relação ao original:
- * Métodos getFirebaseUid() e setFirebaseUid() para persistir o UID
- * do Firebase Auth entre sessões. O UID é necessário para derivar
- * a wrapping key PBKDF2 no CryptoService.
- *
- * O UID não é um dado sensível — é um identificador público do usuário
- * no Firebase. Armazená-lo no localStorage é seguro para este propósito.
- */
 
 const KEY = import.meta.env.VITE_STORAGE_KEY
 
@@ -46,36 +35,28 @@ class LocalStorage {
     localStorage.setItem('user-preferences', data)
   }
 
-  // ── NOVO ───────────────────────────────────────────────────────────────
-
-  /**
-   * Retorna o Firebase UID armazenado na sessão atual.
-   * Retorna null se o usuário não estiver autenticado ou se o UID
-   * ainda não foi persistido (ex.: primeira execução antes do login).
-   *
-   * @returns {string|null}
-   */
   static getFirebaseUid() {
     return localStorage.getItem('firebase-uid')
   }
 
-  /**
-   * Persiste o Firebase UID após autenticação bem-sucedida.
-   * Deve ser chamado em IndexController.authenticate() logo após
-   * o retorno do signInWithPopup.
-   *
-   * @param {string} uid - user.uid retornado pelo Firebase Auth
-   */
   static setFirebaseUid(uid) {
     localStorage.setItem('firebase-uid', uid)
   }
 
-  // ── FIM NOVO ────────────────────────────────────────────────────────────
+  static getResetLockId() {
+    return localStorage.getItem('reset-lock-id')
+  }
+
+  static setResetLockId(resetLockId) {
+    localStorage.setItem('reset-lock-id', resetLockId)
+  }
+
 
   static clearSession() {
     localStorage.removeItem(KEY)
     localStorage.removeItem('user-data')
     localStorage.removeItem('firebase-uid')   // NOVO: limpar UID na saída
+    localStorage.removeItem('reset-lock-id')  // F8: limpar resetLockId na saída
   }
 }
 

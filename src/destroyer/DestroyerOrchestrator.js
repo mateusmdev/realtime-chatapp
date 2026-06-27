@@ -5,7 +5,6 @@ import CloudinaryDestroyer     from './destroyers/CloudinaryDestroyer'
 import AuthDestroyer           from './destroyers/AuthDestroyer'
 import UserCountTrigger        from './triggers/UserCountTrigger'
 import TimerTrigger            from './triggers/TimerTrigger'
-import LocalStorage            from '../utils/LocalStorage'
 
 class DestroyerOrchestrator {
   #systemManager       = SystemDocumentManager
@@ -14,15 +13,11 @@ class DestroyerOrchestrator {
   #cloudinaryDestroyer = CloudinaryDestroyer
   #authDestroyer       = AuthDestroyer
 
-  async evaluateAndExecute() {
+  async evaluateAndExecute(holderId) {
     try {
       const triggerType = await this.#shouldReset()
       if (triggerType === null) return
 
-      // F1 — a regra de _system/reset_lock agora exige que lock_holder_id
-      // seja exatamente request.auth.uid (não mais um UUID arbitrário),
-      // para que toda ativação do lock fique ligada a uma conta real.
-      const holderId = LocalStorage.getFirebaseUid()
       if (!holderId) return
 
       const acquired = await this.#lockManager.acquireLock(holderId)

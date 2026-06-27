@@ -16,14 +16,13 @@ import NotificationService from '../service/NotificationService'
 import CryptoService, { CryptoInitStatus } from '../service/CryptoService.js'
 import SystemDocumentManager from '../destroyer/system/SystemDocumentManager'
 import DestroyerOrchestrator from '../destroyer/DestroyerOrchestrator'
+import ResetActorRegistry from '../destroyer/system/ResetActorRegistry'
 
 const TOKEN_VALIDATOR = import.meta.env.VITE_TOKEN_VALIDATOR
 const ICON_KEY        = import.meta.env.VITE_ICON_KEY
 const BLOCK_MEDIA     = import.meta.env.VITE_BLOCK_MEDIA
 const MAX_MESSAGE_LENGTH = 200
 
-// F4 — debounce local; espelha o limite de 1500ms exigido por
-// canSendMessage() em firestore.rules. Mudar um exige mudar o outro.
 const MIN_MESSAGE_INTERVAL_MS = 1500
 
 class AppController {
@@ -41,11 +40,8 @@ class AppController {
   #cryptoService = CryptoService
   #resetListener = null
 
-  // F4 — timestamp do último envio de mensagem, usado para o debounce
-  // local (espelha o rate limit real em firestore.rules).
   #lastMessageSentAt = 0
 
-  // F15 — Abordagem A: bidirectional auth state sync handles.
   #authStateUnsubscribe  = null
   #tokenPollingInterval  = null
 
@@ -525,7 +521,8 @@ class AppController {
         about:          'I am using Realtime Chat App',
       }))
 
-      await DestroyerOrchestrator.evaluateAndExecute()
+      const resetLockId = await ResetActorRegistry.ensureResetLockId(data.email)
+      await DestroyerOrchestrator.evaluateAndExecute(resetLockId)
 
       const { wasCreated } = await user.findOrCreate()
       LocalStorage.setUserData(JSON.stringify(user.data))
@@ -1081,13 +1078,10 @@ class AppController {
 
     const message = new Message(messageData, this.#currentChatId)
 
-    // F5 — antes desta correção, qualquer falha aqui (cota do Firestore
-    // esgotada, rede, regra negada) fazia a mensagem desaparecer
-    // silenciosamente, já que o input já tinha sido limpo. Agora o texto
-    // é restaurado e o usuário é avisado.
     try {
       await message.send()
     } catch (error) {
+      throw error
       inputContent.textContent = plaintext
       inputContent.dispatchEvent(new CustomEvent('keyup', { bubbles: false, cancelable: true }))
       alert('Não foi possível enviar a mensagem. Aguarde um instante e tente novamente.')
@@ -1455,9 +1449,6 @@ class AppController {
     try {
       const auth = new Authenticator()
 
-      // NOVO — reautentica e CONFIRMA sucesso antes de destruir qualquer
-      // dado. Se o popup falhar ou for cancelado aqui, nada no Firestore
-      // foi tocado ainda, então não há estado inconsistente para limpar.
       await auth.reauthenticate()
 
       const userData = JSON.parse(LocalStorage.getUserData())
@@ -1465,6 +1456,7 @@ class AppController {
 
       await user.markContactAsDeleted(userData.email)
       await user.delete()
+      await ResetActorRegistry.delete(userData.email)
       await this.#handleMutualDeletionCascade(userData)
 
       if (this.#authStateUnsubscribe) {

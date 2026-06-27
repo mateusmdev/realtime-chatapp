@@ -15,6 +15,7 @@ class FirestoreDestroyer {
     steps.push(await this.#destroyChats())
     steps.push(await this.#destroyUserContacts())
     steps.push(await this.#destroyUsers())
+    steps.push(await this.#destroyResetActors())
 
     return {
       service:     'firestore',
@@ -38,6 +39,10 @@ class FirestoreDestroyer {
 
   async #destroyUsers() {
     return this.#destroyCollection('user', 'users')
+  }
+
+  async #destroyResetActors() {
+    return this.#destroyCollection('reset_actor', 'reset_actors')
   }
 
   async #destroyCollection(path, stepName) {

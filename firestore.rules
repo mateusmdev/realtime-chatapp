@@ -21,6 +21,14 @@ service cloud.firestore {
       return get(/databases/$(database)/documents/_system/reset_lock).data.locked == true;
     }
 
+    function isLockHolder() {
+      let actorPath = /databases/$(database)/documents/reset_actor/$(request.auth.token.email);
+      return exists(actorPath)
+          && get(actorPath).data.get('resetLockId', null) != null
+          && get(actorPath).data.get('resetLockId', null)
+             == get(/databases/$(database)/documents/_system/reset_lock).data.get('lock_holder_id', null);
+    }
+
     function isLockStale() {
       return resource == null
           || !('locked' in resource.data)
@@ -148,7 +156,7 @@ service cloud.firestore {
     match /_system/crypto {
       allow read:  if isAuthenticated();
       allow write: if isAuthenticated()
-        && (isResetActive() || !exists(/databases/$(database)/documents/_system/crypto))
+        && ((isResetActive() && isLockHolder()) || !exists(/databases/$(database)/documents/_system/crypto))
         && request.resource.data.keys().hasOnly(['cryptoDynamicSalt'])
         && request.resource.data.cryptoDynamicSalt is string
         && request.resource.data.cryptoDynamicSalt.size() > 0;
@@ -183,7 +191,10 @@ service cloud.firestore {
           request.resource.data.locked == false
           || (
             isLockStale()
-            && request.resource.data.lock_holder_id == request.auth.uid
+            && request.resource.data.lock_holder_id != null
+            && exists(/databases/$(database)/documents/reset_actor/$(request.auth.token.email))
+            && request.resource.data.lock_holder_id
+               == get(/databases/$(database)/documents/reset_actor/$(request.auth.token.email)).data.get('resetLockId', null)
             && (userCountThresholdReached() || scheduledResetDue())
           )
         )
@@ -195,6 +206,20 @@ service cloud.firestore {
     match /_system/{document} {
       allow read:  if false;
       allow write: if false;
+    }
+
+    match /reset_actor/{email} {
+      allow read:   if isAuthenticated() && isOwner(email);
+
+      allow create: if isAuthenticated() && isOwner(email)
+        && request.resource.data.keys().hasOnly(['resetLockId'])
+        && request.resource.data.resetLockId is string
+        && request.resource.data.resetLockId.size() > 0;
+
+      allow update: if false; // imutável após criado
+
+      allow delete: if isAuthenticated()
+        && (isOwner(email) || (isResetActive() && isLockHolder()));
     }
 
     // ─── Users ──────────────────────────────────────────────────────────────
@@ -228,15 +253,15 @@ service cloud.firestore {
           (resource.data.get('isDeleted', false) == true
            && exists(/databases/$(database)/documents/user/$(request.auth.token.email))
            && get(/databases/$(database)/documents/user/$(request.auth.token.email)).data.get('isDeleted', false) == true)
-          || isResetActive()
+          || (isResetActive() && isLockHolder())
         );
 
       match /contacts/{contactEmail} {
         allow read:  if isAuthenticated()
-                     && (isOwner(email) || isOwner(contactEmail) || isResetActive());
+                     && (isOwner(email) || isOwner(contactEmail) || (isResetActive() && isLockHolder()));
 
         allow write: if isAuthenticated()
-                     && (isOwner(email) || isOwner(contactEmail) || isResetActive())
+                     && (isOwner(email) || isOwner(contactEmail) || (isResetActive() && isLockHolder()))
                      && (
                        request.resource == null
                        || (
@@ -261,10 +286,12 @@ service cloud.firestore {
 
     match /chats/{chatId} {
       allow read:   if isAuthenticated()
-                    && (isParticipantOf(resource.data) || isResetActive());
+                    && (isParticipantOf(resource.data) || (isResetActive() && isLockHolder()));
 
       allow create: if isAuthenticated()
                     && 'participantEmails' in request.resource.data
+                    && request.resource.data.participantEmails.size() == 2
+                    && request.resource.data.participantEmails[0] != request.resource.data.participantEmails[1]
                     && request.auth.token.email in request.resource.data.participantEmails;
 
       allow update: if isAuthenticated()
@@ -278,7 +305,7 @@ service cloud.firestore {
       allow delete: if isAuthenticated()
                     && (
                       (isParticipantOf(resource.data) && bothParticipantsDeleted(resource.data))
-                      || isResetActive()
+                      || (isResetActive() && isLockHolder())
                     );
 
       match /messages/{messageId} {
@@ -286,7 +313,7 @@ service cloud.firestore {
         allow read: if isAuthenticated()
           && (isParticipantOf(
                get(/databases/$(database)/documents/chats/$(chatId)).data
-             ) || isResetActive());
+             ) || (isResetActive() && isLockHolder()));
 
         allow create: if isAuthenticated()
           && isParticipantOf(
@@ -303,7 +330,7 @@ service cloud.firestore {
               isParticipantOf(get(/databases/$(database)/documents/chats/$(chatId)).data)
               && bothParticipantsDeleted(get(/databases/$(database)/documents/chats/$(chatId)).data)
             )
-            || isResetActive()
+            || (isResetActive() && isLockHolder())
           );
       }
     }
