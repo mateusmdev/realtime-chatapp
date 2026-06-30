@@ -1,13 +1,12 @@
-
 export const CryptoInitStatus = Object.freeze({
-  GENERATED:                   'GENERATED',
-  READY:                       'READY',
-  LOCAL_FOUND_REMOTE_MISSING:  'LOCAL_FOUND_REMOTE_MISSING',
-  REMOTE_FOUND_LOCAL_MISSING:  'REMOTE_FOUND_LOCAL_MISSING',
-  ERROR:                       'ERROR',
+  GENERATED:                  'GENERATED',
+  READY:                      'READY',
+  LOCAL_FOUND_REMOTE_MISSING: 'LOCAL_FOUND_REMOTE_MISSING',
+  REMOTE_FOUND_LOCAL_MISSING: 'REMOTE_FOUND_LOCAL_MISSING',
+  ERROR:                      'ERROR',
 })
 
-const APP_HARDCODED_SALT = 'y0hZ1WY1IrO3uKfrAcjVgkhdZfaGnnDeyzSlg7DMrOc='
+const APP_HARDCODED_SALT = import.meta.env.VITE_CRYPTO_SALT
 
 const ECDH_ALGO    = { name: 'ECDH', namedCurve: 'P-256' }
 const HKDF_HASH    = 'SHA-256'
@@ -26,9 +25,12 @@ class CryptoService {
   #userId       = null
   #ready        = false
 
+  async init(firebaseUid, firestoreUserDoc, persistToFirestore, dynamicSalt) {
+    if (!dynamicSalt || typeof dynamicSalt !== 'string' || dynamicSalt.trim().length === 0) {
+      console.error('[Crypto] Dynamic salt ausente ou inválido. E2E não inicializado.')
+      return CryptoInitStatus.ERROR
+    }
 
-
-  async init(firebaseUid, firestoreUserDoc, persistToFirestore) {
     this.#userId = firebaseUid
 
     const localKey     = await this.#loadPrivateKeyFromIDB()
@@ -44,7 +46,7 @@ class CryptoService {
     }
 
     if (localKey && !remoteKeyJwk) {
-      const wrappingKey = await this.#deriveWrappingKey(firebaseUid)
+      const wrappingKey = await this.#deriveWrappingKey(firebaseUid, dynamicSalt)
       const { publicKeyJwk, encryptedPrivateKeyB64, runtimePrivateKey } =
         await this.#generateAndWrap(wrappingKey)
 
@@ -64,20 +66,24 @@ class CryptoService {
     }
 
     if (!localKey && remoteKeyJwk) {
-      const wrappingKey = await this.#deriveWrappingKey(firebaseUid)
-      const privateKey  = await this.#unwrapPrivateKey(remoteKeyJwk, wrappingKey)
+      try {
+        const wrappingKey = await this.#deriveWrappingKey(firebaseUid, dynamicSalt)
+        const privateKey  = await this.#unwrapPrivateKey(remoteKeyJwk, wrappingKey)
 
-      this.#privateKey   = privateKey
-      this.#publicKeyJwk = remotePubJwk
-      this.#publicKey    = await this.#importPublicKeyJwk(remotePubJwk)
+        this.#privateKey   = privateKey
+        this.#publicKeyJwk = remotePubJwk
+        this.#publicKey    = await this.#importPublicKeyJwk(remotePubJwk)
 
-      await this.#storePrivateKeyInIDB(privateKey)
+        await this.#storePrivateKeyInIDB(privateKey)
 
-      this.#ready = true
-      return CryptoInitStatus.REMOTE_FOUND_LOCAL_MISSING
+        this.#ready = true
+        return CryptoInitStatus.REMOTE_FOUND_LOCAL_MISSING
+      } catch (err) {
+        console.error('[Crypto] Falha ao recuperar chave remota. Gerando novo par de chaves.', err)
+      }
     }
 
-    const wrappingKey = await this.#deriveWrappingKey(firebaseUid)
+    const wrappingKey = await this.#deriveWrappingKey(firebaseUid, dynamicSalt)
     const { publicKeyJwk, encryptedPrivateKeyB64, runtimePrivateKey } =
       await this.#generateAndWrap(wrappingKey)
 
@@ -100,10 +106,10 @@ class CryptoService {
     return this.#publicKeyJwk
   }
 
-
   get isReady() {
     return this.#ready
   }
+
 
   async encryptMessage(plaintext, recipientPublicJwk) {
     this.#assertReady()
@@ -152,13 +158,9 @@ class CryptoService {
     const { iv, encryptedContent, encryptedKey, senderKey, ephemeralPublicKey } = payload
 
     const ephemeralPubKey = await this.#importPublicKeyJwk(ephemeralPublicKey)
-
     const keyToUnwrap = (isFromMe && senderKey) ? senderKey : encryptedKey
 
-    const wrapKey = await this.#deriveMessageWrapKey(
-      this.#privateKey,
-      ephemeralPubKey
-    )
+    const wrapKey = await this.#deriveMessageWrapKey(this.#privateKey, ephemeralPubKey)
 
     const sessionKey = await crypto.subtle.unwrapKey(
       'raw',
@@ -179,12 +181,9 @@ class CryptoService {
     return new TextDecoder().decode(decryptedBuffer)
   }
 
-  async importContactPublicKey(jwk) {
-    return this.#importPublicKeyJwk(jwk)
-  }
 
-  async #deriveWrappingKey(uid) {
-    const wrappingKeyJwk = await this.#runPbkdf2InWorker(uid)
+  async #deriveWrappingKey(uid, dynamicSalt) {
+    const wrappingKeyJwk = await this.#runPbkdf2InWorker(uid, dynamicSalt)
 
     return crypto.subtle.importKey(
       'jwk',
@@ -195,7 +194,7 @@ class CryptoService {
     )
   }
 
-  #runPbkdf2InWorker(uid) {
+  #runPbkdf2InWorker(uid, dynamicSalt) {
     return new Promise((resolve, reject) => {
       const worker = new Worker(
         new URL('./CryptoWorker.js', import.meta.url),
@@ -216,7 +215,7 @@ class CryptoService {
         reject(new Error(`Worker error: ${err.message}`))
       }
 
-      worker.postMessage({ uid, salt: APP_HARDCODED_SALT })
+      worker.postMessage({ uid, salt: `${APP_HARDCODED_SALT}:${dynamicSalt}` })
     })
   }
 
@@ -272,7 +271,6 @@ class CryptoService {
     )
   }
 
-
   async #importPublicKeyJwk(jwk) {
     return crypto.subtle.importKey(
       'jwk',
@@ -282,7 +280,6 @@ class CryptoService {
       []
     )
   }
-
 
   async #deriveMessageWrapKey(privateKey, publicKey) {
     const sharedBits = await crypto.subtle.deriveBits(
@@ -308,7 +305,6 @@ class CryptoService {
       ['wrapKey', 'unwrapKey']
     )
   }
-
 
   #openIDB() {
     return new Promise((resolve, reject) => {
@@ -349,7 +345,6 @@ class CryptoService {
       return null
     }
   }
-
 
   #assertReady() {
     if (!this.#ready) {

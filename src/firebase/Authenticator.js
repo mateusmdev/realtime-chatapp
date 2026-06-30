@@ -2,6 +2,7 @@ import {
   getAuth,
   GoogleAuthProvider,
   signInWithPopup,
+  signOut as firebaseSignOut,
   reauthenticateWithPopup,
   deleteUser,
   onAuthStateChanged
@@ -17,26 +18,23 @@ class Authenticator {
     const result = await signInWithPopup(auth, this.#provider)
     const credential = GoogleAuthProvider.credentialFromResult(result)
     const token = credential.accessToken
-   
+
     if (!result || !token) {
       throw new AuthenticationException('Failed to obtain access token')
     }
-   
-    // NOVO: retornar uid junto com o token
+
     return {
       token,
       uid: result.user.uid,
     }
   }
 
-  /**
-   * Waits for Firebase Auth to restore the session state.
-   * Resolves with the current user or null once the state is ready.
-   * Avoids the race condition where auth.currentUser is null
-   * right after page load even though the user is authenticated.
-   * @returns {Promise<import('firebase/auth').User|null>}
-   */
-  #resolveCurrentUser() {
+  async signOut() {
+    const auth = getAuth(firebaseConfig)
+    await firebaseSignOut(auth)
+  }
+
+  waitForAuth() {
     return new Promise((resolve) => {
       const auth = getAuth(firebaseConfig)
       const unsubscribe = onAuthStateChanged(auth, (user) => {
@@ -46,13 +44,13 @@ class Authenticator {
     })
   }
 
-  /**
-   * Reauthenticates the current user via Google popup.
-   * Required by Firebase before sensitive operations like account deletion.
-   * Throws AuthenticationException if no user is currently signed in.
-   */
+  setupAuthStateListener(callback) {
+    const auth = getAuth(firebaseConfig)
+    return onAuthStateChanged(auth, callback)
+  }
+
   async reauthenticate() {
-    const currentUser = await this.#resolveCurrentUser()
+    const currentUser = await this.waitForAuth()
 
     if (!currentUser) {
       throw new AuthenticationException('No authenticated user found for reauthentication.')
@@ -61,19 +59,24 @@ class Authenticator {
     await reauthenticateWithPopup(currentUser, this.#provider)
   }
 
-  /**
-   * Deletes the current user account from Firebase Authentication.
-   * Reauthenticates first to satisfy Firebase's recent-login requirement.
-   * Throws AuthenticationException if no user is currently signed in.
-   */
   async deleteAccount() {
-    const currentUser = await this.#resolveCurrentUser()
+    const currentUser = await this.waitForAuth()
 
     if (!currentUser) {
       throw new AuthenticationException('No authenticated user found for account deletion.')
     }
 
     await reauthenticateWithPopup(currentUser, this.#provider)
+    await deleteUser(currentUser)
+  }
+
+  async finalizeAccountDeletion() {
+    const currentUser = await this.waitForAuth()
+
+    if (!currentUser) {
+      throw new AuthenticationException('No authenticated user found for account deletion.')
+    }
+
     await deleteUser(currentUser)
   }
 }

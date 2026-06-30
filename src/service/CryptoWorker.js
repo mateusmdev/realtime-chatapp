@@ -1,19 +1,10 @@
-/**
- * crypto.worker.js
- * Salvar em: src/crypto/cryptoWorker.js
- *
- * Web Worker isolado para executar PBKDF2 sem bloquear a main thread.
- * Recebe { uid, salt } e responde { wrappingKeyJwk } ou { error }.
- */
-
 self.onmessage = async ({ data }) => {
   const { uid, salt } = data
 
   try {
-    const uidBytes = new TextEncoder().encode(uid)
-    const saltBytes = Uint8Array.from(atob(salt), c => c.charCodeAt(0))
+    const uidBytes  = new TextEncoder().encode(uid)
+    const saltBytes = new TextEncoder().encode(salt)
 
-    // Importar o UID como material base PBKDF2
     const baseKey = await crypto.subtle.importKey(
       'raw',
       uidBytes,
@@ -22,7 +13,6 @@ self.onmessage = async ({ data }) => {
       ['deriveKey']
     )
 
-    // Derivar AES-GCM 256 bits — 600k iterações (OWASP 2024, SHA-256)
     const wrappingKey = await crypto.subtle.deriveKey(
       {
         name:       'PBKDF2',
@@ -32,7 +22,7 @@ self.onmessage = async ({ data }) => {
       },
       baseKey,
       { name: 'AES-GCM', length: 256 },
-      true,               // exportável apenas para transferir via postMessage
+      true,
       ['wrapKey', 'unwrapKey']
     )
 

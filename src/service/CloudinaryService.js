@@ -1,10 +1,14 @@
-const CLOUD_NAME = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
+import MediaPolicy from './MediaPolicy.js'
+
+const CLOUD_NAME    = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
 const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
 
 class CloudinaryService {
   static #MAX_SIZE_BYTES = 5 * 1024 * 1024
 
   static async upload(file) {
+    MediaPolicy.assertUploadAllowed()
+
     if (file.size > CloudinaryService.#MAX_SIZE_BYTES) {
       throw new Error('O arquivo excede o tamanho máximo permitido de 5MB.')
     }
@@ -15,10 +19,7 @@ class CloudinaryService {
 
     const response = await fetch(
       `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
-      {
-        method: 'POST',
-        body: formData
-      }
+      { method: 'POST', body: formData }
     )
 
     if (!response.ok) {
@@ -30,6 +31,8 @@ class CloudinaryService {
   }
 
   static async uploadBase64(base64DataUrl) {
+    MediaPolicy.assertUploadAllowed()
+
     const base64Regex = /^data:(.+);base64,(.*)$/
 
     if (!base64DataUrl.match(base64Regex)) {
@@ -42,10 +45,7 @@ class CloudinaryService {
 
     const response = await fetch(
       `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
-      {
-        method: 'POST',
-        body: formData
-      }
+      { method: 'POST', body: formData }
     )
 
     if (!response.ok) {
@@ -57,6 +57,8 @@ class CloudinaryService {
   }
 
   static async uploadRaw(file) {
+    MediaPolicy.assertUploadAllowed()
+
     if (file.size > CloudinaryService.#MAX_SIZE_BYTES) {
       throw new Error('O arquivo excede o tamanho máximo permitido de 5MB.')
     }
@@ -67,10 +69,7 @@ class CloudinaryService {
 
     const response = await fetch(
       `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/raw/upload`,
-      {
-        method: 'POST',
-        body: formData
-      }
+      { method: 'POST', body: formData }
     )
 
     if (!response.ok) {
@@ -82,6 +81,8 @@ class CloudinaryService {
   }
 
   static async uploadAudio(blob) {
+    MediaPolicy.assertUploadAllowed()
+
     if (blob.size > CloudinaryService.#MAX_SIZE_BYTES) {
       throw new Error('O arquivo de áudio excede o tamanho máximo permitido de 5MB.')
     }
@@ -92,10 +93,7 @@ class CloudinaryService {
 
     const response = await fetch(
       `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/video/upload`,
-      {
-        method: 'POST',
-        body: formData
-      }
+      { method: 'POST', body: formData }
     )
 
     if (!response.ok) {
@@ -109,24 +107,7 @@ class CloudinaryService {
   static async delete(publicId, resourceType = 'image') {
     if (!publicId) return
 
-    const response = await fetch(
-      `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${resourceType}/destroy`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          public_id: publicId,
-          upload_preset: UPLOAD_PRESET
-        })
-      }
-    )
-
-    if (!response.ok) {
-      throw new Error(`Cloudinary delete failed with status ${response.status}`)
-    }
-
-    const data = await response.json()
-    return data
+    return { result: 'skipped', reason: 'unsigned_preset_no_delete_support' }
   }
 }
 

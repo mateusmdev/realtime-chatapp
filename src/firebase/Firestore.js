@@ -1,18 +1,3 @@
-/**
- * Firestore.js — versão atualizada
- *
- * ÚNICA MUDANÇA em relação à versão original:
- * O método save() agora aceita um quarto argumento `options`
- * com suporte ao flag `merge: true`.
- *
- * Com merge:true, o Firestore atualiza APENAS os campos fornecidos,
- * preservando todos os outros campos do documento.
- * Sem merge (comportamento original), o documento é sobrescrito.
- *
- * Isso corrige o risco de race condition e perda de dados quando
- * dois processos atualizam o mesmo documento simultaneamente.
- */
-
 import firebaseConfig from "./firebaseConfig"
 import {
   getFirestore, getDocs, collection,
@@ -54,19 +39,6 @@ class Firestore {
     }
   }
 
-  /**
-   * Salva dados no Firestore.
-   *
-   * @param {object} data
-   * @param {string} path
-   * @param {string|null} documentId
-   * @param {object} [options]
-   * @param {boolean} [options.merge=false] - Se true, faz merge incremental.
-   *   Campos existentes no documento que não estejam em `data` são preservados.
-   *   Se false (padrão), o documento é sobrescrito (comportamento original).
-   *
-   * @returns {Promise<DocumentSnapshot>}
-   */
   async save(data, path, documentId, options = {}) {
     try {
       const segments = path.split('/').filter(segment => segment.length > 0)
@@ -76,8 +48,6 @@ class Firestore {
       if (documentId) {
         const documentRef = doc(collectionRef, documentId)
 
-        // merge:true preserva campos existentes — essencial para atualização
-        // parcial sem sobrescrever dados não relacionados (ex.: name, about)
         await setDoc(documentRef, data, { merge })
 
         const docSnap = await getDoc(documentRef)
@@ -92,16 +62,18 @@ class Firestore {
     }
   }
 
-  onSnapshot(path, documentId, callback, constraints = []) {
+  onSnapshot(path, documentId, callback, constraints = [], errorCallback = null) {
+    const onError = errorCallback || (error => console.error(`[Firestore Snapshot Error] ${path}/${documentId || ''}:`, error))
+
     if (documentId) {
       const documentRef = doc(this.#db, path, documentId)
-      return onSnapshot(documentRef, callback)
+      return onSnapshot(documentRef, callback, onError)
     }
 
     const segments = path.split('/').filter(segment => segment.length > 0)
     const collectionRef = collection(this.#db, ...segments)
     const queryRef = query(collectionRef, ...constraints)
-    return onSnapshot(queryRef, callback)
+    return onSnapshot(queryRef, callback, onError)
   }
 
   async update() {}

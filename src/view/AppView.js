@@ -100,8 +100,20 @@ class AppView extends AbstractView {
     const isPreviewMode = this.getState('isPreviewMode')
   
     if (blockMediaState === true || isPreviewMode === true) {
-      const { takePhotoBtn, sendPictureBtn, sendDocumentBtn, userAboutContent, userAbout } = this.$()
-      const blockedElements = [takePhotoBtn, sendPictureBtn, sendDocumentBtn]
+      const {
+        takePhotoBtn,
+        sendPictureBtn,
+        sendDocumentBtn,
+        userAboutContent,
+        userAbout,
+        btnContainer,
+        profileImageFile,
+        uploadFile,
+        microphoneBtn,
+        sendBtn
+      } = this.$()
+
+      const blockedElements = [takePhotoBtn, sendPictureBtn, sendDocumentBtn, microphoneBtn]
       
       blockedElements.forEach(element => {
         this.setStyle(element, {
@@ -119,6 +131,22 @@ class AppView extends AbstractView {
       })
   
       userAboutContent.setAttribute('contenteditable', false)
+
+      this.setStyle(btnContainer, {
+        opacity: '0',
+        visibility: 'hidden',
+        display: 'none',
+      })
+
+      profileImageFile.disabled = true
+      uploadFile.disabled = true
+      microphoneBtn.classList.add('hidden')
+
+      sendBtn.classList.remove('hidden')
+      this.setStyle(sendBtn, {
+        opacity: '0.3',
+        cursor: 'initial',
+      })
     }
   
     if (isIconListBlock === true) {
@@ -375,12 +403,33 @@ class AppView extends AbstractView {
     this.saveCursor()
     const { inputContent, placeholder, microphoneBtn, sendBtn } = this.$()
     const message = inputContent.innerText.trim()
+    const isBlockMedia = this.getState('blockMedia')
 
     if (message.length < 1) {
       placeholder.innerText = this.getState('placeholderText')
+
+      if (isBlockMedia) {
+        this.setStyle(sendBtn, {
+          opacity: '0.3',
+          cursor: 'initial'
+        })
+
+        return
+      }
+
       microphoneBtn.classList.remove('hidden')
       sendBtn.classList.add('hidden')
     } else {
+
+      if (isBlockMedia) {
+        this.setStyle(sendBtn, {
+          opacity: '1',
+          cursor: 'pointer'
+        })
+
+        return
+      }
+
       placeholder.innerText = ''
       microphoneBtn.classList.add('hidden')
       sendBtn.classList.remove('hidden')   
@@ -552,7 +601,7 @@ class AppView extends AbstractView {
 
       player.play(
         (currentTime, totalDuration) => {
-          const ratio = currentTime / totalDuration
+          const ratio = range.value / 100
           range.value = ratio * 100
           timeDisplay.innerText = this.#formatTime(currentTime)
         },
@@ -578,93 +627,169 @@ class AppView extends AbstractView {
 
   addMessage(data, isFromContact = false) {
     if (!data) return
-   
+
     const li = document.createElement('li')
-    li.className = 'message'
-    isFromContact ? li.classList.add('contact') : li.classList.add('user')
-   
+    li.classList.add('message', isFromContact ? 'contact' : 'user')
+
+    const content = document.createElement('div')
+    content.className = 'content'
+
     switch (data.type) {
-      case 'contact-attachment':
-        li.innerHTML = `
-          <div class="content contact-attachment">
-            <div class="detail">
-              <div class="picture-wrapper">
-                <img class="profile-picture" src="${data.contactPicture}" alt="contact picture">
-              </div>
-              <p class="contact-name">${data.contactName}</p>
-            </div>
-            <a href="#" class="send-message"
-              data-contact-name="${data.contactName}"
-              data-contact-email="${data.contactEmail}"
-              data-contact-picture="${data.contactPicture}">
-              <span>Enviar Mensagem</span>
-            </a>
-          </div>
-        `
+
+      case 'contact-attachment': {
+        content.classList.add('contact-attachment')
+
+        const detail = document.createElement('div')
+        detail.className = 'detail'
+
+        const pictureWrapper = document.createElement('div')
+        pictureWrapper.className = 'picture-wrapper'
+        const avatarImg = document.createElement('img')
+        avatarImg.className = 'profile-picture'
+        avatarImg.src = data.contactPicture || ''
+        avatarImg.alt = 'contact picture'
+        pictureWrapper.appendChild(avatarImg)
+
+        const contactNameEl = document.createElement('p')
+        contactNameEl.className = 'contact-name'
+        contactNameEl.textContent = data.contactName || '' 
+
+        detail.appendChild(pictureWrapper)
+        detail.appendChild(contactNameEl)
+
+        const sendMsgLink = document.createElement('a')
+        sendMsgLink.href = '#'
+        sendMsgLink.className = 'send-message'
+        
+        sendMsgLink.dataset.contactName    = data.contactName    || ''
+        sendMsgLink.dataset.contactEmail   = data.contactEmail   || ''
+        sendMsgLink.dataset.contactPicture = data.contactPicture || ''
+        const sendSpan = document.createElement('span')
+        sendSpan.textContent = 'Enviar Mensagem'
+        sendMsgLink.appendChild(sendSpan)
+
+        content.appendChild(detail)
+        content.appendChild(sendMsgLink)
         break
-   
-      case 'picture':
-        li.innerHTML = `
-          <div class="content picture">
-            <div class="image-area">
-              <img src="${data.content}" alt="an image">
-            </div>
-          </div>
-        `
+      }
+
+      case 'picture': {
+        content.classList.add('picture')
+
+        const imageArea = document.createElement('div')
+        imageArea.className = 'image-area'
+        const pictureImg = document.createElement('img')
+        pictureImg.src = data.content || ''
+        pictureImg.alt = 'an image'
+        imageArea.appendChild(pictureImg)
+        content.appendChild(imageArea)
         break
-   
-      case 'file':
-        li.innerHTML = `
-          <div class="content file">
-            <div>
-              <img class="file-img" src="./src/assets/document-icon.svg" alt="file icon">
-              <p class="file-name">${data.fileName}</p>
-            </div>
-            <a href="#" class="dowload-btn"
-              data-url="${data.content}"
-              data-filename="${data.fileName}">
-              <img src="./src/assets/download.svg" alt="download icon">
-            </a>
-          </div>
-        `
+      }
+
+      case 'file': {
+        content.classList.add('file')
+
+        const fileInner = document.createElement('div')
+        const fileIcon = document.createElement('img')
+        fileIcon.className = 'file-img'
+        fileIcon.src = './src/assets/document-icon.svg'
+        fileIcon.alt = 'file icon'
+
+        const fileNameEl = document.createElement('p')
+        fileNameEl.className = 'file-name'
+        fileNameEl.textContent = data.fileName || ''
+
+        fileInner.appendChild(fileIcon)
+        fileInner.appendChild(fileNameEl)
+
+        const downloadBtn = document.createElement('a')
+        downloadBtn.href = '#'
+        downloadBtn.className = 'dowload-btn'
+        downloadBtn.dataset.url      = data.content  || ''
+        downloadBtn.dataset.filename = data.fileName || ''
+
+        const downloadIcon = document.createElement('img')
+        downloadIcon.src = './src/assets/download.svg'
+        downloadIcon.alt = 'download icon'
+        downloadBtn.appendChild(downloadIcon)
+
+        content.appendChild(fileInner)
+        content.appendChild(downloadBtn)
         break
-   
-      case 'audio':
-        li.innerHTML = `
-          <div class="content audio">
-            <div class="picture-wrapper">
-              <img class="profile-picture" src="${data.profilePicture}" alt="contact picture">
-            </div>
-            <div class="detail">
-              <div class="player">
-                <button class="audio-play-btn">
-                  <img class="audio-play-icon" src="./src/assets/play.svg" alt="play icon">
-                </button>
-                <input type="range" name="audio-range" class="audio-range" min="0" max="100" value="0">
-              </div>
-              <div class="meta-data">
-                <p class="audio-time">00:00</p>
-              </div>
-            </div>
-          </div>
-        `
-        this.bindAudioPlayer(li, data.content, data.duration)
+      }
+
+      case 'audio': {
+        content.classList.add('audio')
+
+        const audioPicWrapper = document.createElement('div')
+        audioPicWrapper.className = 'picture-wrapper'
+        const audioAvatar = document.createElement('img')
+        audioAvatar.className = 'profile-picture'
+        audioAvatar.src = data.profilePicture || ''
+        audioAvatar.alt = 'contact picture'
+        audioPicWrapper.appendChild(audioAvatar)
+
+        const audioDetail = document.createElement('div')
+        audioDetail.className = 'detail'
+
+        const playerDiv = document.createElement('div')
+        playerDiv.className = 'player'
+
+        const playBtn = document.createElement('button')
+        playBtn.className = 'audio-play-btn'
+        const playIconImg = document.createElement('img')
+        playIconImg.className = 'audio-play-icon'
+        playIconImg.src = './src/assets/play.svg'
+        playIconImg.alt = 'play icon'
+        playBtn.appendChild(playIconImg)
+
+        const audioRange = document.createElement('input')
+        audioRange.type = 'range'
+        audioRange.name = 'audio-range'
+        audioRange.className = 'audio-range'
+        audioRange.min = '0'
+        audioRange.max = '100'
+        audioRange.value = '0'
+
+        playerDiv.appendChild(playBtn)
+        playerDiv.appendChild(audioRange)
+
+        const metaDiv = document.createElement('div')
+        metaDiv.className = 'meta-data'
+        const audioTimeEl = document.createElement('p')
+        audioTimeEl.className = 'audio-time'
+        audioTimeEl.textContent = '00:00'
+        metaDiv.appendChild(audioTimeEl)
+
+        audioDetail.appendChild(playerDiv)
+        audioDetail.appendChild(metaDiv)
+
+        content.appendChild(audioPicWrapper)
+        content.appendChild(audioDetail)
         break
-   
+      }
+
       default: {
+        content.classList.add('text')
         const isEncryptedWithoutContent = data.encrypted === true && !data.content
-        const textContent = isEncryptedWithoutContent
-          ? '<em style="opacity:0.6;font-style:italic;font-size:0.82rem">🔒 Mensagem Criptografada</em>'
-          : (data.content ?? '')
-   
-        li.innerHTML = `
-          <div class="content text">
-            ${textContent}
-          </div>
-        `
+
+        if (isEncryptedWithoutContent) {
+          const em = document.createElement('em')
+          Object.assign(em.style, { opacity: '0.6', fontStyle: 'italic', fontSize: '0.82rem' })
+          em.textContent = '🔒 Mensagem Criptografada'
+          content.appendChild(em)
+        } else {
+          content.textContent = data.content ?? '' 
+        }
       }
     }
-   
+
+    li.appendChild(content)
+
+    if (data.type === 'audio') {
+      this.bindAudioPlayer(li, data.content, data.duration)
+    }
+
     const { messageList } = this.$()
     messageList.appendChild(li)
   }
@@ -689,32 +814,35 @@ class AppView extends AbstractView {
     const { contactModalList } = this.$()
     contactModalList.innerHTML = ''
   }
-  
+
   loadContactsModal(contacts, options = {}) {
     const { contactModalList } = this.$()
     contactModalList.innerHTML = ''
-  
+
     contacts.forEach(contact => {
       const li = document.createElement('li')
-      li.innerHTML = `
-        <div class="picture-wrapper">
-          <img 
-            class="profile-picture" 
-            src="${contact.profilePicture ?? contact.picture}" 
-            alt="contact picture"
-          >
-        </div>
-        <span>${contact.name}</span>
-      `
-  
+
+      const pictureWrapper = document.createElement('div')
+      pictureWrapper.className = 'picture-wrapper'
+
+      const img = document.createElement('img')
+      img.className = 'profile-picture'
+      img.src = contact.profilePicture ?? contact.picture ?? ''
+      img.alt = 'contact picture'
+      pictureWrapper.appendChild(img)
+
+      const nameSpan = document.createElement('span')
+      nameSpan.textContent = contact.name 
+
+      li.appendChild(pictureWrapper)
+      li.appendChild(nameSpan)
+
       this.addEvent(li, {
         eventName: 'click',
         fn: () => options.handleCallback(contact),
-        behavior: {
-          preventDefault: true
-        }
+        behavior: { preventDefault: true }
       })
-  
+
       contactModalList.appendChild(li)
     })
   }
@@ -799,127 +927,157 @@ class AppView extends AbstractView {
     })
   }
 
+
   #buildMessageListItem(itemData, options = {}) {
-      const li = document.createElement('li')
-      li.className = 'item'
-      li.dataset.chatId = itemData.chatId
+    const li = document.createElement('li')
+    li.className = 'item'
+    li.dataset.chatId = itemData.chatId
 
-      li.innerHTML = `
-          <div class="picture-wrapper">
-              <img
-                  src="${itemData.profilePicture}"
-                  alt="${itemData.name}"
-                  class="profile-picture"
-              >
-          </div>
-          <div class="message-data">
-              <p class="name">${itemData.name}</p>
-              <p class="message-content">
-                  <span class="message-status ${itemData.isFromMe ? 'visualized' : ''}"></span>
-                  ${this.#resolveLastMessageText(itemData.lastMessage, itemData.isFromMe)}
-              </p>
-              <p class="time-message">${this.#formatMessageTime(itemData.lastMessage.timeStamp)}</p>
-          </div>
-      `
+    const pictureWrapper = document.createElement('div')
+    pictureWrapper.className = 'picture-wrapper'
+    const img = document.createElement('img')
+    img.src = itemData.profilePicture ?? ''
+    img.alt = 'contact profile picture' 
+    img.className = 'profile-picture'
+    pictureWrapper.appendChild(img)
 
-      const callbackParam = {
-          profileImage: itemData.profilePicture,
-          name:         itemData.name,
-          email:        itemData.email,
-          chatId:       itemData.chatId,
-          publicKey:    itemData.publicKey ?? null,   // CORRIGIDO
-      }
+    
+    const messageData = document.createElement('div')
+    messageData.className = 'message-data'
 
-      this.addEvent(li, {
-          eventName: 'click',
-          fn: event => options.handleCallback(event, callbackParam),
-          behavior: { preventDefault: true }
-      })
+    const nameEl = document.createElement('p')
+    nameEl.className = 'name'
+    nameEl.textContent = itemData.name 
 
-      const profilePicEl = li.querySelector('.profile-picture')
-      if (profilePicEl) {
-          profilePicEl.style.borderRadius = this.getState('appStyle') === 'circle' ? '50%' : '5px'
-      }
+    const messageContent = document.createElement('p')
+    messageContent.className = 'message-content'
+    const statusSpan = document.createElement('span')
+    statusSpan.className = `message-status${itemData.isFromMe ? ' visualized' : ''}`
+    messageContent.appendChild(statusSpan)
+    this.#appendLastMessageText(messageContent, itemData.lastMessage, itemData.isFromMe)
 
-      return li
+    const timeEl = document.createElement('p')
+    timeEl.className = 'time-message'
+    timeEl.textContent = this.#formatMessageTime(itemData.lastMessage.timeStamp)
+
+    messageData.appendChild(nameEl)
+    messageData.appendChild(messageContent)
+    messageData.appendChild(timeEl)
+
+    li.appendChild(pictureWrapper)
+    li.appendChild(messageData)
+
+    const callbackParam = {
+      profileImage: itemData.profilePicture,
+      name:         itemData.name,
+      email:        itemData.email,
+      chatId:       itemData.chatId,
+      publicKey:    itemData.publicKey ?? null,
+    }
+
+    this.addEvent(li, {
+      eventName: 'click',
+      fn: event => options.handleCallback(event, callbackParam),
+      behavior: { preventDefault: true }
+    })
+
+    img.style.borderRadius = this.getState('appStyle') === 'circle' ? '50%' : '5px'
+
+    return li
   }
 
   #updateMessageListItemDOM(element, itemData) {
-      const nameEl    = element.querySelector('.name')
-      const contentEl = element.querySelector('.message-content')
-      const timeEl    = element.querySelector('.time-message')
-      const imgEl     = element.querySelector('.profile-picture')
+    const nameEl    = element.querySelector('.name')
+    const contentEl = element.querySelector('.message-content')
+    const timeEl    = element.querySelector('.time-message')
+    const imgEl     = element.querySelector('.profile-picture')
 
-      if (imgEl)     imgEl.src = itemData.profilePicture
-      if (nameEl)    nameEl.textContent = itemData.name
-      if (timeEl)    timeEl.textContent = this.#formatMessageTime(itemData.lastMessage.timeStamp)
-      if (contentEl) contentEl.innerHTML = `
-          <span class="message-status ${itemData.isFromMe ? 'visualized' : ''}"></span>
-          ${this.#resolveLastMessageText(itemData.lastMessage, itemData.isFromMe)}
-      `
+    if (imgEl)  imgEl.src = itemData.profilePicture ?? ''
+    if (nameEl) nameEl.textContent = itemData.name
+    if (timeEl) timeEl.textContent = this.#formatMessageTime(itemData.lastMessage.timeStamp)
+
+    if (contentEl) {
+      contentEl.textContent = ''
+      const statusSpan = document.createElement('span')
+      statusSpan.className = `message-status${itemData.isFromMe ? ' visualized' : ''}`
+      contentEl.appendChild(statusSpan)
+      this.#appendLastMessageText(contentEl, itemData.lastMessage, itemData.isFromMe)
+    }
   }
 
-  #resolveLastMessageText(lastMessage, isFromMe) {
-    const prefix = isFromMe ? 'Você: ' : ''
-   
-    const typeMap = {
-      'picture':            '📷 Foto',
-      'audio':              '🎵 Áudio',
-      'file':               `📄 ${lastMessage.fileName ?? 'Arquivo'}`,
-      'contact-attachment': `👤 ${lastMessage.contactName ?? 'Contato'}`,
+  #appendLastMessageText(container, lastMessage, isFromMe) {
+    const prefix          = isFromMe ? 'Você: ' : ''
+    const knownMediaTypes = ['picture', 'audio', 'file', 'contact-attachment']
+
+    if (lastMessage.type === 'picture') {
+      container.appendChild(document.createTextNode(`${prefix}📷 Foto`))
+      return
     }
-   
-    if (typeMap[lastMessage.type]) {
-      return `${prefix}${typeMap[lastMessage.type]}`
+    if (lastMessage.type === 'audio') {
+      container.appendChild(document.createTextNode(`${prefix}🎵 Áudio`))
+      return
     }
-   
+    if (lastMessage.type === 'file') {
+      container.appendChild(document.createTextNode(`${prefix}📄 ${lastMessage.fileName ?? 'Arquivo'}`))
+      return
+    }
+    if (lastMessage.type === 'contact-attachment') {
+      container.appendChild(document.createTextNode(`${prefix}👤 ${lastMessage.contactName ?? 'Contato'}`))
+      return
+    }
+
     const isEncryptedWithoutContent =
       (lastMessage.encrypted === true && !lastMessage.content) ||
-      (!lastMessage.content && !typeMap[lastMessage.type])
-   
+      (!lastMessage.content && !knownMediaTypes.includes(lastMessage.type))
+
     if (isEncryptedWithoutContent) {
-      return `${prefix}🔒 Mensagem Criptografada`
+      container.appendChild(document.createTextNode(`${prefix}🔒 Mensagem Criptografada`))
+      return
     }
-   
+
     const content   = lastMessage.content ?? ''
     const truncated = content.length > 35 ? `${content.substring(0, 35)}...` : content
-    return `${prefix}${truncated}`
+    container.appendChild(document.createTextNode(`${prefix}${truncated}`))
   }
 
   #formatMessageTime(timestamp) {
-      if (!timestamp) return ''
+    if (!timestamp) return ''
 
-      const date = new Date(timestamp)
-      const now  = new Date()
+    const ms = typeof timestamp?.toMillis === 'function'
+      ? timestamp.toMillis()
+      : timestamp
 
-      const isToday = date.toDateString() === now.toDateString()
+    const date = new Date(ms)
+    const now  = new Date()
 
-      if (isToday) {
-          return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
-      }
+    const isToday = date.toDateString() === now.toDateString()
 
-      const yesterday = new Date(now)
-      yesterday.setDate(yesterday.getDate() - 1)
-      const isYesterday = date.toDateString() === yesterday.toDateString()
+    if (isToday) {
+      return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+    }
 
-      if (isYesterday) return 'ontem'
+    const yesterday = new Date(now)
+    yesterday.setDate(yesterday.getDate() - 1)
+    const isYesterday = date.toDateString() === yesterday.toDateString()
 
-      const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24))
-      if (diffDays < 7) {
-          return date.toLocaleDateString('pt-BR', { weekday: 'short' })
-                    .replace('-feira', '')
-                    .replace('.', '')
-                    .trim()
-      }
+    if (isYesterday) return 'ontem'
 
-      return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+    const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24))
+    if (diffDays < 7) {
+      return date.toLocaleDateString('pt-BR', { weekday: 'short' })
+                 .replace('-feira', '')
+                 .replace('.', '')
+                 .trim()
+    }
+
+    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
   }
 
   setCryptoLoadingState(isLoading) {
     this.setState('isCryptoLoading', isLoading)
-   
+
     let indicator = document.getElementById('crypto-loading-indicator')
-   
+
     if (!indicator) {
       indicator = document.createElement('div')
       indicator.id = 'crypto-loading-indicator'
@@ -942,7 +1100,7 @@ class AppView extends AbstractView {
         backdrop-filter: blur(4px);
         transition: opacity 0.3s ease;
       `
-   
+
       const dot = document.createElement('span')
       dot.style.cssText = `
         width: 8px; height: 8px;
@@ -951,16 +1109,16 @@ class AppView extends AbstractView {
         border-top-color: #fff;
         animation: crypto-spin 0.7s linear infinite;
       `
-   
+
       const style = document.createElement('style')
       style.textContent = '@keyframes crypto-spin { to { transform: rotate(360deg); } }'
       document.head.appendChild(style)
-   
+
       indicator.appendChild(dot)
       indicator.appendChild(document.createTextNode(' Configurando criptografia…'))
       document.body.appendChild(indicator)
     }
-   
+
     if (isLoading) {
       indicator.style.opacity = '1'
       indicator.style.pointerEvents = 'auto'

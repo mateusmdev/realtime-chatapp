@@ -16,10 +16,14 @@ import NotificationService from '../service/NotificationService'
 import CryptoService, { CryptoInitStatus } from '../service/CryptoService.js'
 import SystemDocumentManager from '../destroyer/system/SystemDocumentManager'
 import DestroyerOrchestrator from '../destroyer/DestroyerOrchestrator'
+import ResetActorRegistry from '../destroyer/system/ResetActorRegistry'
 
 const TOKEN_VALIDATOR = import.meta.env.VITE_TOKEN_VALIDATOR
 const ICON_KEY        = import.meta.env.VITE_ICON_KEY
 const BLOCK_MEDIA     = import.meta.env.VITE_BLOCK_MEDIA
+const MAX_MESSAGE_LENGTH = 200
+
+const MIN_MESSAGE_INTERVAL_MS = 1500
 
 class AppController {
   #view = new AppView()
@@ -35,6 +39,11 @@ class AppController {
   #messageListMap = new Map()
   #cryptoService = CryptoService
   #resetListener = null
+
+  #lastMessageSentAt = 0
+
+  #authStateUnsubscribe  = null
+  #tokenPollingInterval  = null
 
   async initEvents(){
 
@@ -362,6 +371,9 @@ class AppController {
     this.#view.setState('isPreviewMode', isPreview)
 
     if (!isPreview) {
+      const auth = new Authenticator()
+      await auth.waitForAuth()
+
       await SystemDocumentManager.initializeIfNeeded()
       await this.getUserData()
     }
@@ -389,6 +401,8 @@ class AppController {
       })
 
       document.dispatchEvent(event)
+      this.#setupAuthStateSync()
+      this.#startTokenValidationPolling()
     }
   }
 
@@ -397,9 +411,9 @@ class AppController {
 
     if (!granted) return
 
-    const userData   = JSON.parse(LocalStorage.getUserData())
+    const userData    = JSON.parse(LocalStorage.getUserData())
     const cacheObject = ProfileCache.get()
-    const contacts   = cacheObject?.cache || []
+    const contacts    = cacheObject?.cache || []
 
     this.#notificationService?.destroy()
     this.#notificationService = new NotificationService()
@@ -433,6 +447,57 @@ class AppController {
     }
   }
 
+  #setupAuthStateSync() {
+    const auth = new Authenticator()
+    this.#authStateUnsubscribe = auth.setupAuthStateListener((user) => {
+      if (!user && !this.#view.getState('isPreviewMode')) {
+        this.#handleSessionExpired()
+      }
+    })
+  }
+
+  #startTokenValidationPolling() {
+    const POLLING_INTERVAL_MS = 30 * 60 * 1000 // 30 minutes
+
+    const validate = async () => {
+      const accessToken = LocalStorage.getAccessToken()
+      if (!accessToken) return
+
+      try {
+        await axios.get(TOKEN_VALIDATOR, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        })
+      } catch {
+        await this.#handleSessionExpired()
+      }
+    }
+
+    this.#tokenPollingInterval = setInterval(validate, POLLING_INTERVAL_MS)
+  }
+
+  async #handleSessionExpired() {
+    if (this.#authStateUnsubscribe) {
+      this.#authStateUnsubscribe()
+      this.#authStateUnsubscribe = null
+    }
+
+    clearInterval(this.#tokenPollingInterval)
+    this.#tokenPollingInterval = null
+
+    this.#notificationService?.destroy()
+    this.#destroyMessageListListeners()
+    this.#destroyResetListener()
+
+    try {
+      const auth = new Authenticator()
+      await auth.signOut()
+    } catch (_) {}
+
+    LocalStorage.clearSession()
+    ProfileCache.clear()
+    window.location.href = '/'
+  }
+
   async getUserData() {
     const accessToken = LocalStorage.getAccessToken()
 
@@ -448,19 +513,26 @@ class AppController {
 
       const { data } = response
 
-      const user = new User({
-        ...data,
+      const user = new User(User.sanitize({
+        email:          data.email,
+        name:           data.name,
+        picture:        data.picture,
         profilePicture: data.picture,
-        about: 'I am using Realtime Chat App',
-      })
+        about:          'I am using Realtime Chat App',
+      }))
 
-      await DestroyerOrchestrator.evaluateAndExecute()
+      const resetLockId = await ResetActorRegistry.ensureResetLockId(data.email)
+      await DestroyerOrchestrator.evaluateAndExecute(resetLockId)
 
       const { wasCreated } = await user.findOrCreate()
       LocalStorage.setUserData(JSON.stringify(user.data))
 
       if (wasCreated) {
-        await SystemDocumentManager.incrementUserCount()
+        try {
+          await SystemDocumentManager.incrementUserCount(user.data.email)
+        } catch (error) {
+          console.error('[SystemDocumentManager] Falha ao incrementar contador de usuários — contagem pode ficar desalinhada.', error)
+        }
       }
 
       const cacheObject = ProfileCache.get()
@@ -487,9 +559,14 @@ class AppController {
       this.#initResetListener()
 
     } catch (error) {
-      localStorage.clear()
+      try {
+        const auth = new Authenticator()
+        await auth.signOut()
+      } catch (_) {}
+
+      LocalStorage.clearSession()
+      ProfileCache.clear()
       window.location.href = '/'
-      throw error
     }
   }
 
@@ -506,11 +583,13 @@ class AppController {
     try {
       const user = new User({ email: userData.email })
 
+      const dynamicSalt = await SystemDocumentManager.getCryptoDynamicSalt()
+
       const persistCallback = async (fields) => {
         await user.savePartial(fields, { merge: true })
       }
 
-      const status = await this.#cryptoService.init(uid, userData, persistCallback)
+      const status = await this.#cryptoService.init(uid, userData, persistCallback, dynamicSalt)
 
       switch (status) {
         case CryptoInitStatus.READY:
@@ -542,7 +621,7 @@ class AppController {
 
     if (isEmpty) {
       try {
-        const response = await axios.get(`https://emoji-api.com/emojis?access_key=${ICON_KEY}`)
+        const response = await axios.get(`${ICON_KEY}`)
         iconList = response.data || []
         LocalStorage.setIconList(JSON.stringify(iconList))
       } catch (error) {
@@ -553,10 +632,25 @@ class AppController {
     this.#view.loadEmoji(iconList)
   }
 
-  signOut(){
+  async signOut(){
+    if (this.#authStateUnsubscribe) {
+      this.#authStateUnsubscribe()
+      this.#authStateUnsubscribe = null
+    }
+
+    clearInterval(this.#tokenPollingInterval)
+    this.#tokenPollingInterval = null
+
     this.#notificationService?.destroy()
     this.#destroyMessageListListeners()
     this.#destroyResetListener()
+
+    try {
+      const auth = new Authenticator()
+      await auth.signOut()
+    } catch (_) {
+    }
+
     LocalStorage.clearSession()
     ProfileCache.clear()
     window.location.href = '/'
@@ -587,10 +681,10 @@ class AppController {
       this.#messageListener = null
     }
 
-    this.#currentChatId     = data.chatId
+    this.#currentChatId      = data.chatId
     this.#currentContactData = data
-    const { messageList }   = this.#view.$()
-    const userData          = JSON.parse(LocalStorage.getUserData())
+    const { messageList }    = this.#view.$()
+    const userData           = JSON.parse(LocalStorage.getUserData())
 
     messageList.innerHTML = ''
 
@@ -600,8 +694,8 @@ class AppController {
       const shouldScroll = isInitialLoad || this.#view.isAtBottom()
 
       for (const currentMessage of messages) {
-        const { data }       = currentMessage
-        const isFromContact  = data.from.toLowerCase() !== userData.email.toLowerCase()
+        const { data }      = currentMessage
+        const isFromContact = data.from.toLowerCase() !== userData.email.toLowerCase()
 
         let displayContent = data.content ?? null
 
@@ -661,7 +755,7 @@ class AppController {
   }
 
   async handleMediaButton(e) {
-    const { id }        = e.currentTarget
+    const { id }         = e.currentTarget
     const { uploadFile } = this.#view.$()
 
     this.#view.setState('mediaButtonId', id)
@@ -694,14 +788,16 @@ class AppController {
   }
 
   async handleChangeInputFile(event) {
-    const id           = this.#view.getState('mediaButtonId')
+    if (this.#view.getState('blockMedia') === true) return
+
+    const id            = this.#view.getState('mediaButtonId')
     const [uploadedFile] = event.target.files
     const { pdfArea, fileArea, sentImagePreview, sentImageName } = this.#view.$()
     this.#view.clearMediaProperties()
 
     if (!uploadedFile) return
 
-    const isPdf        = uploadedFile?.type === 'application/pdf'
+    const isPdf         = uploadedFile?.type === 'application/pdf'
     const componentData = {}
 
     if (uploadedFile.type.startsWith('image/') && id === 'send-document-btn') {
@@ -740,6 +836,8 @@ class AppController {
   }
 
   async handleProfileImageFile(e) {
+    if (this.#view.getState('blockMedia') === true) return
+
     const [uploadedFile]  = e.target.files
     const imageUrl        = URL.createObjectURL(uploadedFile)
     const profilePictures = document.querySelectorAll('.profile-picture');
@@ -776,24 +874,32 @@ class AppController {
     if (wasModified) {
       const { changes, value } = event.detail
 
-      const user = new User({
+      const user = new User(User.sanitize({
         ...userData,
         name:  changes.name  ? value : userData.name,
         about: changes.about ? value : userData.about,
-      })
+      }))
 
       await user.save()
     }
   }
 
   async handleAddContact(event) {
-    const value    = this.#view.$('contactInput').value
     const userData = JSON.parse(LocalStorage.getUserData())
+    const value = this.#view.$('contactInput').value
 
     if (value.trim() === '' || value.trim() === userData.email) return
 
+    const MIN_RESPONSE_MS = 800
+    const startedAt       = Date.now()
+
     const contact = new User({ email: value })
     const result  = await contact.getDocument()
+
+    const elapsed = Date.now() - startedAt
+    if (elapsed < MIN_RESPONSE_MS) {
+      await new Promise(resolve => setTimeout(resolve, MIN_RESPONSE_MS - elapsed))
+    }
 
     if (result !== null) {
       try {
@@ -914,13 +1020,18 @@ class AppController {
   }
 
   async handlerSendMessage() {
+    const now = Date.now()
+    if (now - this.#lastMessageSentAt < MIN_MESSAGE_INTERVAL_MS) return
+
     const { messageList, inputContent } = this.#view.$()
-    const messageLength = inputContent.innerText.trim().length
+    const plaintext     = inputContent.innerText.trim()
+    const messageLength = plaintext.length
 
     if (messageLength <= 0 || this.#currentChatId === null) return
+    if (messageLength > MAX_MESSAGE_LENGTH) return
 
     const userData  = JSON.parse(LocalStorage.getUserData())
-    const plaintext = inputContent.innerText.trim()
+
     let   messageData
 
     const contactPublicKey = this.#currentContactData?.publicKey ?? null
@@ -959,15 +1070,27 @@ class AppController {
       }
     }
 
+    this.#lastMessageSentAt = now
+
     const event = new CustomEvent('keyup', { bubbles: false, cancelable: true })
     inputContent.textContent = ''
     inputContent.dispatchEvent(event)
 
     const message = new Message(messageData, this.#currentChatId)
-    await message.send()
+
+    try {
+      await message.send()
+    } catch (error) {
+      throw error
+      inputContent.textContent = plaintext
+      inputContent.dispatchEvent(new CustomEvent('keyup', { bubbles: false, cancelable: true }))
+      alert('Não foi possível enviar a mensagem. Aguarde um instante e tente novamente.')
+    }
   }
 
   handlerUploadFileClick(inputFile, settings = {}) {
+    if (this.#view.getState('blockMedia') === true) return
+
     const { idMedia }  = settings
     const dictionary   = {
       'send-document-btn': '*',
@@ -987,6 +1110,11 @@ class AppController {
   }
 
   async startRecordMicrophoneAudio() {
+    if (this.#view.getState('blockMedia') === true) {
+      alert('This feature is not allowed on my server. Run the project on your machine and enable it for use.')
+      return
+    }
+
     const recorder = AudioRecorder.getInstance()
 
     if (!recorder.isSupported()) {
@@ -998,7 +1126,7 @@ class AppController {
       await recorder.start()
       this.#view.toggleSendAudioSection(true)
 
-      const start              = Date.now()
+      const start               = Date.now()
       const { microphoneTimer } = this.#view.$()
 
       const recordedTime = setInterval(() => {
@@ -1025,6 +1153,11 @@ class AppController {
   }
 
   async handleSendAudio() {
+    if (this.#view.getState('blockMedia') === true) {
+      await this.handleStopRecordAudio()
+      return
+    }
+
     const interval = this.#view.getState('tempRecordedInterval')
     clearInterval(interval)
 
@@ -1069,6 +1202,7 @@ class AppController {
   }
 
   async handleSendImage() {
+    if (this.#view.getState('blockMedia') === true) return
     if (!this.#pendingMediaFile || !this.#currentChatId) return
 
     try {
@@ -1095,6 +1229,7 @@ class AppController {
   }
 
   async handleSendPhotoImage() {
+    if (this.#view.getState('blockMedia') === true) return
     if (!this.#currentChatId) return
 
     try {
@@ -1122,6 +1257,7 @@ class AppController {
   }
 
   async handleSendDocument() {
+    if (this.#view.getState('blockMedia') === true) return
     if (!this.#pendingDocumentFile || !this.#currentChatId) return
 
     try {
@@ -1206,8 +1342,8 @@ class AppController {
     if (!this.#pendingContactData) return
 
     try {
-      const userData   = JSON.parse(LocalStorage.getUserData())
-      const contact    = this.#pendingContactData
+      const userData  = JSON.parse(LocalStorage.getUserData())
+      const contact   = this.#pendingContactData
 
       const contactUser = new User({ email: contact.email })
       const contactData = await contactUser.getDocument()
@@ -1311,19 +1447,32 @@ class AppController {
     this.#view.setDeleteAccountLoading(true)
 
     try {
+      const auth = new Authenticator()
+
+      await auth.reauthenticate()
+
       const userData = JSON.parse(LocalStorage.getUserData())
       const user     = new User(userData)
 
       await user.markContactAsDeleted(userData.email)
       await user.delete()
+      await ResetActorRegistry.delete(userData.email)
       await this.#handleMutualDeletionCascade(userData)
 
-      const auth = new Authenticator()
-      await auth.deleteAccount()
+      if (this.#authStateUnsubscribe) {
+        this.#authStateUnsubscribe()
+        this.#authStateUnsubscribe = null
+      }
+
+      clearInterval(this.#tokenPollingInterval)
+      this.#tokenPollingInterval = null
+      await auth.finalizeAccountDeletion()
 
       try {
         await SystemDocumentManager.decrementUserCount()
-      } catch (_) {}
+      } catch (error) {
+        console.error('[SystemDocumentManager] Falha ao decrementar contador de usuários — contagem pode ficar desalinhada.', error)
+      }
 
       this.#notificationService?.destroy()
       this.#destroyResetListener()
@@ -1341,7 +1490,7 @@ class AppController {
   }
 
   async #handleMutualDeletionCascade(userData) {
-    const chats    = await Chat.findAllByUser(userData.email)
+    const chats     = await Chat.findAllByUser(userData.email)
     const firestore = Firestore.instance
     let hasActiveConnections = false
 
@@ -1397,7 +1546,10 @@ class AppController {
     const chatIds = [...this.#chatContactMap.keys()]
     if (chatIds.length === 0) return
 
-    this.#messageListListeners = Chat.listenLastMessages(chatIds, (changes) => {
+    const userData = JSON.parse(LocalStorage.getUserData())
+    if (!userData?.email) return
+
+    this.#messageListListeners = Chat.listenLastMessages(chatIds, userData.email, (changes) => {
       this.#handleMessageListSnapshot(changes)
     })
   }
@@ -1446,8 +1598,11 @@ class AppController {
 
     if (!hasUpdates) return
 
+    const toMs = (ts) =>
+      typeof ts?.toMillis === 'function' ? ts.toMillis() : (ts ?? 0)
+
     const sortedItems = [...this.#messageListMap.values()]
-      .sort((a, b) => b.lastMessage.timeStamp - a.lastMessage.timeStamp)
+      .sort((a, b) => toMs(b.lastMessage.timeStamp) - toMs(a.lastMessage.timeStamp))
 
     this.#view.renderMessageList(sortedItems, {
       handleCallback: this.handleConversationItem.bind(this)
@@ -1469,5 +1624,4 @@ class AppController {
 }
 
 const appController = new AppController()
-window.app = appController
-window.app.initEvents()
+appController.initEvents()

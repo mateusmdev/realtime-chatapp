@@ -13,12 +13,13 @@ class DestroyerOrchestrator {
   #cloudinaryDestroyer = CloudinaryDestroyer
   #authDestroyer       = AuthDestroyer
 
-  async evaluateAndExecute() {
+  async evaluateAndExecute(holderId) {
     try {
       const triggerType = await this.#shouldReset()
       if (triggerType === null) return
 
-      const holderId = crypto.randomUUID()
+      if (!holderId) return
+
       const acquired = await this.#lockManager.acquireLock(holderId)
 
       if (!acquired) return

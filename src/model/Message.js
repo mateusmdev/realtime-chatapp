@@ -1,6 +1,6 @@
 import AbstractModel from "./AbstractModel"
 import Firestore from "../firebase/Firestore"
-import { orderBy } from "firebase/firestore"
+import { orderBy, serverTimestamp } from "firebase/firestore"
 
 class Message extends AbstractModel {
   #chatId
@@ -22,7 +22,7 @@ class Message extends AbstractModel {
       contactName: null,
       encrypted:   data.encrypted === true,
     }
-   
+
     if (data.encrypted === true) {
       return {
         ...snapshot,
@@ -33,7 +33,7 @@ class Message extends AbstractModel {
         ephemeralPublicKey: data.ephemeralPublicKey,
       }
     }
-   
+
     switch (data.type) {
       case 'text':
         snapshot.content = data.content ?? null
@@ -45,33 +45,44 @@ class Message extends AbstractModel {
         snapshot.contactName = data.contactName ?? null
         break
     }
-   
+
     return snapshot
   }
 
   async send() {
-    const firestore = this.getModelAttr('firestore')
+    const firestore   = this.getModelAttr('firestore')
     const messagePath = `chats/${this.#chatId}/messages`
-    const lastMessage = Message.#buildLastMessageSnapshot(this.data)
+    const writeData   = { ...this.data, timeStamp: serverTimestamp() }
+    const lastMessage = Message.#buildLastMessageSnapshot(writeData)
+    const senderEmail = writeData.from.toLowerCase()
 
+    // F4 — a regra canSendMessage() em firestore.rules exige que esta
+    // escrita companheira aconteça no MESMO batch; sem ela, a criação da
+    // mensagem é rejeitada (getAfter() não veria a atualização).
     await firestore.batchWrite([
-        {
-            path: messagePath,
-            documentId: null,
-            data: this.data,
-        },
-        {
-            path: 'chats',
-            documentId: this.#chatId,
-            data: { lastMessage },
-            merge: true,
-        }
+      {
+        path:       messagePath,
+        documentId: null,
+        data:       writeData,
+      },
+      {
+        path:       'chats',
+        documentId: this.#chatId,
+        data:       { lastMessage },
+        merge:      true,
+      },
+      {
+        path:       'user',
+        documentId: senderEmail,
+        data:       { lastMessageAt: serverTimestamp() },
+        merge:      true,
+      }
     ])
   }
 
   static async findByChatId(chatId) {
-    const firestore = Firestore.instance
-    const path = `chats/${chatId}/messages`
+    const firestore   = Firestore.instance
+    const path        = `chats/${chatId}/messages`
     const constraints = [orderBy('timeStamp')]
 
     const result = await firestore.findDocs(path, constraints)
@@ -82,8 +93,8 @@ class Message extends AbstractModel {
   }
 
   static async findAllByChatId(chatId) {
-    const firestore = Firestore.instance
-    const path = `chats/${chatId}/messages`
+    const firestore   = Firestore.instance
+    const path        = `chats/${chatId}/messages`
     const constraints = [orderBy('timeStamp')]
 
     const result = await firestore.findDocs(path, constraints)
@@ -91,7 +102,7 @@ class Message extends AbstractModel {
     if (result.empty) return []
 
     return result.docs.map(docSnap => {
-      const data = docSnap.data()
+      const data     = docSnap.data()
       const hasMedia = Message.MEDIA_TYPES.includes(data.type) && !!data.publicId
 
       return new Message(
@@ -108,15 +119,15 @@ class Message extends AbstractModel {
   static #resolveResourceType(messageType) {
     const map = {
       picture: 'image',
-      file: 'raw',
-      audio: 'video',
+      file:    'raw',
+      audio:   'video',
     }
     return map[messageType] ?? 'image'
   }
 
   static listenByChatId(chatId, callback) {
-    const listener = new Message({}, chatId)
-    const path = `chats/${chatId}/messages`
+    const listener    = new Message({}, chatId)
+    const path        = `chats/${chatId}/messages`
     const constraints = [orderBy('timeStamp')]
 
     listener.onSnapshot((snapshot) => {
