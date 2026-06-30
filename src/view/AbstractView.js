@@ -86,7 +86,7 @@ class AbstractView {
     }
   
     const selected = names.map(name => {
-      if (!this.#el.has(name)) throw new NotFoundException(`Element with name '${currentName}' was not found in the view's registered elements (loaded by ID).`)
+      if (!this.#el.has(name)) throw new NotFoundException(`Element with name '${name}' was not found in the view's registered elements (loaded by ID).`)
       return this.#el.get(name)
     })
   

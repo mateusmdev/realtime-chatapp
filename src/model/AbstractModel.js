@@ -17,9 +17,11 @@ class AbstractModel {
     }
 
     #validatePrimaryKey() {
+        if (this.#primaryKeyProp === null) return null
+
         const primaryKeyValue = this.#data[this.#primaryKeyProp]
         if (!primaryKeyValue) {
-            throw new PrimaryKeyException(`The primary key ('${property}') is required for this operation.`)
+            throw new PrimaryKeyException(`The primary key ('${this.#primaryKeyProp}') is required for this operation.`)
         }
         return primaryKeyValue
     }
@@ -47,15 +49,24 @@ class AbstractModel {
     }
 
     async findOrCreate() {
+      const existingData = await this.getDocument(this.data)
 
-      let document = await this.getDocument(this.data)
-      
-      if (!document) {
-        const firestore = this.getModelAttr('firestore')
-        document = await firestore.save(this.data, this.getModelAttr('path'), this.data[this.getModelAttr('primaryKeyProp')])
+      if (existingData) {
+        return { data: this.data, wasCreated: false }
       }
-  
-      return document
+
+      const firestore = this.getModelAttr('firestore')
+      const docSnap   = await firestore.save(
+        this.data,
+        this.getModelAttr('path'),
+        this.data[this.getModelAttr('primaryKeyProp')]
+      )
+
+      if (docSnap && docSnap.exists()) {
+        this.#data = docSnap.data()
+      }
+
+      return { data: this.data, wasCreated: true }
     }
 
     async save() {
@@ -65,22 +76,43 @@ class AbstractModel {
         return document?.data()
     }
 
-    async onSnapshot(callback) {
+    async savePartial(partialData = {}, options = { merge: true }) {
+        const documentId = this.#validatePrimaryKey()
+
+        const document = await this.#firestore.save(
+          partialData,
+          this.#path,
+          documentId,
+          options
+        )
+        return document?.data()
+    }
+
+    async delete() {
+        const documentId = this.#validatePrimaryKey()
+        await this.#firestore.delete(this.#path, documentId)
+    }
+
+    async onSnapshot(callback, constraints = [], path = null) {
       if (!callback || typeof callback !== 'function') {
          throw new InvalidArgumentException(`You must pass a callback function when calling 'onSnapshot'`)
       }
 
       const documentId = this.#validatePrimaryKey()
+      const snapshotPath = path || this.#path
 
       this.offSnapshot() 
       
-      this.#listener = this.#firestore.onSnapshot(this.#path, documentId, doc => {
-        
-        if (doc && doc.exists()) {
-            this.#data = doc.data()
-            callback(doc)
+      this.#listener = this.#firestore.onSnapshot(snapshotPath, documentId, (snapshot) => {
+        if (documentId) {
+          if (snapshot && snapshot.exists()) {
+            this.#data = snapshot.data()
+            callback(snapshot)
+          }
+        } else {
+          callback(snapshot)
         }
-      })
+      }, constraints)
       
       return this.#listener
     }

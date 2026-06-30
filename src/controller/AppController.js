@@ -2,20 +2,51 @@ import AppView from './../view/AppView'
 import axios from 'axios'
 import LocalStorage from '../utils/LocalStorage'
 import User from '../model/User'
+import Chat from '../model/Chat'
+import Message from '../model/Message'
 import MediaContext from './../model/MediaContext'
 import MediaFactory from '../model/MediaFactory'
 import Camera from '../model/Camera'
+import AudioRecorder from '../model/AudioRecorder'
 import ProfileCache from '../utils/ProfileCache'
+import CloudinaryService from '../service/CloudinaryService'
+import Authenticator from '../firebase/Authenticator'
+import Firestore from '../firebase/Firestore'
+import NotificationService from '../service/NotificationService'
+import CryptoService, { CryptoInitStatus } from '../service/CryptoService.js'
+import SystemDocumentManager from '../destroyer/system/SystemDocumentManager'
+import DestroyerOrchestrator from '../destroyer/DestroyerOrchestrator'
+import ResetActorRegistry from '../destroyer/system/ResetActorRegistry'
 
 const TOKEN_VALIDATOR = import.meta.env.VITE_TOKEN_VALIDATOR
-const ICON_KEY = import.meta.env.VITE_ICON_KEY
-const BLOCK_MEDIA = import.meta.env.VITE_BLOCK_MEDIA
+const ICON_KEY        = import.meta.env.VITE_ICON_KEY
+const BLOCK_MEDIA     = import.meta.env.VITE_BLOCK_MEDIA
+const MAX_MESSAGE_LENGTH = 200
+
+const MIN_MESSAGE_INTERVAL_MS = 1500
 
 class AppController {
   #view = new AppView()
+  #currentChatId = null
+  #currentContactData = null
+  #messageListener = null
+  #pendingMediaFile = null
+  #pendingDocumentFile = null
+  #pendingContactData = null
+  #notificationService = null
+  #messageListListeners = []
+  #chatContactMap = new Map()
+  #messageListMap = new Map()
+  #cryptoService = CryptoService
+  #resetListener = null
+
+  #lastMessageSentAt = 0
+
+  #authStateUnsubscribe  = null
+  #tokenPollingInterval  = null
 
   async initEvents(){
-    
+
     this.#view.addEvent(document, {
       eventName: 'DOMContentLoaded',
       fn: () => this.initApp(),
@@ -32,14 +63,6 @@ class AppController {
     this.#view.addEventAll(['#chatMenuBtn', '#contactMenuBtn', '#settingMenuBtn'], {
       eventName: 'click',
       fn: (e) => this.handleMenuBtnClick(e),
-      behavior: {
-        preventDefault: true,
-      }
-    })
-
-    this.#view.addEventAll('.item', {
-      eventName: 'click',
-      fn: (e) => this.handleMessageItem(e),
       behavior: {
         preventDefault: true,
       }
@@ -112,7 +135,7 @@ class AppController {
         stopPropagation: true
       }
     })
-    
+
     this.#view.addEvent('#mediaBar', {
       eventName: 'click',
       fn: (e) => e.stopPropagation(),
@@ -129,7 +152,7 @@ class AppController {
         stopPropagation: true
       }
     })
-    
+
     this.#view.addEventAll(['#userNameContent', '#userAboutContent'], {
       eventName: 'keypress blur',
       fn: (e) => this.#view.setUserContent(e)
@@ -137,7 +160,7 @@ class AppController {
 
     this.#view.addEvent('#changeImgBtn', {
       eventName: 'click',
-      fn: (e) =>  this.#view.$('profileImageFile').click(),
+      fn: (e) => this.#view.$('profileImageFile').click(),
       behavior: {
         preventDefault: true,
       }
@@ -225,7 +248,7 @@ class AppController {
 
     this.#view.addEvent('#microphoneBtn', {
       eventName: 'click',
-      fn: async (event) => this.startRecordMicrophoneAudio(),
+      fn: async () => this.startRecordMicrophoneAudio(),
       behavior: {
         preventDefault: true,
       }
@@ -233,7 +256,7 @@ class AppController {
 
     this.#view.addEvent('#okRecordingBtn', {
       eventName: 'click',
-      fn: async (event) => this.handleSendAudio(),
+      fn: async () => this.handleSendAudio(),
       behavior: {
         preventDefault: true,
       }
@@ -241,16 +264,99 @@ class AppController {
 
     this.#view.addEvent('#cancelRecordingBtn', {
       eventName: 'click',
-      fn: async (event) => this.handleStopRecordAudio(event),
+      fn: async () => this.handleStopRecordAudio(),
       behavior: {
         preventDefault: true,
       }
+    })
+
+    this.#view.addEvent('#sendImageActionBtn', {
+      eventName: 'click',
+      fn: async () => this.handleSendImage(),
+      behavior: {
+        preventDefault: true,
+      }
+    })
+
+    this.#view.addEvent('#sendPhotoActionBtn', {
+      eventName: 'click',
+      fn: async () => this.handleSendPhotoImage(),
+      behavior: {
+        preventDefault: true,
+      }
+    })
+
+    this.#view.addEvent('#sendFileActionBtn', {
+      eventName: 'click',
+      fn: async () => this.handleSendDocument(),
+      behavior: {
+        preventDefault: true,
+      }
+    })
+
+    this.#view.addEvent('#sendPdfActionBtn', {
+      eventName: 'click',
+      fn: async () => this.handleSendDocument(),
+      behavior: {
+        preventDefault: true,
+      }
+    })
+
+    this.#view.addEvent('#messageList', {
+      eventName: 'click',
+      fn: (e) => {
+        this.handleDownloadFile(e)
+        this.handleSendMessageFromContact(e)
+        this.handlePictureFromContact(e)
+      },
+      behavior: {
+        preventDefault: true
+      }
+    })
+
+    this.#view.addEvent('#cancelConfirmChat', {
+      eventName: 'click',
+      fn: () => {
+        this.#pendingContactData = null
+        this.#view.toggleConfirmChatModal()
+      },
+      behavior: { preventDefault: true }
+    })
+
+    this.#view.addEvent('#confirmConfirmChat', {
+      eventName: 'click',
+      fn: () => this.handleConfirmSendMessage(),
+      behavior: { preventDefault: true }
+    })
+
+    this.#view.addEvent('#deleteAccountBtn', {
+      eventName: 'click',
+      fn: () => this.#view.toggleDeleteAccountModal(),
+      behavior: { preventDefault: true }
+    })
+
+    this.#view.addEvent('#cancelDeleteAccountBtn', {
+      eventName: 'click',
+      fn: () => this.#view.toggleDeleteAccountModal(),
+      behavior: { preventDefault: true }
+    })
+
+    this.#view.addEvent('#confirmDeleteAccountBtn', {
+      eventName: 'click',
+      fn: () => this.handleDeleteAccount(),
+      behavior: { preventDefault: true }
+    })
+
+    this.#view.addEvent(document, {
+      eventName: 'notificationEvent',
+      fn: async () => this.#initNotifications(),
+      behavior: { preventDefault: true }
     })
   }
 
   async initApp(){
     this.#view.setState('blockMedia', BLOCK_MEDIA || false)
-    
+
     const blockMediaState = this.#view.getState('blockMedia')
 
     if (typeof blockMediaState === 'string') {
@@ -258,61 +364,252 @@ class AppController {
     }
 
     const preferences = JSON.parse(LocalStorage.getUserPreferences()) || {}
-    const params = new URLSearchParams(window.location.search)
-    const mode = params.get('mode')
-    const isPreview = mode === 'preview' ? true : false 
+    const params      = new URLSearchParams(window.location.search)
+    const mode        = params.get('mode')
+    const isPreview   = mode === 'preview' ? true : false
 
     this.#view.setState('isPreviewMode', isPreview)
 
     if (!isPreview) {
+      const auth = new Authenticator()
+      await auth.waitForAuth()
+
+      await SystemDocumentManager.initializeIfNeeded()
       await this.getUserData()
     }
 
     await this.getIconData()
     await this.#view.initLayout(preferences)
+
+    if (!isPreview) {
+      const cacheObject    = ProfileCache.get()
+      const contacts       = cacheObject?.cache || []
+      const sortedContacts = [...contacts].sort((a, b) =>
+        a.name.localeCompare(b.name)
+      )
+
+      const options = {
+        handleCallback: this.handleSendContact.bind(this)
+      }
+
+      this.#view.loadContactsModal(sortedContacts, options)
+
+      const event = new CustomEvent('notificationEvent', {
+        bubbles: false,
+        cancelable: true,
+        composed: false
+      })
+
+      document.dispatchEvent(event)
+      this.#setupAuthStateSync()
+      this.#startTokenValidationPolling()
+    }
   }
 
-  async getUserData(){
+  async #initNotifications() {
+    const granted = await NotificationService.requestPermission()
+
+    if (!granted) return
+
+    const userData    = JSON.parse(LocalStorage.getUserData())
+    const cacheObject = ProfileCache.get()
+    const contacts    = cacheObject?.cache || []
+
+    this.#notificationService?.destroy()
+    this.#notificationService = new NotificationService()
+    this.#notificationService.init(userData, contacts, this.#cryptoService)
+  }
+
+  #initResetListener() {
+    let knownResetCount = null
+
+    this.#resetListener = SystemDocumentManager.listenResetCount((resetCount) => {
+      if (knownResetCount === null) {
+        knownResetCount = resetCount
+        return
+      }
+
+      if (resetCount !== knownResetCount) {
+        this.#notificationService?.destroy()
+        this.#destroyMessageListListeners()
+        this.#destroyResetListener()
+        LocalStorage.clearSession()
+        ProfileCache.clear()
+        window.location.href = '/'
+      }
+    })
+  }
+
+  #destroyResetListener() {
+    if (this.#resetListener) {
+      this.#resetListener()
+      this.#resetListener = null
+    }
+  }
+
+  #setupAuthStateSync() {
+    const auth = new Authenticator()
+    this.#authStateUnsubscribe = auth.setupAuthStateListener((user) => {
+      if (!user && !this.#view.getState('isPreviewMode')) {
+        this.#handleSessionExpired()
+      }
+    })
+  }
+
+  #startTokenValidationPolling() {
+    const POLLING_INTERVAL_MS = 30 * 60 * 1000 // 30 minutes
+
+    const validate = async () => {
+      const accessToken = LocalStorage.getAccessToken()
+      if (!accessToken) return
+
+      try {
+        await axios.get(TOKEN_VALIDATOR, {
+          headers: { 'Authorization': `Bearer ${accessToken}` }
+        })
+      } catch {
+        await this.#handleSessionExpired()
+      }
+    }
+
+    this.#tokenPollingInterval = setInterval(validate, POLLING_INTERVAL_MS)
+  }
+
+  async #handleSessionExpired() {
+    if (this.#authStateUnsubscribe) {
+      this.#authStateUnsubscribe()
+      this.#authStateUnsubscribe = null
+    }
+
+    clearInterval(this.#tokenPollingInterval)
+    this.#tokenPollingInterval = null
+
+    this.#notificationService?.destroy()
+    this.#destroyMessageListListeners()
+    this.#destroyResetListener()
+
+    try {
+      const auth = new Authenticator()
+      await auth.signOut()
+    } catch (_) {}
+
+    LocalStorage.clearSession()
+    ProfileCache.clear()
+    window.location.href = '/'
+  }
+
+  async getUserData() {
     const accessToken = LocalStorage.getAccessToken()
 
     if (!accessToken) {
       window.location.href = '/'
+      return
     }
 
     try {
       const response = await axios.get(TOKEN_VALIDATOR, {
-        headers: {
-        'Authorization': `Bearer ${accessToken}`
-        }
-      });
+        headers: { 'Authorization': `Bearer ${accessToken}` }
+      })
 
       const { data } = response
 
-      const user = new User({
-        ...data,
+      const user = new User(User.sanitize({
+        email:          data.email,
+        name:           data.name,
+        picture:        data.picture,
         profilePicture: data.picture,
-        about: 'I am using Realtime Chat App',
-      });
+        about:          'I am using Realtime Chat App',
+      }))
 
-      await user.findOrCreate()
+      const resetLockId = await ResetActorRegistry.ensureResetLockId(data.email)
+      await DestroyerOrchestrator.evaluateAndExecute(resetLockId)
+
+      const { wasCreated } = await user.findOrCreate()
+      LocalStorage.setUserData(JSON.stringify(user.data))
+
+      if (wasCreated) {
+        try {
+          await SystemDocumentManager.incrementUserCount(user.data.email)
+        } catch (error) {
+          console.error('[SystemDocumentManager] Falha ao incrementar contador de usuários — contagem pode ficar desalinhada.', error)
+        }
+      }
+
       const cacheObject = ProfileCache.get()
-      const contacts = await user.getContactsFromCache(!cacheObject?.isCached)
-      
+      const contacts    = await user.getContactsFromCache(!cacheObject?.isCached)
+
+      const sortedContacts = [...contacts].sort((a, b) =>
+        a.name.localeCompare(b.name)
+      )
+
       await user.onSnapshot(() => {
         LocalStorage.setUserData(JSON.stringify(user.data))
         this.#view.loadUserContent(user.data)
       })
 
-      const options = {
-        handleCallback: this.handleContactItem.bind(this)
-      }
+      const cryptoPromise = this.#initializeCrypto(user.data)
 
-      await this.#view.loadContacts(contacts, options)
+      const options = { handleCallback: this.handleContactItem.bind(this) }
+
+      await this.#view.loadContacts(sortedContacts, options)
+      this.initMessageList(sortedContacts)
+
+      await cryptoPromise
+
+      this.#initResetListener()
 
     } catch (error) {
-      localStorage.clear()
+      try {
+        const auth = new Authenticator()
+        await auth.signOut()
+      } catch (_) {}
+
+      LocalStorage.clearSession()
+      ProfileCache.clear()
       window.location.href = '/'
-      throw error
+    }
+  }
+
+  async #initializeCrypto(userData) {
+    const uid = LocalStorage.getFirebaseUid()
+
+    if (!uid) {
+      console.warn('[Crypto] Firebase UID não disponível. E2E desativado para esta sessão.')
+      return
+    }
+
+    this.#view.setCryptoLoadingState(true)
+
+    try {
+      const user = new User({ email: userData.email })
+
+      const dynamicSalt = await SystemDocumentManager.getCryptoDynamicSalt()
+
+      const persistCallback = async (fields) => {
+        await user.savePartial(fields, { merge: true })
+      }
+
+      const status = await this.#cryptoService.init(uid, userData, persistCallback, dynamicSalt)
+
+      switch (status) {
+        case CryptoInitStatus.READY:
+          break
+        case CryptoInitStatus.LOCAL_FOUND_REMOTE_MISSING:
+          console.info('[Crypto] Chave local sincronizada com o servidor.')
+          break
+        case CryptoInitStatus.REMOTE_FOUND_LOCAL_MISSING:
+          console.info('[Crypto] Chave recuperada do servidor com sucesso.')
+          break
+        case CryptoInitStatus.GENERATED:
+          console.info('[Crypto] Novo par de chaves gerado.')
+          break
+        case CryptoInitStatus.ERROR:
+          console.error('[Crypto] E2E indisponível nesta sessão.')
+          break
+      }
+
+    } finally {
+      this.#view.setCryptoLoadingState(false)
     }
   }
 
@@ -321,22 +618,39 @@ class AppController {
     if (typeof iconList === 'string') iconList = JSON.parse(iconList)
 
     const isEmpty = !Array.isArray(iconList) || iconList.length < 1
-    
+
     if (isEmpty) {
       try {
-        const response = await axios.get(`https://emoji-api.com/emojis?access_key=${ICON_KEY}`);
-        
+        const response = await axios.get(`${ICON_KEY}`)
         iconList = response.data || []
         LocalStorage.setIconList(JSON.stringify(iconList))
       } catch (error) {
         iconList = []
       }
     }
-    
+
     this.#view.loadEmoji(iconList)
   }
 
-  signOut(){
+  async signOut(){
+    if (this.#authStateUnsubscribe) {
+      this.#authStateUnsubscribe()
+      this.#authStateUnsubscribe = null
+    }
+
+    clearInterval(this.#tokenPollingInterval)
+    this.#tokenPollingInterval = null
+
+    this.#notificationService?.destroy()
+    this.#destroyMessageListListeners()
+    this.#destroyResetListener()
+
+    try {
+      const auth = new Authenticator()
+      await auth.signOut()
+    } catch (_) {
+    }
+
     LocalStorage.clearSession()
     ProfileCache.clear()
     window.location.href = '/'
@@ -345,46 +659,104 @@ class AppController {
   handleMenuBtnClick(e){
     this.#view.changeSection(e.currentTarget)
   }
-  
-  handleContactItem(e, data) {
+
+  async handleContactItem(e, data) {
     const isCorrectTarget = e.currentTarget.id === 'back-btn'
     this.#view.updateMessageScreen(data)
     this.#view.toggleMessageScreen(!isCorrectTarget)
-    
-    if (isCorrectTarget){
+
+    if (isCorrectTarget) {
       this.#view.toggleMediaModal()
+      return
     }
+
+    this.#currentContactData = data
+
+    await this.#openChat(data)
+  }
+
+  async #openChat(data) {
+    if (this.#messageListener) {
+      this.#messageListener.offSnapshot()
+      this.#messageListener = null
+    }
+
+    this.#currentChatId      = data.chatId
+    this.#currentContactData = data
+    const { messageList }    = this.#view.$()
+    const userData           = JSON.parse(LocalStorage.getUserData())
+
+    messageList.innerHTML = ''
+
+    let isInitialLoad = true
+
+    this.#messageListener = Message.listenByChatId(this.#currentChatId, async (messages) => {
+      const shouldScroll = isInitialLoad || this.#view.isAtBottom()
+
+      for (const currentMessage of messages) {
+        const { data }      = currentMessage
+        const isFromContact = data.from.toLowerCase() !== userData.email.toLowerCase()
+
+        let displayContent = data.content ?? null
+
+        if (data.encrypted === true) {
+          if (this.#cryptoService.isReady) {
+            try {
+              displayContent = await this.#cryptoService.decryptMessage(data, !isFromContact)
+            } catch {
+              displayContent = null
+            }
+          } else {
+            displayContent = null
+          }
+        }
+
+        const enrichedData = {
+          ...data,
+          content: displayContent,
+          profilePicture: isFromContact
+            ? this.#currentContactData.profileImage
+            : (userData.profilePicture ?? userData.picture)
+        }
+
+        this.#view.addMessage(enrichedData, isFromContact)
+      }
+
+      if (shouldScroll) this.#view.scrollToBottom()
+      isInitialLoad = false
+    })
   }
 
   handleMessageItem(e){
     const isCorrectTarget = e.currentTarget.id === 'back-btn'
     this.#view.toggleMessageScreen(!isCorrectTarget)
-    
+
     if (isCorrectTarget){
       this.#view.toggleMediaModal()
     }
   }
 
   handleCloseMediaModal(){
+    this.#pendingMediaFile    = null
+    this.#pendingDocumentFile = null
     this.#view.toggleMediaModal()
 
     if (this.#view.getState('isVideoRecording')) {
       const camera = Camera.getInstance()
       camera.stop()
-
       this.#view.setState('isVideoRecording', false)
     }
 
     this.#view.setState('isPhotoAreaVisible', false)
     this.#view.clearPhotoArea()
     this.#view.togglePhotoArea()
+    this.#view.togglePhotoAction()
     this.#view.clearMediaProperties()
   }
 
   async handleMediaButton(e) {
-    const { id } = e.currentTarget
+    const { id }         = e.currentTarget
     const { uploadFile } = this.#view.$()
-    console.log('clicou')
 
     this.#view.setState('mediaButtonId', id)
 
@@ -398,80 +770,62 @@ class AppController {
         break
 
       case 'send-document-btn':
-        if (this.#view.getState('blockMedia') === true) {
-          blockMessage()
-          return
-        }
-
-        this.handlerUploadFileClick(uploadFile, {
-          idMedia: 'send-document-btn'
-        })
-
+        if (this.#view.getState('blockMedia') === true) { blockMessage(); return }
+        this.handlerUploadFileClick(uploadFile, { idMedia: 'send-document-btn' })
         break
 
-
       case 'take-photo-btn':
-        if (this.#view.getState('blockMedia') === true) {
-          blockMessage()
-          return
-        }
-
+        if (this.#view.getState('blockMedia') === true) { blockMessage(); return }
         this.#view.setDefaultMode(e)
         await this.openCamera()
         break
-        
-        case 'send-picture-btn':
-          if (this.#view.getState('blockMedia') === true) {
-            blockMessage()
-            return
-          }
 
-          this.handlerUploadFileClick(uploadFile, {
-            idMedia: 'send-picture-btn'
-          })
-
-          break
+      case 'send-picture-btn':
+        if (this.#view.getState('blockMedia') === true) { blockMessage(); return }
+        this.handlerUploadFileClick(uploadFile, { idMedia: 'send-picture-btn' })
+        break
     }
   }
-  
+
   async handleChangeInputFile(event) {
-    const id = this.#view.getState('mediaButtonId')
+    if (this.#view.getState('blockMedia') === true) return
+
+    const id            = this.#view.getState('mediaButtonId')
     const [uploadedFile] = event.target.files
     const { pdfArea, fileArea, sentImagePreview, sentImageName } = this.#view.$()
     this.#view.clearMediaProperties()
 
     if (!uploadedFile) return
 
-    const isPdf = uploadedFile?.type === 'application/pdf'
-    const componentData = {} 
+    const isPdf         = uploadedFile?.type === 'application/pdf'
+    const componentData = {}
 
     if (uploadedFile.type.startsWith('image/') && id === 'send-document-btn') {
+      this.#pendingDocumentFile = uploadedFile
+      this.#view.updateDocumentPreview(uploadedFile.name)
       componentData.selectedArea = fileArea
-      componentData.modalClass = 'documents'
-      
-    } else if (uploadedFile.type.startsWith('image/') && id === 'send-picture-btn') {
-      componentData.selectedArea = {
-        image: sentImagePreview,
-        name: sentImageName
-      }
+      componentData.modalClass   = 'documents'
 
-      componentData.modalClass = 'image-preview'
-      
+    } else if (uploadedFile.type.startsWith('image/') && id === 'send-picture-btn') {
+      this.#pendingMediaFile     = uploadedFile
+      componentData.selectedArea = { image: sentImagePreview, name: sentImageName }
+      componentData.modalClass   = 'image-preview'
+
     } else if (isPdf) {
+      this.#pendingDocumentFile = uploadedFile
       componentData.selectedArea = pdfArea
-      componentData.modalClass = 'pdf-preview'
-      
+      componentData.modalClass   = 'pdf-preview'
+
     } else {
+      this.#pendingDocumentFile = uploadedFile
+      this.#view.updateDocumentPreview(uploadedFile.name)
       componentData.selectedArea = fileArea
-      componentData.modalClass = 'documents'
+      componentData.modalClass   = 'documents'
     }
 
     const mediaInstance = MediaFactory.getInstance(id)
-    const mediaHandler = new MediaContext(mediaInstance)
-    const uploadData = { 
-      file: uploadedFile,
-      area: componentData.selectedArea
-    }
+    const mediaHandler  = new MediaContext(mediaInstance)
+    const uploadData    = { file: uploadedFile, area: componentData.selectedArea }
 
     if (mediaInstance != null) {
       await mediaHandler.execute(uploadData)
@@ -482,8 +836,10 @@ class AppController {
   }
 
   async handleProfileImageFile(e) {
-    const [uploadedFile] = e.target.files
-    const imageUrl = URL.createObjectURL(uploadedFile)
+    if (this.#view.getState('blockMedia') === true) return
+
+    const [uploadedFile]  = e.target.files
+    const imageUrl        = URL.createObjectURL(uploadedFile)
     const profilePictures = document.querySelectorAll('.profile-picture');
 
     [...profilePictures].forEach(picture => {
@@ -492,70 +848,108 @@ class AppController {
   }
 
   async handleSendMessage(event) {
-    const isModifiedPressed = event.shiftKey  === true || event.ctrlKey === true
-    const keyPressed = event.key === 'Enter' ?? event.code === 'Enter'
-    
+    const isModifiedPressed = event.shiftKey === true || event.ctrlKey === true
+    const keyPressed        = event.key === 'Enter' ?? event.code === 'Enter'
+
     if (keyPressed === true && !isModifiedPressed === true) {
       event.preventDefault()
       const { sendBtn } = this.#view.$()
       sendBtn.click()
-
       return
     }
   }
 
   async handleUpdateUserData(event) {
     const changesValues = Object.values(event.detail.changes)
-    const userData = JSON.parse(LocalStorage.getUserData())
-    const { fieldName, value }= event.detail
+    const userData      = JSON.parse(LocalStorage.getUserData())
+    const { fieldName, value } = event.detail
 
     const wasModified = changesValues.some(currentValue => {
       if (currentValue === true && userData[fieldName] !== value) {
         return true
       }
-
       return false
     })
-    
+
     if (wasModified) {
       const { changes, value } = event.detail
 
-      const user = new User({
+      const user = new User(User.sanitize({
         ...userData,
-        name: changes.name ? value : userData.name,
+        name:  changes.name  ? value : userData.name,
         about: changes.about ? value : userData.about,
-      })
-  
+      }))
+
       await user.save()
     }
   }
 
   async handleAddContact(event) {
-    const value = this.#view.$('contactInput').value
     const userData = JSON.parse(LocalStorage.getUserData())
+    const value = this.#view.$('contactInput').value
 
     if (value.trim() === '' || value.trim() === userData.email) return
 
-    const contact = new User({ email : value })
-    const result = await contact.getDocument()
+    const MIN_RESPONSE_MS = 800
+    const startedAt       = Date.now()
+
+    const contact = new User({ email: value })
+    const result  = await contact.getDocument()
+
+    const elapsed = Date.now() - startedAt
+    if (elapsed < MIN_RESPONSE_MS) {
+      await new Promise(resolve => setTimeout(resolve, MIN_RESPONSE_MS - elapsed))
+    }
 
     if (result !== null) {
       try {
-        const user = new User( userData )
-        await user.saveContact({ 
-          email : result.email,
+        const userA = new User(userData)
+        const userB = new User(result)
+
+        let chat = await Chat.findByUsers(userData.email, result.email)
+
+        if (!chat) {
+          chat = await Chat.create(userData.email, result.email)
+        }
+
+        const chatId = chat.data.id
+
+        await userA.saveContact({
+          email:          result.email,
           profilePicture: result.profilePicture,
-          picture: result.picture,
-          name: result.name
+          picture:        result.picture,
+          name:           result.name,
+          chatId,
         })
 
+        await userB.saveContact({
+          email:          userData.email,
+          profilePicture: userData.profilePicture,
+          picture:        userData.picture,
+          name:           userData.name,
+          chatId,
+        })
+
+        const freshContacts  = await userA.getContactsFromCache(true)
+        const sortedContacts = [...freshContacts].sort((a, b) =>
+          a.name.localeCompare(b.name)
+        )
+
+        await this.#view.loadContacts(sortedContacts, {
+          handleCallback: this.handleContactItem.bind(this)
+        })
+
+        this.#view.loadContactsModal(sortedContacts, {
+          handleCallback: this.handleSendContact.bind(this)
+        })
+
+        this.initMessageList(sortedContacts)
       } catch (error) {
         throw error
       }
 
       this.#view.setAddContactModal(this.#view.$('cancelAddContact'))
-    } 
-    else {
+    } else {
       this.#view.toggleContactError(true)
     }
   }
@@ -565,153 +959,669 @@ class AppController {
 
     const appStyle = this.#view.getState('appStyle') === 'circle' ? 'square' : 'circle'
     this.#view.setState('appStyle', appStyle)
-    
+
     preferences = {
       ...preferences,
       appStyle: this.#view.getState('appStyle')
     }
-    
+
     LocalStorage.setUserPreferences(JSON.stringify(preferences))
     this.#view.setAppStyle()
   }
 
   async openCamera() {
     const camera = Camera.getInstance()
-    
+
     if (!camera.isSupported()) {
       alert("Your browser does not support camera access or the page is not using HTTPS.")
       return
     }
-    
+
     this.#view.toggleMediaModal('take-photo')
 
     try {
       if (!this.#view.getState('isVideoRecording')) {
         const { videoArea } = this.#view.$()
-
-        videoArea.srcObject = await camera.getStream()
+        videoArea.srcObject  = await camera.getStream()
         videoArea.play()
-
         this.#view.setState('isVideoRecording', true)
       }
-
     } catch (error) {
       alert("An error occurred while trying to access the camera.")
-    }    
+    }
   }
 
   async handleRepeatTakePhoto() {
     this.#view.setState('isPhotoAreaVisible', false)
-        
     this.#view.clearPhotoArea()
     this.#view.togglePhotoArea()
     this.#view.togglePhotoAction()
-
     await this.openCamera()
   }
 
   async takePhotoActionBtn() {
     const { photoArea, videoArea } = this.#view.$()
-    const camera = Camera.getInstance()
+    const camera        = Camera.getInstance()
     const photoSettings = {
-      mimeType: 'image/png',
-      origin: videoArea,
-      width: videoArea.videoWidth,
-      height: videoArea.videoHeight,
+      mimeType:   'image/png',
+      origin:     videoArea,
+      width:      videoArea.videoWidth,
+      height:     videoArea.videoHeight,
       renderArea: photoArea
     }
 
-    const result = camera.takePhoto(photoSettings)
+    camera.takePhoto(photoSettings)
     camera.stop()
-    
+
     this.#view.setState('isVideoRecording', false)
     this.#view.setState('isPhotoAreaVisible', true)
-  
     this.#view.togglePhotoArea()
     this.#view.togglePhotoAction()
   }
 
   async handlerSendMessage() {
+    const now = Date.now()
+    if (now - this.#lastMessageSentAt < MIN_MESSAGE_INTERVAL_MS) return
+
     const { messageList, inputContent } = this.#view.$()
-    const messageLength = inputContent.innerText.trim().length
+    const plaintext     = inputContent.innerText.trim()
+    const messageLength = plaintext.length
 
-    if (messageLength > 0) {
-      const message = this.#view.createElement('li', messageList, {
-        class: 'message user',
-      })
+    if (messageLength <= 0 || this.#currentChatId === null) return
+    if (messageLength > MAX_MESSAGE_LENGTH) return
 
-      const content = this.#view.createElement('div', message, {
-        class: 'content text',
-        innerText: inputContent.innerText
-      })
+    const userData  = JSON.parse(LocalStorage.getUserData())
 
-      const event = new CustomEvent('keyup', {
-        bubbles: false,
-        cancelable: true,
-        composed: false
-      })
+    let   messageData
 
-      inputContent.textContent = ''
-      inputContent.dispatchEvent(event)
+    const contactPublicKey = this.#currentContactData?.publicKey ?? null
+
+    if (this.#cryptoService.isReady && contactPublicKey) {
+      try {
+        const payload = await this.#cryptoService.encryptMessage(
+          plaintext,
+          contactPublicKey
+        )
+
+        messageData = {
+          type:      'text',
+          status:    'wait',
+          timeStamp: Date.now(),
+          from:      userData.email,
+          ...payload,
+        }
+      } catch (e) {
+        console.warn('[Crypto] Falha ao criptografar. Enviando sem E2E.', e)
+        messageData = {
+          content:   plaintext,
+          type:      'text',
+          status:    'wait',
+          timeStamp: Date.now(),
+          from:      userData.email,
+        }
+      }
+    } else {
+      messageData = {
+        content:   plaintext,
+        type:      'text',
+        status:    'wait',
+        timeStamp: Date.now(),
+        from:      userData.email,
+      }
+    }
+
+    this.#lastMessageSentAt = now
+
+    const event = new CustomEvent('keyup', { bubbles: false, cancelable: true })
+    inputContent.textContent = ''
+    inputContent.dispatchEvent(event)
+
+    const message = new Message(messageData, this.#currentChatId)
+
+    try {
+      await message.send()
+    } catch (error) {
+      throw error
+      inputContent.textContent = plaintext
+      inputContent.dispatchEvent(new CustomEvent('keyup', { bubbles: false, cancelable: true }))
+      alert('Não foi possível enviar a mensagem. Aguarde um instante e tente novamente.')
     }
   }
 
   handlerUploadFileClick(inputFile, settings = {}) {
-    const { idMedia } = settings
+    if (this.#view.getState('blockMedia') === true) return
 
-    const dictionary = {
+    const { idMedia }  = settings
+    const dictionary   = {
       'send-document-btn': '*',
-      'send-picture-btn': 'image/*'
+      'send-picture-btn':  'image/*'
     }
-
     const mediaType = dictionary[idMedia]
     inputFile.setAttribute('accept', mediaType)
-
     inputFile.click()
   }
 
   async handleBackBtn(event) {
     await this.handleMessageItem(event)
     const state = this.#view.getState('isMediaModalOpen')
-
     if (state === true) {
       this.handleCloseMediaModal(event)
     }
   }
 
   async startRecordMicrophoneAudio() {
-    this.#view.toggleSendAudioSection(true)
-    const start = Date.now()
-    const { microphoneTimer } = this.#view.$()
+    if (this.#view.getState('blockMedia') === true) {
+      alert('This feature is not allowed on my server. Run the project on your machine and enable it for use.')
+      return
+    }
 
-    const recordedTime = setInterval(() => {
-      const time = Date.now() - start
+    const recorder = AudioRecorder.getInstance()
 
-      const seconds = parseInt((time / 1000) % 60)
-      const minutes = parseInt((time / (1000 * 60) % 60))
+    if (!recorder.isSupported()) {
+      alert('Seu navegador não suporta gravação de áudio.')
+      return
+    }
 
-      microphoneTimer.innerText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
-    }, 100)
+    try {
+      await recorder.start()
+      this.#view.toggleSendAudioSection(true)
 
-    this.#view.setState('tempRecordedInterval', recordedTime)
+      const start               = Date.now()
+      const { microphoneTimer } = this.#view.$()
+
+      const recordedTime = setInterval(() => {
+        const time    = Date.now() - start
+        const seconds = parseInt((time / 1000) % 60)
+        const minutes = parseInt((time / (1000 * 60)) % 60)
+        microphoneTimer.innerText = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`
+      }, 100)
+
+      this.#view.setState('tempRecordedInterval', recordedTime)
+    } catch (error) {
+      alert('Erro ao acessar o microfone. Verifique as permissões.')
+    }
   }
 
-  async handleStopRecordAudio(event) {
+  async handleStopRecordAudio() {
     const interval = this.#view.getState('tempRecordedInterval')
     clearInterval(interval)
+
+    const recorder = AudioRecorder.getInstance()
+    recorder.cancel()
 
     this.#view.resetAudioProperties()
   }
 
-  async handleSendAudio(event) {
-    console.log('Audio enviado.')
+  async handleSendAudio() {
+    if (this.#view.getState('blockMedia') === true) {
+      await this.handleStopRecordAudio()
+      return
+    }
+
     const interval = this.#view.getState('tempRecordedInterval')
     clearInterval(interval)
-    
-    this.#view.resetAudioProperties()
+
+    const recorder = AudioRecorder.getInstance()
+
+    if (!this.#currentChatId) {
+      recorder.cancel()
+      this.#view.resetAudioProperties()
+      return
+    }
+
+    try {
+      const blob = await recorder.stop()
+
+      const audioContext  = new AudioContext()
+      const arrayBuffer   = await blob.arrayBuffer()
+      const audioBuffer   = await audioContext.decodeAudioData(arrayBuffer)
+      const duration      = parseFloat(audioBuffer.duration.toFixed(2))
+      audioContext.close()
+
+      const { url, publicId } = await CloudinaryService.uploadAudio(blob)
+      const userData          = JSON.parse(LocalStorage.getUserData())
+
+      const messageData = {
+        type:      'audio',
+        content:   url,
+        publicId,
+        duration,
+        status:    'wait',
+        timeStamp: Date.now(),
+        from:      userData.email,
+      }
+
+      const message = new Message(messageData, this.#currentChatId)
+      await message.send()
+
+    } catch (error) {
+      alert('Erro ao enviar o áudio. Tente novamente.')
+    } finally {
+      this.#view.resetAudioProperties()
+    }
+  }
+
+  async handleSendImage() {
+    if (this.#view.getState('blockMedia') === true) return
+    if (!this.#pendingMediaFile || !this.#currentChatId) return
+
+    try {
+      const { url, publicId } = await CloudinaryService.upload(this.#pendingMediaFile)
+      const userData          = JSON.parse(LocalStorage.getUserData())
+
+      const messageData = {
+        content:   url,
+        publicId,
+        type:      'picture',
+        status:    'wait',
+        timeStamp: Date.now(),
+        from:      userData.email,
+      }
+
+      const message = new Message(messageData, this.#currentChatId)
+      await message.send()
+
+      this.#pendingMediaFile = null
+      this.handleCloseMediaModal()
+    } catch (error) {
+      alert('Erro ao enviar a imagem. Tente novamente.')
+    }
+  }
+
+  async handleSendPhotoImage() {
+    if (this.#view.getState('blockMedia') === true) return
+    if (!this.#currentChatId) return
+
+    try {
+      const { photoArea }     = this.#view.$()
+      const base64            = photoArea.toDataURL('image/png')
+      const { url, publicId } = await CloudinaryService.uploadBase64(base64)
+      const userData          = JSON.parse(LocalStorage.getUserData())
+
+      const messageData = {
+        content:   url,
+        publicId,
+        type:      'picture',
+        status:    'wait',
+        timeStamp: Date.now(),
+        from:      userData.email,
+      }
+
+      const message = new Message(messageData, this.#currentChatId)
+      await message.send()
+
+      this.handleCloseMediaModal()
+    } catch (error) {
+      alert(error.message || 'Erro ao enviar a imagem. Tente novamente.')
+    }
+  }
+
+  async handleSendDocument() {
+    if (this.#view.getState('blockMedia') === true) return
+    if (!this.#pendingDocumentFile || !this.#currentChatId) return
+
+    try {
+      const { url, publicId } = await CloudinaryService.uploadRaw(this.#pendingDocumentFile)
+      const userData          = JSON.parse(LocalStorage.getUserData())
+
+      const messageData = {
+        content:   url,
+        publicId,
+        fileName:  this.#pendingDocumentFile.name,
+        type:      'file',
+        status:    'wait',
+        timeStamp: Date.now(),
+        from:      userData.email,
+      }
+
+      const message = new Message(messageData, this.#currentChatId)
+      await message.send()
+
+      this.#pendingDocumentFile = null
+      this.handleCloseMediaModal()
+    } catch (error) {
+      alert(error.message || 'Erro ao enviar o arquivo. Tente novamente.')
+    }
+  }
+
+  async handleDownloadFile(event) {
+    const downloadBtn = event.target.closest('.dowload-btn')
+    if (!downloadBtn) return
+
+    const url      = downloadBtn.dataset.url
+    const fileName = downloadBtn.dataset.filename
+
+    if (!url || !fileName) return
+
+    try {
+      const response = await fetch(url)
+      if (!response.ok) throw new Error('Falha ao baixar o arquivo.')
+
+      const blob    = await response.blob()
+      const blobUrl = URL.createObjectURL(blob)
+
+      const anchor      = document.createElement('a')
+      anchor.href       = blobUrl
+      anchor.download   = fileName
+      anchor.click()
+
+      URL.revokeObjectURL(blobUrl)
+    } catch (error) {
+      alert('Erro ao baixar o arquivo. Tente novamente.')
+    }
+  }
+
+  handleSendMessageFromContact(e) {
+    const sendMessageBtn = e.target.closest('.send-message')
+    if (!sendMessageBtn) return
+
+    const { contactName, contactEmail, contactPicture } = sendMessageBtn.dataset
+    const userData = JSON.parse(LocalStorage.getUserData())
+
+    if (contactEmail === userData.email) {
+      alert('Você não pode enviar mensagem para si mesmo.')
+      return
+    }
+
+    this.#pendingContactData = {
+      name:           contactName,
+      email:          contactEmail,
+      profilePicture: contactPicture,
+    }
+
+    this.#view.toggleConfirmChatModal(this.#pendingContactData)
+  }
+
+  async handlePictureFromContact(e) {
+    const sentPicture = e.target.closest('.picture')
+    if (!sentPicture) return
+    await this.#view.openPicture(sentPicture)
+  }
+
+  async handleConfirmSendMessage() {
+    if (!this.#pendingContactData) return
+
+    try {
+      const userData  = JSON.parse(LocalStorage.getUserData())
+      const contact   = this.#pendingContactData
+
+      const contactUser = new User({ email: contact.email })
+      const contactData = await contactUser.getDocument()
+
+      if (!contactData) {
+        alert('Contato não encontrado.')
+        this.#view.toggleConfirmChatModal()
+        this.#pendingContactData = null
+        return
+      }
+
+      let chat = await Chat.findByUsers(userData.email, contact.email)
+      if (!chat) {
+        chat = await Chat.create(userData.email, contact.email)
+      }
+
+      const chatId = chat.data.id
+
+      const userA = new User(userData)
+      const userB = new User(contactData)
+
+      await userA.saveContact({
+        email:          contactData.email,
+        profilePicture: contactData.profilePicture ?? contactData.picture,
+        picture:        contactData.picture,
+        name:           contactData.name,
+        chatId,
+      })
+
+      await userB.saveContact({
+        email:          userData.email,
+        profilePicture: userData.profilePicture ?? userData.picture,
+        picture:        userData.picture,
+        name:           userData.name,
+        chatId,
+      })
+
+      const freshContacts  = await userA.getContactsFromCache(true)
+      const sortedContacts = [...freshContacts].sort((a, b) =>
+        a.name.localeCompare(b.name)
+      )
+
+      await this.#view.loadContacts(sortedContacts, {
+        handleCallback: this.handleContactItem.bind(this)
+      })
+
+      this.#view.loadContactsModal(sortedContacts, {
+        handleCallback: this.handleSendContact.bind(this)
+      })
+
+      this.initMessageList(sortedContacts)
+      this.#view.toggleConfirmChatModal()
+
+      const openData = {
+        profileImage: contactData.profilePicture ?? contactData.picture,
+        name:         contactData.name,
+        email:        contactData.email,
+        chatId,
+        publicKey:    contactData.publicKey ?? null,
+      }
+
+      this.#view.updateMessageScreen(openData)
+      this.#view.toggleMessageScreen(true)
+      await this.#openChat(openData)
+
+      this.#pendingContactData = null
+
+    } catch (error) {
+      alert('Erro ao abrir conversa. Tente novamente.')
+      throw error
+    }
+  }
+
+  async handleSendContact(contact) {
+    if (!this.#currentChatId) return
+
+    try {
+      const userData = JSON.parse(LocalStorage.getUserData())
+
+      const messageData = {
+        type:           'contact-attachment',
+        contactName:    contact.name,
+        contactEmail:   contact.email,
+        contactPicture: contact.profilePicture ?? contact.picture,
+        contactChatId:  contact.chatId,
+        from:           userData.email,
+        status:         'wait',
+        timeStamp:      Date.now(),
+      }
+
+      const message = new Message(messageData, this.#currentChatId)
+      await message.send()
+
+      this.handleCloseMediaModal()
+    } catch (error) {
+      alert('Erro ao enviar o contato. Tente novamente.')
+    }
+  }
+
+  async handleDeleteAccount() {
+    this.#view.setDeleteAccountLoading(true)
+
+    try {
+      const auth = new Authenticator()
+
+      await auth.reauthenticate()
+
+      const userData = JSON.parse(LocalStorage.getUserData())
+      const user     = new User(userData)
+
+      await user.markContactAsDeleted(userData.email)
+      await user.delete()
+      await ResetActorRegistry.delete(userData.email)
+      await this.#handleMutualDeletionCascade(userData)
+
+      if (this.#authStateUnsubscribe) {
+        this.#authStateUnsubscribe()
+        this.#authStateUnsubscribe = null
+      }
+
+      clearInterval(this.#tokenPollingInterval)
+      this.#tokenPollingInterval = null
+      await auth.finalizeAccountDeletion()
+
+      try {
+        await SystemDocumentManager.decrementUserCount()
+      } catch (error) {
+        console.error('[SystemDocumentManager] Falha ao decrementar contador de usuários — contagem pode ficar desalinhada.', error)
+      }
+
+      this.#notificationService?.destroy()
+      this.#destroyResetListener()
+
+      LocalStorage.clearSession()
+      ProfileCache.clear()
+
+      window.location.href = '/'
+
+    } catch (error) {
+      this.#view.setDeleteAccountLoading(false)
+      alert('Erro ao deletar a conta. Tente novamente.')
+      throw error
+    }
+  }
+
+  async #handleMutualDeletionCascade(userData) {
+    const chats     = await Chat.findAllByUser(userData.email)
+    const firestore = Firestore.instance
+    let hasActiveConnections = false
+
+    if (chats.length === 0) {
+      await firestore.delete('user', userData.email)
+      return
+    }
+
+    for (const chat of chats) {
+      const otherEmail = chat.getOtherParticipantEmail(userData.email)
+      if (!otherEmail) continue
+
+      const otherUser     = new User({ email: otherEmail })
+      const otherUserData = await otherUser.getDocument()
+
+      if (!otherUserData?.isDeleted) {
+        hasActiveConnections = true
+        continue
+      }
+
+      const chatId   = chat.data.id
+      const messages = await Message.findAllByChatId(chatId)
+      const mediaMessages = messages.filter(msg => msg.data.hasMedia)
+
+      await Promise.all(
+        mediaMessages.map(async msg => {
+          try {
+            await CloudinaryService.delete(msg.data.publicId, msg.data.resourceType)
+          } catch (error) {
+            console.error(`Failed to delete Cloudinary asset ${msg.data.publicId}:`, error)
+          }
+        })
+      )
+
+      await Chat.deleteChat(chatId)
+      await firestore.delete('user', otherEmail)
+    }
+
+    if (!hasActiveConnections) {
+      await firestore.delete('user', userData.email)
+    }
+  }
+
+  initMessageList(contacts) {
+    this.#destroyMessageListListeners()
+
+    contacts.forEach(contact => {
+      if (contact.chatId) {
+        this.#chatContactMap.set(contact.chatId, contact)
+      }
+    })
+
+    const chatIds = [...this.#chatContactMap.keys()]
+    if (chatIds.length === 0) return
+
+    const userData = JSON.parse(LocalStorage.getUserData())
+    if (!userData?.email) return
+
+    this.#messageListListeners = Chat.listenLastMessages(chatIds, userData.email, (changes) => {
+      this.#handleMessageListSnapshot(changes)
+    })
+  }
+
+  async #handleMessageListSnapshot(changes) {
+    const userData = JSON.parse(LocalStorage.getUserData())
+    if (!userData) return
+
+    let hasUpdates = false
+
+    for (const { changeType, chatId, data } of changes) {
+      if (changeType === 'removed') {
+        this.#messageListMap.delete(chatId)
+        hasUpdates = true
+        continue
+      }
+
+      if (!data.lastMessage) continue
+
+      const contactData = this.#chatContactMap.get(chatId)
+      if (!contactData) continue
+
+      const isFromMe    = data.lastMessage.from.toLowerCase() === userData.email.toLowerCase()
+      const lastMessage = { ...data.lastMessage }
+
+      if (lastMessage.encrypted === true && this.#cryptoService.isReady) {
+        try {
+          lastMessage.content = await this.#cryptoService.decryptMessage(lastMessage, isFromMe)
+        } catch (e) {
+          lastMessage.content = null
+        }
+      }
+
+      this.#messageListMap.set(chatId, {
+        chatId,
+        name:           contactData.name,
+        profilePicture: contactData.profilePicture ?? contactData.picture,
+        email:          contactData.email,
+        lastMessage,
+        isFromMe,
+        publicKey:      contactData.publicKey ?? null,
+      })
+
+      hasUpdates = true
+    }
+
+    if (!hasUpdates) return
+
+    const toMs = (ts) =>
+      typeof ts?.toMillis === 'function' ? ts.toMillis() : (ts ?? 0)
+
+    const sortedItems = [...this.#messageListMap.values()]
+      .sort((a, b) => toMs(b.lastMessage.timeStamp) - toMs(a.lastMessage.timeStamp))
+
+    this.#view.renderMessageList(sortedItems, {
+      handleCallback: this.handleConversationItem.bind(this)
+    })
+  }
+
+  #destroyMessageListListeners() {
+    this.#messageListListeners.forEach(unsubscribe => {
+      if (typeof unsubscribe === 'function') unsubscribe()
+    })
+    this.#messageListListeners = []
+  }
+
+  async handleConversationItem(e, data) {
+    this.#view.updateMessageScreen(data)
+    this.#view.toggleMessageScreen(true)
+    await this.#openChat(data)
   }
 }
 
 const appController = new AppController()
-window.app = appController
-window.app.initEvents()
+appController.initEvents()

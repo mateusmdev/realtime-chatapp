@@ -143,3 +143,131 @@
     }
   }
 }
+
+#setting-section {
+  position: relative;
+
+  #delete-account-modal {
+    display: none;
+    width: 120%;
+    height: 100%;
+    position: absolute;
+    top: 0;
+    left: -20%;
+    z-index: 2;
+    background-color: variables.$bg-overlay-layer;
+    justify-content: center;
+    align-items: center;
+  
+    &.active {
+      display: flex;
+    }
+  
+    .delete-account-content {
+      background-color: variables.$bg-primary;
+      width: 90%;
+      max-width: 26.1875rem;
+      border-radius: 3px;
+      transform: translateY(-15%);
+  
+      .delete-account-start {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        padding: 1.2rem 1.1rem;
+        border-bottom: 2px solid variables.$bg-secundary;
+  
+        p {
+          color: variables.$color-text;
+          font-size: 0.9375rem;
+        }
+  
+        a {
+          width: 1.063rem;
+          height: 1.063rem;
+  
+          img {
+            width: 100%;
+          }
+        }
+      }
+  
+      .delete-account-body {
+        padding: 1rem 1.2rem;
+        display: flex;
+        flex-direction: column;
+        gap: 0.75rem;
+  
+        .delete-account-warning {
+          color: variables.$color-danger;
+          font-size: 0.875rem;
+  
+          strong {
+            color: variables.$color-danger;
+            font-weight: bold;
+          }
+        }
+  
+        .delete-account-info {
+          color: variables.$color-text-light;
+          font-size: 0.8rem;
+          line-height: 1.4;
+        }
+  
+        .delete-account-actions {
+          display: flex;
+          justify-content: flex-end;
+          align-items: center;
+          gap: 1rem;
+          margin-top: 0.5rem;
+  
+          a {
+            text-decoration: none;
+            font-size: 0.875rem;
+            padding: 0.4rem 0.8rem;
+            border-radius: 3px;
+            cursor: pointer;
+  
+            &#cancel-delete-account-btn {
+              color: variables.$color-text;
+            }
+  
+            &#confirm-delete-account-btn {
+              background-color: variables.$color-danger;
+              color: rgba(255, 255, 255, 0.9);
+              display: flex;
+              align-items: center;
+              gap: 0.5rem;
+              min-width: 4.5rem;
+              justify-content: center;
+  
+              &.loading {
+                opacity: 0.7;
+                pointer-events: none;
+                cursor: not-allowed;
+              }
+            }
+          }
+  
+          .delete-loading {
+            width: 0.875rem;
+            height: 0.875rem;
+            border: 2px solid rgba(255, 255, 255, 0.3);
+            border-top-color: rgba(255, 255, 255, 0.9);
+            border-radius: 50%;
+            animation: delete-spin 0.7s linear infinite;
+  
+            &.hidden {
+              display: none;
+            }
+  
+            @keyframes delete-spin {
+              to { transform: rotate(360deg); }
+            }
+          }
+        }
+      }
+    }
+  }
+}
+

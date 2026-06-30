@@ -69,6 +69,10 @@
       }
     }
 
+    &:has(.confirm-chat-modal.active) .top-bar {
+      display: none;
+    }
+
     .media-content {
       height: calc(100% - 3.91rem);
       
@@ -153,6 +157,31 @@
       }
 
       .image-preview {
+        position: relative;
+
+        #send-image-action-btn {
+          background-color: variables.$primary-color;
+          border-radius: 50%;
+          border: none;
+          outline: none;
+          cursor: pointer;
+          padding: 0.7rem;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          position: absolute;
+          bottom: 1.5rem;
+          right: 1.5rem;
+          width: 3.125rem;
+          height: 3.125rem;
+          z-index: 2;
+
+          img {
+            margin-left: 0.28rem;
+            width: 90%;
+            height: 100%;
+          }
+        }
 
         #preview-content {
           height: 100%;
@@ -183,6 +212,32 @@
 
       .pdf-preview {
         padding: 1rem;
+        position: relative;
+
+        #send-pdf-action-btn {
+          background-color: variables.$primary-color;
+          border-radius: 50%;
+          border: none;
+          outline: none;
+          cursor: pointer;
+          padding: 0.7rem;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          position: absolute;
+          bottom: 1.5rem;
+          right: 1.5rem;
+          width: 3.125rem;
+          height: 3.125rem;
+          z-index: 2;
+      
+          img {
+            margin-left: 0.28rem;
+            width: 90%;
+            height: 100%;
+          }
+        }
+        
         #pdf{
           width: fit-content;
           height: 100%;
@@ -233,6 +288,68 @@
       }
 
       .list-contact {
+        
+        .confirm-chat-modal {
+          display: none;
+          width: 100%;
+          height: 100%;
+          justify-content: center;
+          align-items: center;
+ 
+          &.active {
+            display: flex;
+          }
+ 
+          .confirm-chat-content {
+            background-color: variables.$bg-primary;
+            width: 26.188rem;
+            margin: 0 1.15rem;
+            margin-top: -7rem;
+            border-radius: 3px;
+            padding: 1.5rem 1.1rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+ 
+            p {
+              color: variables.$color-text;
+              font-size: 0.9rem;
+ 
+              strong {
+                color: rgba(255, 255, 255, 0.9);
+              }
+            }
+ 
+            .confirm-chat-warning {
+              color: variables.$color-text-light;
+              font-size: 0.8rem;
+            }
+ 
+            .confirm-chat-actions {
+              display: flex;
+              justify-content: flex-end;
+              gap: 1rem;
+              margin-top: 0.5rem;
+ 
+              a {
+                text-decoration: none;
+                font-size: 0.875rem;
+                padding: 0.4rem 0.8rem;
+                border-radius: 3px;
+                cursor: pointer;
+ 
+                &#cancel-confirm-chat {
+                  color: variables.$color-text;
+                }
+ 
+                &#confirm-confirm-chat {
+                  background-color: variables.$primary-color;
+                  color: rgba(255, 255, 255, 0.9);
+                }
+              }
+            }
+          }
+        }
 
         .card {
           width: 26.188rem;

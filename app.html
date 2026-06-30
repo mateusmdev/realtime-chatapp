@@ -2,9 +2,9 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Vite App</title>
+    <title>Real-time Chat App</title>
   </head>
   <body>
     <div id="splash-screen">
@@ -82,6 +82,9 @@
                   <p id="sent-image-name"></p>
                 </div>
               </div>
+              <button id="send-image-action-btn">
+                <img src="./src/assets/send-icon.svg" alt="send icon">
+              </button>
             </div>
 
             <div class="pdf-preview media-type">
@@ -90,14 +93,17 @@
                   <canvas id="pdf-area"></canvas>
                 </div>
               </div>
+              <button id="send-pdf-action-btn">
+                <img src="./src/assets/send-icon.svg" alt="send icon">
+              </button>
             </div>
             <div class="documents media-type">
               <div id="file-area">
                 <div class="upload-file">
                   <img src="./src/assets/file-icon.svg" alt="file icon">
-                  <p>Document.pdf</p>
+                  <p id="file-area-name">Document.pdf</p>
                 </div>
-                <button>Enviar</button>
+                <button id="send-file-action-btn">Enviar</button>
               </div>
             </div>
             <div class="list-contact media-type">
@@ -105,7 +111,7 @@
                 <div class="header">
                   <p>Contato</p>
                 </div>
-                <ul>
+                <ul id="contact-modal-list">
                   <li>
                     <div class="picture-wrapper">
                       <img class="profile-picture" src="https://img.freepik.com/premium-vector/man-avatar-profile-picture-isolated-background-avatar-profile-picture-man_1293239-4870.jpg" alt="contact picure">
@@ -113,6 +119,16 @@
                     <span>John Due</span>
                   </li>
                 </ul>
+              </div>
+              <div class="confirm-chat-modal">
+                <div class="confirm-chat-content">
+                  <p>Iniciar conversa com <strong id="confirm-contact-name"></strong>?</p>
+                  <p class="confirm-chat-warning">O chat atual será fechado e a conversa com este contato será aberta.</p>
+                  <div class="confirm-chat-actions">
+                    <a href="#" id="cancel-confirm-chat">Cancelar</a>
+                    <a href="#" id="confirm-confirm-chat">Confirmar</a>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
@@ -238,6 +254,25 @@
                 </a>
               </div>
             </div>
+            <div id="delete-account-modal">
+              <div class="delete-account-content">
+                <div class="delete-account-start">
+                  <p>Deletar Conta</p>
+                </div>
+                <div class="delete-account-body">
+                  <p class="delete-account-info">
+                    Esta ação é <strong>irreversível</strong>. Sua conta, contatos e dados pessoais serão permanentemente removidos.
+                  </p>
+                  <div class="delete-account-actions">
+                    <a href="#" id="cancel-delete-account-btn">Cancelar</a>
+                    <a href="#" id="confirm-delete-account-btn">
+                      <span id="delete-account-btn-label">Deletar</span>
+                      <div id="delete-account-loading" class="delete-loading hidden"></div>
+                    </a>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
         <section id="add-contact-section">
@@ -320,8 +355,8 @@
               <input id="upload-file" type="file">
             </li>
           </ul>
-          <div class="chat">
-              <div class="message-wrapper">
+          <div class="chat" id="chat">
+              <div class="message-wrapper" id="message-wrapper">
                 <ol id="message-list">
                   <li
                     class="message user"

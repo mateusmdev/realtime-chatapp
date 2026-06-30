@@ -1,0 +1,114 @@
+import MediaPolicy from './MediaPolicy.js'
+
+const CLOUD_NAME    = import.meta.env.VITE_CLOUDINARY_CLOUD_NAME
+const UPLOAD_PRESET = import.meta.env.VITE_CLOUDINARY_UPLOAD_PRESET
+
+class CloudinaryService {
+  static #MAX_SIZE_BYTES = 5 * 1024 * 1024
+
+  static async upload(file) {
+    MediaPolicy.assertUploadAllowed()
+
+    if (file.size > CloudinaryService.#MAX_SIZE_BYTES) {
+      throw new Error('O arquivo excede o tamanho máximo permitido de 5MB.')
+    }
+
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('upload_preset', UPLOAD_PRESET)
+
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+      { method: 'POST', body: formData }
+    )
+
+    if (!response.ok) {
+      throw new Error(`Upload failed with status ${response.status}`)
+    }
+
+    const data = await response.json()
+    return { url: data.secure_url, publicId: data.public_id }
+  }
+
+  static async uploadBase64(base64DataUrl) {
+    MediaPolicy.assertUploadAllowed()
+
+    const base64Regex = /^data:(.+);base64,(.*)$/
+
+    if (!base64DataUrl.match(base64Regex)) {
+      throw new Error('Formato de imagem inválido.')
+    }
+
+    const formData = new FormData()
+    formData.append('file', base64DataUrl)
+    formData.append('upload_preset', UPLOAD_PRESET)
+
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
+      { method: 'POST', body: formData }
+    )
+
+    if (!response.ok) {
+      throw new Error(`Upload failed with status ${response.status}`)
+    }
+
+    const data = await response.json()
+    return { url: data.secure_url, publicId: data.public_id }
+  }
+
+  static async uploadRaw(file) {
+    MediaPolicy.assertUploadAllowed()
+
+    if (file.size > CloudinaryService.#MAX_SIZE_BYTES) {
+      throw new Error('O arquivo excede o tamanho máximo permitido de 5MB.')
+    }
+
+    const formData = new FormData()
+    formData.append('file', file)
+    formData.append('upload_preset', UPLOAD_PRESET)
+
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/raw/upload`,
+      { method: 'POST', body: formData }
+    )
+
+    if (!response.ok) {
+      throw new Error(`Upload failed with status ${response.status}`)
+    }
+
+    const data = await response.json()
+    return { url: data.secure_url, publicId: data.public_id }
+  }
+
+  static async uploadAudio(blob) {
+    MediaPolicy.assertUploadAllowed()
+
+    if (blob.size > CloudinaryService.#MAX_SIZE_BYTES) {
+      throw new Error('O arquivo de áudio excede o tamanho máximo permitido de 5MB.')
+    }
+
+    const formData = new FormData()
+    formData.append('file', blob, 'audio.webm')
+    formData.append('upload_preset', UPLOAD_PRESET)
+
+    const response = await fetch(
+      `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/video/upload`,
+      { method: 'POST', body: formData }
+    )
+
+    if (!response.ok) {
+      throw new Error(`Upload failed with status ${response.status}`)
+    }
+
+    const data = await response.json()
+    return { url: data.secure_url, publicId: data.public_id }
+  }
+
+  static async delete(publicId, resourceType = 'image') {
+    if (!publicId) return
+
+    return { result: 'skipped', reason: 'unsigned_preset_no_delete_support' }
+  }
+}
+
+export default CloudinaryService

@@ -109,6 +109,7 @@ body{
     grid-template-columns: auto;
     justify-content: center;
     align-content: space-between;
+    z-index: 5;
 
     .user-picture-wrapper{
       @include mixins.profilePictureWrapper(3.125rem, 3.125rem, hidden);
@@ -185,10 +186,12 @@ body{
 
       #add-contact-section {
         height: 100%;
+        display: none;
         background: none;
         
         &.overlay-active {
-          z-index: 2;
+          display: initial;
+          z-index: 7;
           position: fixed;
           left: 0;
 
@@ -280,6 +283,16 @@ body{
           }
         }
       }
+
+      section:not(#add-contact-section, #message-section) {
+        transform: translateX(-100%);
+        transition: 0.5s;
+        
+        &.active {
+          transform: translateX(0);
+          z-index: 1;
+        }
+      }
     }
 
     section{
@@ -288,10 +301,6 @@ body{
       width: 100%;
       top: 0;
       left: 0;
-
-      &.active{
-        z-index: 1;
-      }
 
       .title{
         grid-area: title;
@@ -378,8 +387,12 @@ body{
     grid-template-columns: 79% 1fr;
     grid-template-areas:
         "name time-message"
-        "message-content message-count"
+        "message-content message-content"
     ;
+    // grid-template-areas:
+    //     "name time-message"
+    //     "message-content message-count"
+    // ;
     justify-content: space-between;
     position: relative;
     flex: 1;
@@ -391,7 +404,7 @@ body{
 
     .message-content {
       grid-area: message-content;
-      padding-left: 1.875rem;
+      // padding-left: 1.875rem;
       position: relative;
 
       .message-status {
@@ -400,12 +413,14 @@ body{
         left: 0;
         bottom: -0.20rem;
         position: absolute;
+        display: none;
       }
-
+      
       .visualized {
         background-image: url('../assets/check-icon.svg');
         background-size: 100%;
         background-repeat: no-repeat;
+        display: none;
       }
     }
 
@@ -431,6 +446,7 @@ body{
       width: 1.55rem;
       height: 1.55rem;
       margin: 0.2rem 0.25rem 0 0;
+      display: none;
     }
   }
 

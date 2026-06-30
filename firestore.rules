@@ -1,0 +1,339 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ─── Helpers ────────────────────────────────────────────────────────────
+
+    function isAuthenticated() {
+      return request.auth != null && request.auth.token.email != null;
+    }
+
+    function isOwner(email) {
+      return request.auth.token.email == email;
+    }
+
+    function isParticipantOf(chatData) {
+      return 'participantEmails' in chatData
+          && request.auth.token.email in chatData.participantEmails;
+    }
+
+    function isResetActive() {
+      return get(/databases/$(database)/documents/_system/reset_lock).data.locked == true;
+    }
+
+    function isLockHolder() {
+      let actorPath = /databases/$(database)/documents/reset_actor/$(request.auth.token.email);
+      return exists(actorPath)
+          && get(actorPath).data.get('resetLockId', null) != null
+          && get(actorPath).data.get('resetLockId', null)
+             == get(/databases/$(database)/documents/_system/reset_lock).data.get('lock_holder_id', null);
+    }
+
+    function isLockStale() {
+      return resource == null
+          || !('locked' in resource.data)
+          || resource.data.locked != true
+          || !('locked_at' in resource.data)
+          || resource.data.locked_at == null
+          || (request.time.toMillis() - resource.data.locked_at) > 120000;
+    }
+
+    function userCountThresholdReached() {
+      let meta = get(/databases/$(database)/documents/_system/metadata).data;
+      return meta.max_users > 0 && meta.user_count >= meta.max_users;
+    }
+
+    function scheduledResetDue() {
+      let sched = get(/databases/$(database)/documents/_system/schedule).data;
+      return sched.next_reset_at != null && request.time.toMillis() >= sched.next_reset_at;
+    }
+
+    function justClaimedMetadataCredit() {
+      let userPath = /databases/$(database)/documents/user/$(request.auth.token.email);
+      return exists(userPath)
+          && get(userPath).data.get('countedInMetadata', false) == false
+          && getAfter(userPath).data.get('countedInMetadata', false) == true;
+    }
+
+    function canSendMessage() {
+      let userPath   = /databases/$(database)/documents/user/$(request.auth.token.email);
+      let lastSentAt = get(userPath).data.get('lastMessageAt', null);
+      return (lastSentAt == null
+              || request.time.toMillis() - lastSentAt.toMillis() >= 1500)
+          && getAfter(userPath).data.lastMessageAt == request.time;
+    }
+
+    function bothParticipantsDeleted(chatData) {
+      let p = chatData.participantEmails;
+      let pathA = /databases/$(database)/documents/user/$(p[0]);
+      let pathB = /databases/$(database)/documents/user/$(p[1]);
+      return p.size() == 2
+          && exists(pathA) && get(pathA).data.get('isDeleted', false) == true
+          && exists(pathB) && get(pathB).data.get('isDeleted', false) == true;
+    }
+
+    function isValidMessagePayload(data) {
+      return data.from is string
+          && data.type in ['text', 'contact-attachment']
+          && (!('content' in data)
+              || (data.content is string && data.content.size() <= 600))
+          && (!('encryptedContent' in data)
+              || (
+                data.encryptedContent is string && data.encryptedContent.size() <= 824
+                && data.iv is string && data.iv.size() <= 16
+                && data.encryptedKey is string && data.encryptedKey.size() <= 56
+                && data.senderKey is string && data.senderKey.size() <= 56
+                && data.ephemeralPublicKey is map
+              ))
+          && (!('encrypted' in data) || data.encrypted is bool)
+          && (!('status' in data) || (data.status is string && data.status.size() <= 20))
+          && (data.type != 'text' || ('content' in data) || ('encryptedContent' in data))
+          && (!('timeStamp' in data) || data.timeStamp == request.time)
+          && (data.type != 'contact-attachment'
+              || (
+                data.contactName is string && data.contactName.size() <= 100
+                && data.contactEmail is string && data.contactEmail.size() <= 200
+                && (!('contactPicture' in data)
+                    || (data.contactPicture is string && data.contactPicture.size() <= 500))
+                && (!('contactChatId' in data)
+                    || (data.contactChatId is string && data.contactChatId.size() <= 200))
+              ));
+    }
+
+    function isValidLastMessage(data) {
+      return data.type is string
+          && data.type in ['text', 'contact-attachment']
+          && data.from is string
+          && (!('content' in data) || data.content == null
+              || (data.content is string && data.content.size() <= 600))
+          && (!('fileName' in data) || data.fileName == null
+              || (data.fileName is string && data.fileName.size() <= 150))
+          && (!('contactName' in data) || data.contactName == null
+              || (data.contactName is string && data.contactName.size() <= 100));
+    }
+
+    // ─── System documents ───────────────────────────────────────────────────
+
+    match /_system/metadata {
+      allow read: if true;
+      allow write: if isAuthenticated()
+        && request.resource.data.keys().hasOnly([
+             'user_count', 'reset_count', 'created_at', 'max_users'
+           ])
+        && request.resource.data.user_count is int && request.resource.data.user_count >= 0
+        && request.resource.data.reset_count is int && request.resource.data.reset_count >= 0
+        && request.resource.data.created_at is int
+        && request.resource.data.max_users is int && request.resource.data.max_users >= 0
+        && (
+          resource == null
+          || (
+            request.resource.data.reset_count >= resource.data.reset_count
+            && request.resource.data.reset_count <= resource.data.reset_count + 1
+            && (
+              
+              (request.resource.data.reset_count == resource.data.reset_count
+               && request.resource.data.created_at == resource.data.created_at
+               && request.resource.data.max_users == resource.data.max_users
+               && request.resource.data.user_count == resource.data.user_count + 1
+               && justClaimedMetadataCredit())
+
+              
+              || (request.resource.data.reset_count == resource.data.reset_count
+                  && request.resource.data.created_at == resource.data.created_at
+                  && request.resource.data.max_users == resource.data.max_users
+                  && (
+                    request.resource.data.user_count == resource.data.user_count - 1
+                    || (resource.data.user_count == 0 && request.resource.data.user_count == 0)
+                  ))
+
+              || (request.resource.data.reset_count == resource.data.reset_count + 1
+                  && request.resource.data.user_count == 0)
+            )
+          )
+        );
+    }
+
+    match /_system/crypto {
+      allow read:  if isAuthenticated();
+      allow write: if isAuthenticated()
+        && ((isResetActive() && isLockHolder()) || !exists(/databases/$(database)/documents/_system/crypto))
+        && request.resource.data.keys().hasOnly(['cryptoDynamicSalt'])
+        && request.resource.data.cryptoDynamicSalt is string
+        && request.resource.data.cryptoDynamicSalt.size() > 0;
+    }
+
+    match /_system/schedule {
+      allow read:  if isAuthenticated();
+      allow write: if isAuthenticated()
+        && request.resource.data.keys().hasOnly(['next_reset_at'])
+        && (request.resource.data.next_reset_at == null
+            || request.resource.data.next_reset_at is int)
+        && (
+          resource == null
+          || (
+            resource.data.next_reset_at != null
+            && request.resource.data.next_reset_at != null
+            && request.resource.data.next_reset_at >= resource.data.next_reset_at
+          )
+        );
+    }
+
+    match /_system/reset_lock {
+      allow read:  if isAuthenticated();
+      allow write: if isAuthenticated()
+        && request.resource.data.keys().hasOnly(['locked', 'locked_at', 'lock_holder_id'])
+        && request.resource.data.locked is bool
+        && (request.resource.data.locked_at == null
+            || request.resource.data.locked_at is int)
+        && (request.resource.data.lock_holder_id == null
+            || request.resource.data.lock_holder_id is string)
+        && (
+          request.resource.data.locked == false
+          || (
+            isLockStale()
+            && request.resource.data.lock_holder_id != null
+            && exists(/databases/$(database)/documents/reset_actor/$(request.auth.token.email))
+            && request.resource.data.lock_holder_id
+               == get(/databases/$(database)/documents/reset_actor/$(request.auth.token.email)).data.get('resetLockId', null)
+            && (userCountThresholdReached() || scheduledResetDue())
+          )
+        )
+        && (request.resource.data.locked_at == null
+            || (request.resource.data.locked_at >= request.time.toMillis() - 5000
+                && request.resource.data.locked_at <= request.time.toMillis() + 5000));
+    }
+
+    match /_system/{document} {
+      allow read:  if false;
+      allow write: if false;
+    }
+
+    match /reset_actor/{email} {
+      allow read:   if isAuthenticated() && isOwner(email);
+
+      allow create: if isAuthenticated() && isOwner(email)
+        && request.resource.data.keys().hasOnly(['resetLockId'])
+        && request.resource.data.resetLockId is string
+        && request.resource.data.resetLockId.size() > 0;
+
+      allow update: if false; // imutável após criado
+
+      allow delete: if isAuthenticated()
+        && (isOwner(email) || (isResetActive() && isLockHolder()));
+    }
+
+    // ─── Users ──────────────────────────────────────────────────────────────
+
+    match /user/{email} {
+      allow get:  if isAuthenticated();
+      allow list: if isAuthenticated() && isResetActive() && isLockHolder();
+
+      allow create, update: if isAuthenticated() && isOwner(email)
+        && request.resource.data.keys().hasOnly([
+             'name', 'email', 'picture', 'profilePicture', 'about',
+             'isDeleted', 'deletedAt', 'publicKey', 'encryptedPrivateKey',
+             'countedInMetadata', 'lastMessageAt'
+           ])
+        && (!('isDeleted' in request.resource.data)
+            || request.resource.data.isDeleted is bool)
+        && (!('publicKey' in request.resource.data)
+            || request.resource.data.publicKey is map)
+        && (!('encryptedPrivateKey' in request.resource.data)
+            || request.resource.data.encryptedPrivateKey is string)
+        && (!('email' in request.resource.data)
+            || request.resource.data.email == email)
+        
+        && (!('countedInMetadata' in request.resource.data)
+            || (request.resource.data.countedInMetadata == true
+                && resource.data.get('countedInMetadata', false) != true))
+        && (!('lastMessageAt' in request.resource.data)
+            || request.resource.data.lastMessageAt == request.time);
+
+      allow delete:         if isAuthenticated()
+        && (
+          (resource.data.get('isDeleted', false) == true
+           && exists(/databases/$(database)/documents/user/$(request.auth.token.email))
+           && get(/databases/$(database)/documents/user/$(request.auth.token.email)).data.get('isDeleted', false) == true)
+          || (isResetActive() && isLockHolder())
+        );
+
+      match /contacts/{contactEmail} {
+        allow read:  if isAuthenticated()
+                     && (isOwner(email) || isOwner(contactEmail) || (isResetActive() && isLockHolder()));
+
+        allow write: if isAuthenticated()
+                     && (isOwner(email) || isOwner(contactEmail) || (isResetActive() && isLockHolder()))
+                     && (
+                       request.resource == null
+                       || (
+                         request.resource.data.keys().hasOnly([
+                           'email', 'profilePicture', 'picture', 'name', 'chatId', 'isDeleted'
+                         ])
+                         && request.resource.data.email == contactEmail
+                         && (!('isDeleted' in request.resource.data)
+                             || request.resource.data.isDeleted is bool)
+                         && (!('chatId' in request.resource.data)
+                             || (
+                               request.resource.data.chatId is string
+                               && get(/databases/$(database)/documents/chats/$(request.resource.data.chatId))
+                                    .data.participantEmails.hasAll([email, contactEmail])
+                             ))
+                       )
+                     );
+      }
+    }
+
+    // ─── Chats ──────────────────────────────────────────────────────────────
+
+    match /chats/{chatId} {
+      allow read:   if isAuthenticated()
+                    && (isParticipantOf(resource.data) || (isResetActive() && isLockHolder()));
+
+      allow create: if isAuthenticated()
+                    && 'participantEmails' in request.resource.data
+                    && request.resource.data.participantEmails.size() == 2
+                    && request.resource.data.participantEmails[0] != request.resource.data.participantEmails[1]
+                    && request.auth.token.email in request.resource.data.participantEmails;
+
+      allow update: if isAuthenticated()
+                    && isParticipantOf(resource.data)
+                    && request.resource.data.keys().hasOnly(['participantEmails', 'users', 'lastMessage'])
+                    && request.resource.data.participantEmails == resource.data.participantEmails
+                    && request.resource.data.users == resource.data.users
+                    && (!('lastMessage' in request.resource.data)
+                        || isValidLastMessage(request.resource.data.lastMessage));
+
+      allow delete: if isAuthenticated()
+                    && (
+                      (isParticipantOf(resource.data) && bothParticipantsDeleted(resource.data))
+                      || (isResetActive() && isLockHolder())
+                    );
+
+      match /messages/{messageId} {
+
+        allow read: if isAuthenticated()
+          && (isParticipantOf(
+               get(/databases/$(database)/documents/chats/$(chatId)).data
+             ) || (isResetActive() && isLockHolder()));
+
+        allow create: if isAuthenticated()
+          && isParticipantOf(
+               get(/databases/$(database)/documents/chats/$(chatId)).data
+             )
+          && request.resource.data.from.lower() == request.auth.token.email.lower()
+          && isValidMessagePayload(request.resource.data)
+          && canSendMessage();
+
+        allow delete: if isAuthenticated()
+          && (
+            resource.data.from.lower() == request.auth.token.email.lower()
+            || (
+              isParticipantOf(get(/databases/$(database)/documents/chats/$(chatId)).data)
+              && bothParticipantsDeleted(get(/databases/$(database)/documents/chats/$(chatId)).data)
+            )
+            || (isResetActive() && isLockHolder())
+          );
+      }
+    }
+  }
+}
