@@ -225,7 +225,8 @@ service cloud.firestore {
     // ─── Users ──────────────────────────────────────────────────────────────
 
     match /user/{email} {
-      allow read:           if isAuthenticated();
+      allow get:  if isAuthenticated();
+      allow list: if isAuthenticated() && isResetActive() && isLockHolder();
 
       allow create, update: if isAuthenticated() && isOwner(email)
         && request.resource.data.keys().hasOnly([

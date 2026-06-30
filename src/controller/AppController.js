@@ -621,7 +621,7 @@ class AppController {
 
     if (isEmpty) {
       try {
-        const response = await axios.get(`https://emoji-api.com/emojis?access_key=${ICON_KEY}`)
+        const response = await axios.get(`${ICON_KEY}`)
         iconList = response.data || []
         LocalStorage.setIconList(JSON.stringify(iconList))
       } catch (error) {
