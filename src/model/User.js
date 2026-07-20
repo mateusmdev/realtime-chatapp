@@ -21,19 +21,22 @@ class User extends AbstractModel {
     super(data, 'user', 'email')
   }
 
-  async saveContact(contactData) {
+  static async saveContact(ownerEmail, contactData) {
+    const instance = new User()
+
     if (contactData.email) {
       contactData.email = contactData.email.toLowerCase()
     }
-    const documentPath = `${this.getModelAttr('path')}/${this.data[this.getModelAttr('primaryKeyProp')]}/contacts`
-    const documentRef = await this.getModelAttr('firestore').save(contactData, documentPath, contactData[this.getModelAttr('primaryKeyProp')])
+    const documentPath = `${instance.getModelAttr('path')}/${ownerEmail}/contacts`
+    const documentRef = await instance.getModelAttr('firestore').save(contactData, documentPath, contactData[instance.getModelAttr('primaryKeyProp')])
 
     return documentRef
   }
 
-  async getContacts() {
-    const documentPath = `${this.getModelAttr('path')}/${this.data[this.getModelAttr('primaryKeyProp')]}/contacts`
-    const query = await this.getModelAttr('firestore').findDocs(documentPath)
+  static async getContacts(ownerEmail) {
+    const instance = new User()
+    const documentPath = `${instance.getModelAttr('path')}/${ownerEmail}/contacts`
+    const query = await instance.getModelAttr('firestore').findDocs(documentPath)
     const docs = query.docs ?? []
 
     if (docs.length === 0) return []
@@ -46,8 +49,8 @@ class User extends AbstractModel {
     return contacts
   }
 
-  async getContactsFromCache(updateCache = false) {
-    const contacts    = await this.getContacts()
+  static async getContactsFromCache(ownerEmail, updateCache = false) {
+    const contacts    = await User.getContacts(ownerEmail)
     const cacheObject = ProfileCache.get()
     const cache       = cacheObject?.cache || []
 
@@ -73,14 +76,15 @@ class User extends AbstractModel {
     return enrichedContacts
   }
 
-  async markContactAsDeleted(deletedEmail) {
+  static async markContactAsDeleted(ownerEmail, deletedEmail) {
     const email    = deletedEmail.toLowerCase()
-    const contacts = await this.getContacts()
+    const contacts = await User.getContacts(ownerEmail)
 
     if (contacts.length === 0) return
 
-    const firestore = this.getModelAttr('firestore')
-    const path      = this.getModelAttr('path')
+    const instance   = new User()
+    const firestore  = instance.getModelAttr('firestore')
+    const path       = instance.getModelAttr('path')
 
     const updatePromises = contacts.map(async contact => {
       const contactEmail     = contact.email.toLowerCase()
@@ -101,13 +105,14 @@ class User extends AbstractModel {
     await Promise.all(updatePromises)
   }
 
-  async delete() {
-    const email     = this.data[this.getModelAttr('primaryKeyProp')].toLowerCase()
-    const firestore = this.getModelAttr('firestore')
-    const path      = this.getModelAttr('path')
+  static async delete(userData) {
+    const instance  = new User()
+    const email     = userData[instance.getModelAttr('primaryKeyProp')].toLowerCase()
+    const firestore = instance.getModelAttr('firestore')
+    const path      = instance.getModelAttr('path')
 
     const tombstone = {
-      name:      this.data.name,
+      name:      userData.name,
       isDeleted: true,
       deletedAt: Date.now(),
     }

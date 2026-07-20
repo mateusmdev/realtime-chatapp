@@ -147,12 +147,12 @@ class AbstractModel {
     getAttribute(name) {
       const attr = this.#data[name]
 
-      if (attr == null) throw InvalidArgumentException(`Attribute '${name}' not found.`)
+      if (attr == null) throw new InvalidArgumentException(`Attribute '${name}' not found.`)
       return attr
     }
 
     setAttribute(name, value) {
-      if (name === 'id' || name === this.#primaryKeyProp) throw ProtectedAttributeException(`Modification of '${name}' attribute is not allowed.`)
+      if (name === 'id' || name === this.#primaryKeyProp) throw new ProtectedAttributeException(`Modification of '${name}' attribute is not allowed.`)
 
       this.#data[name] = value
     }

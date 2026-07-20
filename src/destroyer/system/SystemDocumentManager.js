@@ -7,9 +7,6 @@ import '../../firebase/firebaseConfig'
 
 const COLLECTION = '_system'
 
-// F6 — evita repetir 4 leituras de existência a cada login; esses
-// documentos só mudam de estado de existência em deploys novos ou após
-// limpeza manual do Firestore, então um cache curto é seguro.
 const INIT_CHECK_CACHE_KEY = 'system-init-checked-at'
 const INIT_CHECK_TTL_MS    = 60 * 60 * 1000 // 1 hora
 
@@ -68,10 +65,6 @@ class SystemDocumentManager {
     this.#markRecentlyChecked()
   }
 
-  // F2 — exige o e-mail de quem está sendo contabilizado, para gravar,
-  // na MESMA transação, a marcação countedInMetadata no doc do usuário.
-  // Sem essa marcação a regra do Firestore rejeita o incremento (ver
-  // justClaimedMetadataCredit() em firestore.rules).
   async incrementUserCount(email) {
     const metadataRef = doc(this.#db, COLLECTION, DOCS.METADATA)
     const userRef      = doc(this.#db, 'user', email)
@@ -113,10 +106,6 @@ class SystemDocumentManager {
     })
   }
 
-  // F2 — não confia mais no campo armazenado (livremente incrementável
-  // antes desta correção); conta usuários ativos ao vivo. count() é
-  // cobrado como leitura normal (1 leitura por até 1000 entradas de
-  // índice) e está disponível no plano Spark.
   async getUserCount() {
     try {
       const usersRef = collection(this.#db, 'user')
@@ -233,9 +222,6 @@ class SystemDocumentManager {
     }
   }
 
-  // F2 — lido a cada (re)inicialização do metadata, permitindo que você
-  // reduza VITE_MAX_USERS após o pico inicial; o novo valor passa a valer
-  // a partir do próximo ciclo de reset real.
   #getConfiguredMaxUsers() {
     return Math.max(0, Math.floor(Number(import.meta.env.VITE_MAX_USERS) || 0))
   }

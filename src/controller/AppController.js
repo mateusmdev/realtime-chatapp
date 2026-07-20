@@ -457,7 +457,7 @@ class AppController {
   }
 
   #startTokenValidationPolling() {
-    const POLLING_INTERVAL_MS = 30 * 60 * 1000 // 30 minutes
+    const POLLING_INTERVAL_MS = 30 * 60 * 1000
 
     const validate = async () => {
       const accessToken = LocalStorage.getAccessToken()
@@ -536,7 +536,7 @@ class AppController {
       }
 
       const cacheObject = ProfileCache.get()
-      const contacts    = await user.getContactsFromCache(!cacheObject?.isCached)
+      const contacts    = await User.getContactsFromCache(user.data.email, !cacheObject?.isCached)
 
       const sortedContacts = [...contacts].sort((a, b) =>
         a.name.localeCompare(b.name)
@@ -903,9 +903,6 @@ class AppController {
 
     if (result !== null) {
       try {
-        const userA = new User(userData)
-        const userB = new User(result)
-
         let chat = await Chat.findByUsers(userData.email, result.email)
 
         if (!chat) {
@@ -914,7 +911,7 @@ class AppController {
 
         const chatId = chat.data.id
 
-        await userA.saveContact({
+        await User.saveContact(userData.email, {
           email:          result.email,
           profilePicture: result.profilePicture,
           picture:        result.picture,
@@ -922,7 +919,7 @@ class AppController {
           chatId,
         })
 
-        await userB.saveContact({
+        await User.saveContact(result.email, {
           email:          userData.email,
           profilePicture: userData.profilePicture,
           picture:        userData.picture,
@@ -930,7 +927,7 @@ class AppController {
           chatId,
         })
 
-        const freshContacts  = await userA.getContactsFromCache(true)
+        const freshContacts  = await User.getContactsFromCache(userData.email, true)
         const sortedContacts = [...freshContacts].sort((a, b) =>
           a.name.localeCompare(b.name)
         )
@@ -1076,10 +1073,8 @@ class AppController {
     inputContent.textContent = ''
     inputContent.dispatchEvent(event)
 
-    const message = new Message(messageData, this.#currentChatId)
-
     try {
-      await message.send()
+      await Message.send(messageData, this.#currentChatId)
     } catch (error) {
       throw error
       inputContent.textContent = plaintext
@@ -1191,8 +1186,7 @@ class AppController {
         from:      userData.email,
       }
 
-      const message = new Message(messageData, this.#currentChatId)
-      await message.send()
+      await Message.send(messageData, this.#currentChatId)
 
     } catch (error) {
       alert('Erro ao enviar o áudio. Tente novamente.')
@@ -1218,8 +1212,7 @@ class AppController {
         from:      userData.email,
       }
 
-      const message = new Message(messageData, this.#currentChatId)
-      await message.send()
+      await Message.send(messageData, this.#currentChatId)
 
       this.#pendingMediaFile = null
       this.handleCloseMediaModal()
@@ -1247,8 +1240,7 @@ class AppController {
         from:      userData.email,
       }
 
-      const message = new Message(messageData, this.#currentChatId)
-      await message.send()
+      await Message.send(messageData, this.#currentChatId)
 
       this.handleCloseMediaModal()
     } catch (error) {
@@ -1274,8 +1266,7 @@ class AppController {
         from:      userData.email,
       }
 
-      const message = new Message(messageData, this.#currentChatId)
-      await message.send()
+      await Message.send(messageData, this.#currentChatId)
 
       this.#pendingDocumentFile = null
       this.handleCloseMediaModal()
@@ -1362,10 +1353,7 @@ class AppController {
 
       const chatId = chat.data.id
 
-      const userA = new User(userData)
-      const userB = new User(contactData)
-
-      await userA.saveContact({
+      await User.saveContact(userData.email, {
         email:          contactData.email,
         profilePicture: contactData.profilePicture ?? contactData.picture,
         picture:        contactData.picture,
@@ -1373,7 +1361,7 @@ class AppController {
         chatId,
       })
 
-      await userB.saveContact({
+      await User.saveContact(contactData.email, {
         email:          userData.email,
         profilePicture: userData.profilePicture ?? userData.picture,
         picture:        userData.picture,
@@ -1381,7 +1369,7 @@ class AppController {
         chatId,
       })
 
-      const freshContacts  = await userA.getContactsFromCache(true)
+      const freshContacts  = await User.getContactsFromCache(userData.email, true)
       const sortedContacts = [...freshContacts].sort((a, b) =>
         a.name.localeCompare(b.name)
       )
@@ -1434,8 +1422,7 @@ class AppController {
         timeStamp:      Date.now(),
       }
 
-      const message = new Message(messageData, this.#currentChatId)
-      await message.send()
+      await Message.send(messageData, this.#currentChatId)
 
       this.handleCloseMediaModal()
     } catch (error) {
@@ -1452,10 +1439,9 @@ class AppController {
       await auth.reauthenticate()
 
       const userData = JSON.parse(LocalStorage.getUserData())
-      const user     = new User(userData)
 
-      await user.markContactAsDeleted(userData.email)
-      await user.delete()
+      await User.markContactAsDeleted(userData.email, userData.email)
+      await User.delete(userData)
       await ResetActorRegistry.delete(userData.email)
       await this.#handleMutualDeletionCascade(userData)
 
@@ -1500,7 +1486,7 @@ class AppController {
     }
 
     for (const chat of chats) {
-      const otherEmail = chat.getOtherParticipantEmail(userData.email)
+      const otherEmail = Chat.getOtherParticipantEmail(chat.data, userData.email)
       if (!otherEmail) continue
 
       const otherUser     = new User({ email: otherEmail })
