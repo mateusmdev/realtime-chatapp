@@ -1083,36 +1083,9 @@ class AppView extends AbstractView {
       indicator.id = 'crypto-loading-indicator'
       indicator.setAttribute('role', 'status')
       indicator.setAttribute('aria-live', 'polite')
-      indicator.style.cssText = `
-        position: fixed;
-        bottom: 1rem;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(127, 118, 255, 0.9);
-        color: #fff;
-        padding: 0.5rem 1.2rem;
-        border-radius: 2rem;
-        font-size: 0.78rem;
-        z-index: 100;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        backdrop-filter: blur(4px);
-        transition: opacity 0.3s ease;
-      `
 
       const dot = document.createElement('span')
-      dot.style.cssText = `
-        width: 8px; height: 8px;
-        border-radius: 50%;
-        border: 2px solid rgba(255,255,255,0.4);
-        border-top-color: #fff;
-        animation: crypto-spin 0.7s linear infinite;
-      `
-
-      const style = document.createElement('style')
-      style.textContent = '@keyframes crypto-spin { to { transform: rotate(360deg); } }'
-      document.head.appendChild(style)
+      dot.classList.add('spinner')
 
       indicator.appendChild(dot)
       indicator.appendChild(document.createTextNode(' Configurando criptografia…'))
@@ -1120,11 +1093,16 @@ class AppView extends AbstractView {
     }
 
     if (isLoading) {
-      indicator.style.opacity = '1'
-      indicator.style.pointerEvents = 'auto'
+      this.setStyle(indicator, {
+        opacity: '1',
+        pointerEvents: 'auto'
+      })
     } else {
-      indicator.style.opacity = '0'
-      indicator.style.pointerEvents = 'none'
+      this.setStyle(indicator, {
+        opacity: '0',
+        pointerEvents: 'none'
+      })
+
       setTimeout(() => indicator?.remove(), 400)
     }
   }

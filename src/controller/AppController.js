@@ -548,7 +548,6 @@ class AppController {
       })
 
       const cryptoPromise = this.#initializeCrypto(user.data)
-
       const options = { handleCallback: this.handleContactItem.bind(this) }
 
       await this.#view.loadContacts(sortedContacts, options)
