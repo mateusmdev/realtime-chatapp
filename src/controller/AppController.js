@@ -491,7 +491,9 @@ class AppController {
     try {
       const auth = new Authenticator()
       await auth.signOut()
-    } catch (_) {}
+    } catch (error) {
+      throw error
+    }
 
     LocalStorage.clearSession()
     ProfileCache.clear()
@@ -561,10 +563,15 @@ class AppController {
       try {
         const auth = new Authenticator()
         await auth.signOut()
-      } catch (_) {}
-
+      } catch (error) {
+        throw error
+      }
       LocalStorage.clearSession()
       ProfileCache.clear()
+      console.log('Erro de autenticação. Redirecionando para a página de login.', error)
+      console.log(`Erro do projeto está acontecendo aqui, redirecionando para a página logo após entrar em '/app'`)
+      console.log('Throw colocado abaixo para verificar o erro, mas não é necessário para o funcionamento do app.')
+      throw  error
       window.location.href = '/'
     }
   }
@@ -647,11 +654,13 @@ class AppController {
     try {
       const auth = new Authenticator()
       await auth.signOut()
-    } catch (_) {
+    } catch (error) {
+      throw error
     }
 
     LocalStorage.clearSession()
     ProfileCache.clear()
+    alert('4')
     window.location.href = '/'
   }
 
@@ -1464,7 +1473,7 @@ class AppController {
 
       LocalStorage.clearSession()
       ProfileCache.clear()
-
+      alert('5')
       window.location.href = '/'
 
     } catch (error) {
