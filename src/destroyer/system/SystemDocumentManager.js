@@ -1,7 +1,6 @@
 import Firestore from '../../firebase/Firestore'
 import {
   getFirestore, runTransaction, doc, onSnapshot,
-  collection, getCountFromServer, query, where,
 } from 'firebase/firestore'
 import '../../firebase/firebaseConfig'
 
@@ -24,45 +23,49 @@ class SystemDocumentManager {
   async initializeIfNeeded() {
     if (this.#wasRecentlyChecked()) return
 
-    const [metadataSnap, scheduleExists, lockExists, cryptoExists] = await Promise.all([
-      this.#firestore.findById(COLLECTION, DOCS.METADATA),
-      this.#documentExists(DOCS.SCHEDULE),
-      this.#documentExists(DOCS.LOCK),
-      this.#documentExists(DOCS.CRYPTO),
-    ])
+    try {
+      const [metadataSnap, scheduleExists, lockExists, cryptoExists] = await Promise.all([
+        this.#firestore.findById(COLLECTION, DOCS.METADATA),
+        this.#documentExists(DOCS.SCHEDULE),
+        this.#documentExists(DOCS.LOCK),
+        this.#documentExists(DOCS.CRYPTO),
+      ])
 
-    const metadataExists = metadataSnap != null && metadataSnap.exists()
-    const creates = []
+      const metadataExists = metadataSnap != null && metadataSnap.exists()
+      const creates = []
 
-    if (!metadataExists) {
-      creates.push(
-        this.#firestore.save(this.#buildInitialMetadata(), COLLECTION, DOCS.METADATA)
-      )
+      if (!metadataExists) {
+        creates.push(
+          this.#firestore.save(this.#buildInitialMetadata(), COLLECTION, DOCS.METADATA)
+        )
+      }
+
+      if (!cryptoExists) {
+        creates.push(
+          this.#firestore.save(this.#buildInitialCrypto(), COLLECTION, DOCS.CRYPTO)
+        )
+      }
+
+      if (!scheduleExists) {
+        creates.push(
+          this.#firestore.save(this.#buildInitialSchedule(), COLLECTION, DOCS.SCHEDULE)
+        )
+      }
+
+      if (!lockExists) {
+        creates.push(
+          this.#firestore.save(this.#buildInitialLock(), COLLECTION, DOCS.LOCK)
+        )
+      }
+
+      if (creates.length > 0) {
+        await Promise.all(creates)
+      }
+
+      this.#markRecentlyChecked()
+    } catch (error) {
+      console.error('[SystemDocumentManager] Falha ao inicializar documentos de sistema — app segue com os valores padrão/fallback já existentes em cada método.', error)
     }
-
-    if (!cryptoExists) {
-      creates.push(
-        this.#firestore.save(this.#buildInitialCrypto(), COLLECTION, DOCS.CRYPTO)
-      )
-    }
-
-    if (!scheduleExists) {
-      creates.push(
-        this.#firestore.save(this.#buildInitialSchedule(), COLLECTION, DOCS.SCHEDULE)
-      )
-    }
-
-    if (!lockExists) {
-      creates.push(
-        this.#firestore.save(this.#buildInitialLock(), COLLECTION, DOCS.LOCK)
-      )
-    }
-
-    if (creates.length > 0) {
-      await Promise.all(creates)
-    }
-
-    this.#markRecentlyChecked()
   }
 
   async incrementUserCount(email) {
@@ -107,20 +110,8 @@ class SystemDocumentManager {
   }
 
   async getUserCount() {
-    try {
-      const usersRef = collection(this.#db, 'user')
-
-      const [totalSnap, deletedSnap] = await Promise.all([
-        getCountFromServer(usersRef),
-        getCountFromServer(query(usersRef, where('isDeleted', '==', true))),
-      ])
-
-      return Math.max(0, totalSnap.data().count - deletedSnap.data().count)
-    } catch (error) {
-      console.error('[SystemDocumentManager] Falha ao contar usuários via agregação; usando contador armazenado como fallback.', error)
-      const data = await this.#getDocument(DOCS.METADATA)
-      return data?.user_count ?? 0
-    }
+    const data = await this.#getDocument(DOCS.METADATA)
+    return data?.user_count ?? 0
   }
 
   async getSchedule() {
