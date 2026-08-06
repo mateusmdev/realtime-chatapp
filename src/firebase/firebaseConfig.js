@@ -12,8 +12,15 @@ const firebaseConfig =  {
 
 const app = initializeApp(firebaseConfig)
 
-if (import.meta.env.DEV) {
-  self.FIREBASE_APPCHECK_DEBUG_TOKEN = import.meta.env.VITE_APPCHECK_DEBUG_TOKEN ?? true
+if (import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+  const envToken = import.meta.env.VITE_APPCHECK_DEBUG_TOKEN;
+  if (envToken && envToken.trim() !== '') {
+    self.FIREBASE_APPCHECK_DEBUG_TOKEN = envToken;
+    console.log('[AppCheck] Usando token do .env:', envToken);
+  } else {
+    self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+    console.warn('[AppCheck] VITE_APPCHECK_DEBUG_TOKEN vazio no .env. Gerando um novo no console...');
+  }
 }
 
 initializeAppCheck(app, {

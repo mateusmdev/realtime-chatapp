@@ -488,10 +488,15 @@ class AppController {
     this.#destroyMessageListListeners()
     this.#destroyResetListener()
 
+    await this.#terminateSession()
+  }
+
+  async #terminateSession() {
     try {
       const auth = new Authenticator()
       await auth.signOut()
     } catch (error) {
+      console.error('[Auth] Falha ao encerrar sessão no Firebase (prosseguindo com limpeza local):', error)
       throw error
     }
 
@@ -560,19 +565,12 @@ class AppController {
       this.#initResetListener()
 
     } catch (error) {
-      try {
-        const auth = new Authenticator()
-        await auth.signOut()
-      } catch (error) {
-        throw error
-      }
-      LocalStorage.clearSession()
-      ProfileCache.clear()
+      console.error('[getUserData] Falha ao carregar dados do usuário, encerrando sessão:', error)
       console.log('Erro de autenticação. Redirecionando para a página de login.', error)
       console.log(`Erro do projeto está acontecendo aqui, redirecionando para a página logo após entrar em '/app'`)
       console.log('Throw colocado abaixo para verificar o erro, mas não é necessário para o funcionamento do app.')
       throw  error
-      window.location.href = '/'
+      await this.#terminateSession()
     }
   }
 
@@ -651,17 +649,7 @@ class AppController {
     this.#destroyMessageListListeners()
     this.#destroyResetListener()
 
-    try {
-      const auth = new Authenticator()
-      await auth.signOut()
-    } catch (error) {
-      throw error
-    }
-
-    LocalStorage.clearSession()
-    ProfileCache.clear()
-    alert('4')
-    window.location.href = '/'
+    await this.#terminateSession()
   }
 
   handleMenuBtnClick(e){
