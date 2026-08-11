@@ -248,6 +248,7 @@ service cloud.firestore {
             || request.resource.data.email == email)
         
         && (!('countedInMetadata' in request.resource.data)
+            || request.resource.data.countedInMetadata == resource.data.get('countedInMetadata', false)
             || (request.resource.data.countedInMetadata == true
                 && resource.data.get('countedInMetadata', false) != true))
         && (!('lastMessageAt' in request.resource.data)
