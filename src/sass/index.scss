@@ -24,7 +24,7 @@ main{
     width: calc(100% - 31.25rem);
     height: 100vh;
     position: relative;
-    background-image: none;
+    background-image: url('./../assets/wallpaper.webp');
     background-size: cover;
     background-repeat: no-repeat;
 
@@ -34,7 +34,6 @@ main{
       height: 100%;
       background-color: variables.$primary-color;
       mix-blend-mode: hue;
-      opacity: 0;
     }
   }
 

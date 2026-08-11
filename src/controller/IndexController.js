@@ -4,8 +4,6 @@ import LocalStorage from '../utils/LocalStorage'
 import ProfileCache from '../utils/ProfileCache'
 import SystemDocumentManager from '../destroyer/system/SystemDocumentManager'
 
-const BACKGROUND = import.meta.env.VITE_BACKGROUND
-
 class IndexController {
   #view = new IndexView()
   #resetListener = null
@@ -27,11 +25,6 @@ class IndexController {
   }
 
   initApp() {
-    const preferences = {
-      backgroundImage: BACKGROUND
-    }
-
-    this.#view.initLayout(preferences)
     this.redirectUser()
   }
 
