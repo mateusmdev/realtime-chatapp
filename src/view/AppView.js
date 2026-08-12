@@ -48,40 +48,62 @@ class AppView extends AbstractView {
 
   loadContacts(list, options = {}) {
     const { contactContainer } = this.$()
-    const baseItem = contactContainer.querySelector('.item')
     contactContainer.innerHTML = ''
 
     if (list?.length < 1) return
-    
+
     list.forEach(dataItem => {
-      const item = baseItem.cloneNode(true)
-      
-      const profile = item.querySelector('.picture-wrapper img')
-      const name = item.querySelector('.name')
-      const about = item.querySelector('.phrase-contact')
-      
-      profile.src = dataItem.profilePicture ?? dataItem.picture
-      name.innerText = dataItem.name
-      about.innerText = dataItem.about
-      
-      const callbackParam = {
-        profileImage: dataItem.profilePicture ?? dataItem.picture,
-        name:         dataItem.name,
-        email:        dataItem.email,
-        chatId:       dataItem.chatId,
-        publicKey:    dataItem.publicKey ?? null,
-      } 
- 
-      this.addEvent(item, {
-        eventName: 'click',
-        fn: event => options.handleCallback(event, callbackParam),
-        behavior: {
-          preventDefault: true
-        }
-      })
- 
+      const item = this.#buildContactItem(dataItem, options)
       contactContainer.appendChild(item)
     })
+  }
+
+  #buildContactItem(dataItem, options = {}) {
+    const li = document.createElement('li')
+    li.className = 'item'
+
+    const pictureWrapper = document.createElement('div')
+    pictureWrapper.className = 'picture-wrapper'
+    const img = document.createElement('img')
+    img.src = dataItem.profilePicture ?? dataItem.picture
+    img.alt = 'contact profile picture'
+    img.className = 'profile-picture'
+    pictureWrapper.appendChild(img)
+
+    const contactData = document.createElement('div')
+    contactData.className = 'contact-data'
+
+    const nameEl = document.createElement('p')
+    nameEl.className = 'name'
+    nameEl.textContent = dataItem.name
+
+    const aboutEl = document.createElement('p')
+    aboutEl.className = 'phrase-contact'
+    aboutEl.textContent = dataItem.about
+
+    contactData.appendChild(nameEl)
+    contactData.appendChild(aboutEl)
+
+    li.appendChild(pictureWrapper)
+    li.appendChild(contactData)
+
+    const callbackParam = {
+      profileImage: dataItem.profilePicture ?? dataItem.picture,
+      name:         dataItem.name,
+      email:        dataItem.email,
+      chatId:       dataItem.chatId,
+      publicKey:    dataItem.publicKey ?? null,
+    }
+
+    this.addEvent(li, {
+      eventName: 'click',
+      fn: event => options.handleCallback(event, callbackParam),
+      behavior: {
+        preventDefault: true
+      }
+    })
+
+    return li
   }
 
   updateMessageScreen(data) {
