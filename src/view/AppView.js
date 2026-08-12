@@ -427,6 +427,8 @@ class AppView extends AbstractView {
     const message = inputContent.innerText.trim()
     const isBlockMedia = this.getState('blockMedia')
 
+    this.togglePlaceholder(message)
+
     if (message.length < 1) {
       placeholder.innerText = this.getState('placeholderText')
 
@@ -455,6 +457,16 @@ class AppView extends AbstractView {
       placeholder.innerText = ''
       microphoneBtn.classList.add('hidden')
       sendBtn.classList.remove('hidden')   
+    }
+  }
+
+  togglePlaceholder(message) {
+    const { placeholder } = this.$()
+
+    if (message.length < 1) {
+      placeholder.innerText = this.getState('placeholderText')
+    } else {
+      placeholder.innerText = ''
     }
   }
 
@@ -926,6 +938,7 @@ class AppView extends AbstractView {
   renderMessageList(sortedItems, options = {}) {
     const { messageContainer } = this.$()
     const existingElements = this.getState('messageListElements')
+    messageContainer.innerHTML = ''
 
     const incomingChatIds = new Set(sortedItems.map(item => item.chatId))
     for (const [chatId, element] of existingElements) {
