@@ -93,7 +93,10 @@ main .app-content {
   
           p{
             font-size: 0.7rem;
-            margin-top: 0.25rem;
+            display: none;
+            width: 0;
+            height: 0;
+            overflow: hidden;
           }
         }
       }
@@ -111,8 +114,14 @@ main .app-content {
           height: 1rem;
         }
 
+        #attachment-btn {
+          margin-left: 1.6rem;
+        }
+
         a:nth-child(2) {
           margin-left: 0.35rem;
+          display: none;
+          
           img{
             width: 1.2rem;
           }

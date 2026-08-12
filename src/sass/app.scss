@@ -71,7 +71,7 @@ body{
   }
   
   #splash-screen {
-    z-index: 5;
+    z-index: 20;
     position: fixed;
     top: 0;
     left: 0;
@@ -487,6 +487,12 @@ body{
     text-overflow: ellipsis;
     white-space: nowrap;
     padding-top: 0.1rem;
+  }
+
+  .phrase-contact {
+    width: 0;
+    height: 0;
+    display: none;
   }
 }
 
