@@ -189,7 +189,6 @@ class AppView extends AbstractView {
     const splashScreen = this.$('splashScreen')
     const appStyleState = this.getState('appStyle')
     
-    this.clearUserList()
     this.setState('appStyle', appStyle ?? appStyleState)
     this.setAppStyle()
     splashScreen.remove()
@@ -200,7 +199,7 @@ class AppView extends AbstractView {
   }
 
   clearUserList() {
-    const { contactContainer, messageContainer } = this.$()
+    const { messageContainer, contactContainer } = this.$()
     contactContainer.innerHTML = ''
     messageContainer.innerHTML = ''
   }
@@ -260,9 +259,10 @@ class AppView extends AbstractView {
     contentScreen.classList.remove('messages')
   }
 
-  toggleContactError(hasError = true) {
+  toggleContactError(hasError = true, message) {
     const contactAdvise = this.$('contactAdvise')
-      
+    
+    contactAdvise.innerText = message
     this.setStyle(contactAdvise, {
       display: hasError ? 'initial' : 'none',
       opacity: hasError ? '1' : '0'
@@ -945,7 +945,7 @@ class AppView extends AbstractView {
   renderMessageList(sortedItems, options = {}) {
     const { messageContainer } = this.$()
     const existingElements = this.getState('messageListElements')
-    messageContainer.innerHTML = 'aa'
+    messageContainer.innerHTML = ''
     console.log('passou aq')
 
     const incomingChatIds = new Set(sortedItems.map(item => item.chatId))

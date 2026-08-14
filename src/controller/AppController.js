@@ -222,6 +222,14 @@ class AppController {
       }
     })
 
+    this.#view.addEvent('#contactInput', {
+      eventName: 'keypress',
+      fn: (event) => this.handleAddContact(event),
+      behavior: {
+        preventDefault: false,
+      }
+    })
+
     this.#view.addEvent('.custom-input button', {
       eventName: 'click',
       fn: (event) => this.handleToggleStyle(event),
@@ -375,6 +383,7 @@ class AppController {
       await auth.waitForAuth()
 
       await SystemDocumentManager.initializeIfNeeded()
+      this.#view.clearUserList()
       await this.getUserData()
     }
 
@@ -876,12 +885,22 @@ class AppController {
   }
 
   async handleAddContact(event) {
+    
+    if (event.type === 'keypress') {
+      const keyPressed = event.key === 'Enter' ?? event.code === 'Enter'
+
+      if (!keyPressed) return
+    }
+
     const userData = JSON.parse(LocalStorage.getUserData())
     const value = this.#view.$('contactInput').value
 
-    if (value.trim() === '' || value.trim() === userData.email) return
+    if (value.trim() === '' || value.trim() === userData.email) {
+      this.#view.toggleContactError(true, 'Não é possível adicionar a si mesmo como contato.')
+      return
+    }
 
-    const MIN_RESPONSE_MS = 800
+    const MIN_RESPONSE_MS = 300
     const startedAt       = Date.now()
 
     const contact = new User({ email: value })
@@ -938,7 +957,7 @@ class AppController {
 
       this.#view.setAddContactModal(this.#view.$('cancelAddContact'))
     } else {
-      this.#view.toggleContactError(true)
+      this.#view.toggleContactError(true, 'O contato informado não foi encontrado.')
     }
   }
 
@@ -1413,9 +1432,9 @@ class AppController {
         timeStamp:      Date.now(),
       }
 
+      this.handleCloseMediaModal()
       await Message.send(messageData, this.#currentChatId)
 
-      this.handleCloseMediaModal()
     } catch (error) {
       alert('Erro ao enviar o contato. Tente novamente.')
     }
