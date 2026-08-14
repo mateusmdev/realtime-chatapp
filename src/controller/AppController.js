@@ -412,6 +412,15 @@ class AppController {
       document.dispatchEvent(event)
       this.#setupAuthStateSync()
       this.#startTokenValidationPolling()
+    } else {
+      const { contactContainer, messageContainer } = this.#view.$()
+      const elements = [...contactContainer.children, ...messageContainer.children]
+      
+      this.#view.addEventAll(elements, {
+        eventName: 'click',
+        fn: () => this.#view.toggleMessageScreen(open = true),
+        behavior: { preventDefault: true }
+      })
     }
   }
 
@@ -506,7 +515,6 @@ class AppController {
       await auth.signOut()
     } catch (error) {
       console.error('[Auth] Falha ao encerrar sessão no Firebase (prosseguindo com limpeza local):', error)
-      throw error
     }
 
     LocalStorage.clearSession()
@@ -952,7 +960,7 @@ class AppController {
 
         this.initMessageList(sortedContacts)
       } catch (error) {
-        throw error
+        alert('Houve um erro e não foi possível adicionar o contato.')
       }
 
       this.#view.setAddContactModal(this.#view.$('cancelAddContact'))
@@ -1027,13 +1035,18 @@ class AppController {
   }
 
   async handlerSendMessage() {
-    const now = Date.now()
-    if (now - this.#lastMessageSentAt < MIN_MESSAGE_INTERVAL_MS) return
-
-    const { messageList, inputContent } = this.#view.$()
+    const isPreview = this.#view.getState('isPreviewMode')
+    const { inputContent } = this.#view.$()
     const plaintext     = inputContent.innerText.trim()
     const messageLength = plaintext.length
+    const now = Date.now()
 
+    if (isPreview) {
+      this.#view.appendFakeMessage(plaintext)
+      return
+    }
+
+    if (now - this.#lastMessageSentAt < MIN_MESSAGE_INTERVAL_MS) return
     if (messageLength <= 0 || this.#currentChatId === null) return
     if (messageLength > MAX_MESSAGE_LENGTH) return
 
@@ -1086,7 +1099,6 @@ class AppController {
     try {
       await Message.send(messageData, this.#currentChatId)
     } catch (error) {
-      throw error
       inputContent.textContent = plaintext
       inputContent.dispatchEvent(new CustomEvent('keyup', { bubbles: false, cancelable: true }))
       alert('Não foi possível enviar a mensagem. Aguarde um instante e tente novamente.')
@@ -1411,7 +1423,6 @@ class AppController {
 
     } catch (error) {
       alert('Erro ao abrir conversa. Tente novamente.')
-      throw error
     }
   }
 
@@ -1481,7 +1492,6 @@ class AppController {
     } catch (error) {
       this.#view.setDeleteAccountLoading(false)
       alert('Erro ao deletar a conta. Tente novamente.')
-      throw error
     }
   }
 

@@ -946,7 +946,6 @@ class AppView extends AbstractView {
     const { messageContainer } = this.$()
     const existingElements = this.getState('messageListElements')
     messageContainer.innerHTML = ''
-    console.log('passou aq')
 
     const incomingChatIds = new Set(sortedItems.map(item => item.chatId))
     for (const [chatId, element] of existingElements) {
@@ -1147,6 +1146,30 @@ class AppView extends AbstractView {
       })
 
       setTimeout(() => indicator?.remove(), 400)
+    }
+  }
+
+  appendFakeMessage(message) {
+    if (message.trim().length > 0) {
+      let isInitialLoad = true
+
+      const { messageList, inputContent } = this.$()
+      const li = document.createElement('li')
+      const content = document.createElement('div')
+
+      content.textContent = message
+      content.className = 'content'
+      content.classList.add('text')
+      
+      li.classList.add('message', 'user')
+      li.appendChild(content)
+
+      messageList.appendChild(li)
+      inputContent.innerText = ''
+
+      const shouldScroll = isInitialLoad || this.isAtBottom()
+      if (shouldScroll) this.scrollToBottom()
+      isInitialLoad = false
     }
   }
 }
