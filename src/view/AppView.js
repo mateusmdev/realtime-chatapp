@@ -188,7 +188,8 @@ class AppView extends AbstractView {
     const { appStyle } = preferences
     const splashScreen = this.$('splashScreen')
     const appStyleState = this.getState('appStyle')
-  
+    
+    this.clearUserList()
     this.setState('appStyle', appStyle ?? appStyleState)
     this.setAppStyle()
     splashScreen.remove()
@@ -196,6 +197,12 @@ class AppView extends AbstractView {
     if (isPreviewMode === false) {
       this.clearMockedData()
     }
+  }
+
+  clearUserList() {
+    const { contactContainer, messageContainer } = this.$()
+    contactContainer.innerHTML = ''
+    messageContainer.innerHTML = ''
   }
 
   closeConcorrentModal() {
@@ -938,7 +945,8 @@ class AppView extends AbstractView {
   renderMessageList(sortedItems, options = {}) {
     const { messageContainer } = this.$()
     const existingElements = this.getState('messageListElements')
-    messageContainer.innerHTML = ''
+    messageContainer.innerHTML = 'aa'
+    console.log('passou aq')
 
     const incomingChatIds = new Set(sortedItems.map(item => item.chatId))
     for (const [chatId, element] of existingElements) {
