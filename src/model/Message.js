@@ -94,6 +94,7 @@ class Message extends AbstractModel {
       return new Message(
         {
           ...data,
+          id: docSnap.id,
           hasMedia,
           resourceType: hasMedia ? Message.#resolveResourceType(data.type) : null,
         },
@@ -118,8 +119,8 @@ class Message extends AbstractModel {
 
     listener.onSnapshot((snapshot) => {
       const messages = snapshot.docChanges()
-        .filter(change => change.type === 'added')
-        .map(change => new Message(change.doc.data(), chatId))
+        .filter(change => change.type === 'added' || change.type === 'modified')
+        .map(change => new Message({ ...change.doc.data(), id: change.doc.id }, chatId))
 
       if (messages.length > 0) callback(messages)
     }, constraints, path)

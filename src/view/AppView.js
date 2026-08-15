@@ -669,8 +669,21 @@ class AppView extends AbstractView {
   addMessage(data, isFromContact = false) {
     if (!data) return
 
+    const { messageList } = this.$()
+    const messageId = data.id ?? null
+    const existingLi = messageId
+      ? messageList.querySelector(`li[data-message-id="${CSS.escape(messageId)}"]`)
+      : null
+
+    if (existingLi) {
+      const existingTimeEl = existingLi.querySelector('.message-time')
+      if (existingTimeEl) existingTimeEl.textContent = this.#formatMessageTime(data.timeStamp)
+      return
+    }
+
     const li = document.createElement('li')
     li.classList.add('message', isFromContact ? 'contact' : 'user')
+    if (messageId) li.dataset.messageId = messageId
 
     const content = document.createElement('div')
     content.className = 'content'
@@ -825,13 +838,24 @@ class AppView extends AbstractView {
       }
     }
 
+    const timeEl = document.createElement('span')
+    timeEl.className = 'message-time'
+    timeEl.textContent = this.#formatMessageTime(data.timeStamp)
+
+    if (data.type === 'audio') {
+      content.querySelector('.meta-data')?.appendChild(timeEl)
+    } else if (data.type === 'picture') {
+      content.querySelector('.image-area')?.appendChild(timeEl)
+    } else {
+      content.appendChild(timeEl)
+    }
+
     li.appendChild(content)
 
     if (data.type === 'audio') {
       this.bindAudioPlayer(li, data.content, data.duration)
     }
 
-    const { messageList } = this.$()
     messageList.appendChild(li)
   }
 
