@@ -394,6 +394,8 @@ class AppView extends AbstractView {
   }
 
   async setUserContent(event) {
+    return
+
     const [isPreviewMode, isBlockMedia] = this.getState('isPreviewMode', 'blockMedia')
     if (isPreviewMode|| isBlockMedia) return
 
