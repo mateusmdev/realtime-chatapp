@@ -62,18 +62,22 @@ class Firestore {
     }
   }
 
-  onSnapshot(path, documentId, callback, constraints = [], errorCallback = null) {
+  onSnapshot(path, documentId, callback, constraints = [], errorCallback = null, options = null) {
     const onError = errorCallback || (error => console.error(`[Firestore Snapshot Error] ${path}/${documentId || ''}:`, error))
 
     if (documentId) {
       const documentRef = doc(this.#db, path, documentId)
-      return onSnapshot(documentRef, callback, onError)
+      return options
+        ? onSnapshot(documentRef, options, callback, onError)
+        : onSnapshot(documentRef, callback, onError)
     }
 
     const segments = path.split('/').filter(segment => segment.length > 0)
     const collectionRef = collection(this.#db, ...segments)
     const queryRef = query(collectionRef, ...constraints)
-    return onSnapshot(queryRef, callback, onError)
+    return options
+      ? onSnapshot(queryRef, options, callback, onError)
+      : onSnapshot(queryRef, callback, onError)
   }
 
   async update() {}

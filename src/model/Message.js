@@ -118,12 +118,23 @@ class Message extends AbstractModel {
     const constraints = [orderBy('timeStamp')]
 
     listener.onSnapshot((snapshot) => {
-      const messages = snapshot.docChanges()
-        .filter(change => change.type === 'added' || change.type === 'modified')
+      const messages = snapshot.docChanges({ includeMetadataChanges: true })
+        .filter(change => {
+          if (change.type !== 'added' && change.type !== 'modified') return false
+
+          const data     = change.doc.data()
+          const isExempt = data.type === 'text' || data.type === 'contact-attachment'
+
+          if (!isExempt && change.doc.metadata.hasPendingWrites) {
+            return false
+          }
+
+          return true
+        })
         .map(change => new Message({ ...change.doc.data(), id: change.doc.id }, chatId))
 
       if (messages.length > 0) callback(messages)
-    }, constraints, path)
+    }, constraints, path, { includeMetadataChanges: true })
 
     return listener
   }

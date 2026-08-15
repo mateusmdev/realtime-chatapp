@@ -1239,7 +1239,7 @@ class AppController {
       this.#pendingMediaFile = null
       this.handleCloseMediaModal()
     } catch (error) {
-      alert('Erro ao enviar a imagem. Tente novamente.')
+      alert(error.message || 'Erro ao enviar a imagem. Tente novamente.')
     }
   }
 
