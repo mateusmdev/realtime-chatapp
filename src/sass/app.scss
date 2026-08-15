@@ -502,8 +502,8 @@ main {
   &.messages {
     .app-content {
       grid-area: conversation;
-      z-index: 2;
-
+      z-index: 6;
+      
       section.message-screen {
         display: flex;
       }
