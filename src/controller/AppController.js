@@ -571,13 +571,12 @@ class AppController {
         this.#view.loadUserContent(user.data)
       })
 
-      const cryptoPromise = this.#initializeCrypto(user.data)
+      await this.#initializeCrypto(user.data)
+
       const options = { handleCallback: this.handleContactItem.bind(this) }
 
       await this.#view.loadContacts(sortedContacts, options)
       this.initMessageList(sortedContacts)
-
-      await cryptoPromise
 
       this.#initResetListener()
 
