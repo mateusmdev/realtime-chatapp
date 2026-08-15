@@ -39,6 +39,7 @@ class AppController {
   #messageListMap = new Map()
   #cryptoService = CryptoService
   #resetListener = null
+  #contactsListener = null
 
   #lastMessageSentAt = 0
 
@@ -502,6 +503,7 @@ class AppController {
     clearInterval(this.#tokenPollingInterval)
     this.#tokenPollingInterval = null
 
+    this.#destroyContactsListener()
     this.#notificationService?.destroy()
     this.#destroyMessageListListeners()
     this.#destroyResetListener()
@@ -520,6 +522,40 @@ class AppController {
     LocalStorage.clearSession()
     ProfileCache.clear()
     window.location.href = '/'
+  }
+
+  #initContactsListener(userEmail) {
+    this.#destroyContactsListener()
+
+    this.#contactsListener = User.listenContacts(userEmail, (contacts) => {
+      this.#handleContactsUpdate(contacts)
+    })
+  }
+
+  #destroyContactsListener() {
+    if (typeof this.#contactsListener === 'function') {
+      this.#contactsListener()
+      this.#contactsListener = null
+    }
+  }
+
+  #handleContactsUpdate(contacts) {
+    const sortedContacts = [...contacts].sort((a, b) =>
+      (a.name || '').localeCompare(b.name || '')
+    )
+
+    const options = { handleCallback: this.handleContactItem.bind(this) }
+
+    this.#view.loadContacts(sortedContacts, options)
+    this.#view.loadContactsModal(sortedContacts, {
+      handleCallback: this.handleSendContact.bind(this)
+    })
+
+    this.initMessageList(sortedContacts)
+
+    if (this.#notificationService) {
+      this.#notificationService.updateContacts(sortedContacts)
+    }
   }
 
   async getUserData() {
@@ -559,12 +595,11 @@ class AppController {
         }
       }
 
-      const cacheObject = ProfileCache.get()
-      const contacts    = await User.getContactsFromCache(user.data.email, !cacheObject?.isCached)
-
-      const sortedContacts = [...contacts].sort((a, b) =>
-        a.name.localeCompare(b.name)
-      )
+      const cacheObject    = ProfileCache.get()
+      const cachedContacts = cacheObject?.cache || []
+      if (cachedContacts.length > 0) {
+        this.#handleContactsUpdate(cachedContacts)
+      }
 
       await user.onSnapshot(() => {
         LocalStorage.setUserData(JSON.stringify(user.data))
@@ -573,10 +608,7 @@ class AppController {
 
       await this.#initializeCrypto(user.data)
 
-      const options = { handleCallback: this.handleContactItem.bind(this) }
-
-      await this.#view.loadContacts(sortedContacts, options)
-      this.initMessageList(sortedContacts)
+      this.#initContactsListener(user.data.email)
 
       this.#initResetListener()
 
@@ -656,6 +688,7 @@ class AppController {
     clearInterval(this.#tokenPollingInterval)
     this.#tokenPollingInterval = null
 
+    this.#destroyContactsListener()
     this.#notificationService?.destroy()
     this.#destroyMessageListListeners()
     this.#destroyResetListener()
@@ -907,7 +940,7 @@ class AppController {
       return
     }
 
-    const MIN_RESPONSE_MS = 300
+    const MIN_RESPONSE_MS = 200
     const startedAt       = Date.now()
 
     const contact = new User({ email: value })
@@ -928,41 +961,13 @@ class AppController {
 
         const chatId = chat.data.id
 
-        await User.saveContact(userData.email, {
-          email:          result.email,
-          profilePicture: result.profilePicture,
-          picture:        result.picture,
-          name:           result.name,
-          chatId,
-        })
+        await User.saveContactBilateral(userData, result, chatId)
 
-        await User.saveContact(result.email, {
-          email:          userData.email,
-          profilePicture: userData.profilePicture,
-          picture:        userData.picture,
-          name:           userData.name,
-          chatId,
-        })
-
-        const freshContacts  = await User.getContactsFromCache(userData.email, true)
-        const sortedContacts = [...freshContacts].sort((a, b) =>
-          a.name.localeCompare(b.name)
-        )
-
-        await this.#view.loadContacts(sortedContacts, {
-          handleCallback: this.handleContactItem.bind(this)
-        })
-
-        this.#view.loadContactsModal(sortedContacts, {
-          handleCallback: this.handleSendContact.bind(this)
-        })
-
-        this.initMessageList(sortedContacts)
+        this.#view.setAddContactModal(this.#view.$('cancelAddContact'))
       } catch (error) {
+        console.error('[AddContact] Falha ao adicionar contato:', error)
         alert('Houve um erro e não foi possível adicionar o contato.')
       }
-
-      this.#view.setAddContactModal(this.#view.$('cancelAddContact'))
     } else {
       this.#view.toggleContactError(true, 'O contato informado não foi encontrado.')
     }
@@ -1374,36 +1379,8 @@ class AppController {
 
       const chatId = chat.data.id
 
-      await User.saveContact(userData.email, {
-        email:          contactData.email,
-        profilePicture: contactData.profilePicture ?? contactData.picture,
-        picture:        contactData.picture,
-        name:           contactData.name,
-        chatId,
-      })
+      await User.saveContactBilateral(userData, contactData, chatId)
 
-      await User.saveContact(contactData.email, {
-        email:          userData.email,
-        profilePicture: userData.profilePicture ?? userData.picture,
-        picture:        userData.picture,
-        name:           userData.name,
-        chatId,
-      })
-
-      const freshContacts  = await User.getContactsFromCache(userData.email, true)
-      const sortedContacts = [...freshContacts].sort((a, b) =>
-        a.name.localeCompare(b.name)
-      )
-
-      await this.#view.loadContacts(sortedContacts, {
-        handleCallback: this.handleContactItem.bind(this)
-      })
-
-      this.#view.loadContactsModal(sortedContacts, {
-        handleCallback: this.handleSendContact.bind(this)
-      })
-
-      this.initMessageList(sortedContacts)
       this.#view.toggleConfirmChatModal()
 
       const openData = {
@@ -1421,6 +1398,7 @@ class AppController {
       this.#pendingContactData = null
 
     } catch (error) {
+      console.error('[ConfirmChat] Erro ao abrir conversa:', error)
       alert('Erro ao abrir conversa. Tente novamente.')
     }
   }
@@ -1480,6 +1458,8 @@ class AppController {
         console.error('[SystemDocumentManager] Falha ao decrementar contador de usuários — contagem pode ficar desalinhada.', error)
       }
 
+      this.#destroyContactsListener()
+      this.#destroyMessageListListeners()
       this.#notificationService?.destroy()
       this.#destroyResetListener()
 
