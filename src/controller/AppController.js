@@ -40,6 +40,7 @@ class AppController {
   #cryptoService = CryptoService
   #resetListener = null
   #contactsListener = null
+  #userListenerUnsubscribe = null
 
   #lastMessageSentAt = 0
 
@@ -381,7 +382,12 @@ class AppController {
 
     if (!isPreview) {
       const auth = new Authenticator()
-      await auth.waitForAuth()
+      const firebaseUser = await auth.waitForAuth()
+
+      if (!firebaseUser) {
+        await this.#terminateSession()
+        return
+      }
 
       await SystemDocumentManager.initializeIfNeeded()
       this.#view.clearUserList()
@@ -450,8 +456,7 @@ class AppController {
 
       if (resetCount !== knownResetCount) {
         this.#notificationService?.destroy()
-        this.#destroyMessageListListeners()
-        this.#destroyResetListener()
+        this.#destroyAllListeners()
         LocalStorage.clearSession()
         ProfileCache.clear()
         window.location.href = '/'
@@ -503,10 +508,8 @@ class AppController {
     clearInterval(this.#tokenPollingInterval)
     this.#tokenPollingInterval = null
 
-    this.#destroyContactsListener()
     this.#notificationService?.destroy()
-    this.#destroyMessageListListeners()
-    this.#destroyResetListener()
+    this.#destroyAllListeners()
 
     await this.#terminateSession()
   }
@@ -536,6 +539,22 @@ class AppController {
     if (typeof this.#contactsListener === 'function') {
       this.#contactsListener()
       this.#contactsListener = null
+    }
+  }
+
+  #destroyAllListeners() {
+    this.#destroyContactsListener()
+    this.#destroyMessageListListeners()
+    this.#destroyResetListener()
+
+    if (this.#messageListener) {
+      this.#messageListener.offSnapshot()
+      this.#messageListener = null
+    }
+
+    if (typeof this.#userListenerUnsubscribe === 'function') {
+      this.#userListenerUnsubscribe()
+      this.#userListenerUnsubscribe = null
     }
   }
 
@@ -601,7 +620,7 @@ class AppController {
         this.#handleContactsUpdate(cachedContacts)
       }
 
-      await user.onSnapshot(() => {
+      this.#userListenerUnsubscribe = await user.onSnapshot(() => {
         LocalStorage.setUserData(JSON.stringify(user.data))
         this.#view.loadUserContent(user.data)
       })
@@ -688,10 +707,8 @@ class AppController {
     clearInterval(this.#tokenPollingInterval)
     this.#tokenPollingInterval = null
 
-    this.#destroyContactsListener()
     this.#notificationService?.destroy()
-    this.#destroyMessageListListeners()
-    this.#destroyResetListener()
+    this.#destroyAllListeners()
 
     await this.#terminateSession()
   }
@@ -1450,7 +1467,6 @@ class AppController {
 
       clearInterval(this.#tokenPollingInterval)
       this.#tokenPollingInterval = null
-      await auth.finalizeAccountDeletion()
 
       try {
         await SystemDocumentManager.decrementUserCount()
@@ -1458,14 +1474,13 @@ class AppController {
         console.error('[SystemDocumentManager] Falha ao decrementar contador de usuários — contagem pode ficar desalinhada.', error)
       }
 
-      this.#destroyContactsListener()
-      this.#destroyMessageListListeners()
       this.#notificationService?.destroy()
-      this.#destroyResetListener()
+      this.#destroyAllListeners()
+
+      await auth.finalizeAccountDeletion()
 
       LocalStorage.clearSession()
       ProfileCache.clear()
-      alert('5')
       window.location.href = '/'
 
     } catch (error) {

@@ -1,4 +1,5 @@
 import { initializeApp } from 'firebase/app';
+import { initializeFirestore } from 'firebase/firestore'
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check'
 
 const firebaseConfig =  {
@@ -11,6 +12,10 @@ const firebaseConfig =  {
 }
 
 const app = initializeApp(firebaseConfig)
+
+initializeFirestore(app, {
+  experimentalAutoDetectLongPolling: true,
+})
 
 if (import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
   const envToken = import.meta.env.VITE_APPCHECK_DEBUG_TOKEN;
