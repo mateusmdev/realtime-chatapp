@@ -425,7 +425,7 @@ class AppController {
       
       this.#view.addEventAll(elements, {
         eventName: 'click',
-        fn: () => this.#view.toggleMessageScreen(open = true),
+        fn: () => this.#view.toggleMessageScreen(true),
         behavior: { preventDefault: true }
       })
     }
@@ -906,7 +906,7 @@ class AppController {
 
   async handleSendMessage(event) {
     const isModifiedPressed = event.shiftKey === true || event.ctrlKey === true
-    const keyPressed        = event.key === 'Enter' ?? event.code === 'Enter'
+    const keyPressed        = event.key === 'Enter' || event.code === 'Enter'
 
     if (keyPressed === true && !isModifiedPressed === true) {
       event.preventDefault()
@@ -944,7 +944,7 @@ class AppController {
   async handleAddContact(event) {
     
     if (event.type === 'keypress') {
-      const keyPressed = event.key === 'Enter' ?? event.code === 'Enter'
+      const keyPressed = event.key === 'Enter' || event.code === 'Enter'
 
       if (!keyPressed) return
     }
