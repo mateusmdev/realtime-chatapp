@@ -7,7 +7,7 @@ import '../../firebase/firebaseConfig'
 const COLLECTION = '_system'
 
 const INIT_CHECK_CACHE_KEY = 'system-init-checked-at'
-const INIT_CHECK_TTL_MS    = 60 * 60 * 1000 // 1 hora
+const INIT_CHECK_TTL_MS    = 60 * 60 * 1000 // 1 hour
 
 const DOCS = Object.freeze({
   METADATA: 'metadata',

@@ -21,10 +21,10 @@ if (import.meta.env.DEV || window.location.hostname === 'localhost' || window.lo
   const envToken = import.meta.env.VITE_APPCHECK_DEBUG_TOKEN;
   if (envToken && envToken.trim() !== '') {
     self.FIREBASE_APPCHECK_DEBUG_TOKEN = envToken;
-    console.log('[AppCheck] Usando token do .env:', envToken);
+    console.log('[AppCheck] Using token from .env:', envToken);
   } else {
     self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
-    console.warn('[AppCheck] VITE_APPCHECK_DEBUG_TOKEN vazio no .env. Gerando um novo no console...');
+    console.warn('[AppCheck] VITE_APPCHECK_DEBUG_TOKEN is empty in .env. Generating a new one in the console...');
   }
 }
 
