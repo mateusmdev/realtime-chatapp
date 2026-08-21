@@ -206,6 +206,11 @@ body{
       
       &.messages {
         grid-template-areas: "menu conversation";
+
+        a {
+          text-decoration: underline;
+          cursor: pointer;
+        }
       }
     }
     
