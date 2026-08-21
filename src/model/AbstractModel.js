@@ -32,7 +32,7 @@ class AbstractModel {
       
       const primaryKeyValue = userData[this.#primaryKeyProp]
       if (!primaryKeyValue) {
-          throw new PrimaryKeyException(`A chave primária ('${this.#primaryKeyProp}') é necessária para buscar o documento.`)
+          throw new PrimaryKeyException(`The primary key ('${this.#primaryKeyProp}') is required to fetch the document.`)
       }
 
       const query = await this.#firestore.findById(documentPath, this.#data[this.#primaryKeyProp])

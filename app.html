@@ -24,22 +24,22 @@
       <nav>
         <ul class="navigation-list">
           <li>
-            <a id="chat-menu-btn" class="navigation-link active" href="#" title="Mensagens">
+            <a id="chat-menu-btn" class="navigation-link active" href="#" title="Messages">
               <img src="./src/assets/message-icon.svg" alt="message icon">
             </a>
           </li>
           <li>
-            <a id="contact-menu-btn" class="navigation-link" href="#" title="Contatos">
+            <a id="contact-menu-btn" class="navigation-link" href="#" title="Contacts">
               <img src="./src/assets/contact-icon.svg" alt="contact icon">
             </a>
           </li>
           <li>
-            <a id="setting-menu-btn" class="navigation-link" href="#" title="Configurações">
+            <a id="setting-menu-btn" class="navigation-link" href="#" title="Settings">
               <img src="./src/assets/settings-icon.svg" alt="setting icon">
             </a>
           </li>
           <li>
-            <a id="exit-btn" class="navigation-link" href="#" title="Sair">
+            <a id="exit-btn" class="navigation-link" href="#" title="Sign Out">
               <img src="./src/assets/exit-icon.svg" alt="exit icon">
             </a>
           </li>
@@ -103,13 +103,13 @@
                   <img src="./src/assets/file-icon.svg" alt="file icon">
                   <p id="file-area-name">Document.pdf</p>
                 </div>
-                <button id="send-file-action-btn">Enviar</button>
+                <button id="send-file-action-btn">Send</button>
               </div>
             </div>
             <div class="list-contact media-type">
               <div class="card">
                 <div class="header">
-                  <p>Contato</p>
+                  <p>Contact</p>
                 </div>
                 <ul id="contact-modal-list">
                   <li>
@@ -123,13 +123,13 @@
               <div class="confirm-chat-modal">
                 <div class="confirm-chat-content">
                   <div class="header">
-                    <p>Iniciar conversa com <strong id="confirm-contact-name"></strong>?</p>
+                    <p>Start chat with <strong id="confirm-contact-name"></strong>?</p>
                   </div>
                   <div class="body">
-                    <p class="confirm-chat-warning">O chat atual será fechado e a conversa com este contato será aberta.</p>
+                    <p class="confirm-chat-warning">The current chat will be closed and the conversation with this contact will be opened.</p>
                     <div class="confirm-chat-actions">
-                      <a href="#" id="cancel-confirm-chat">Cancelar</a>
-                      <a href="#" id="confirm-confirm-chat">Confirmar</a>
+                      <a href="#" id="cancel-confirm-chat">Cancel</a>
+                      <a href="#" id="confirm-confirm-chat">Confirm</a>
                     </div>
                   </div>
                 </div>
@@ -144,7 +144,7 @@
           <div class="title">
             <h1>
               <img src="./src/assets/message-text-outline.svg" alt="message-icon">
-              Mensagens
+              Messages
             </h1>
           </div>
 
@@ -176,7 +176,7 @@
           <div class="title">
             <h1>
               <img src="./src/assets/message-text-outline.svg" alt="message-icon">
-              Contatos
+              Contacts
             </h1>
             <a href="#" id="add-contact-btn" title="Add Contact">
               <img src="./src/assets/add-contact.svg" alt="message-icon">
@@ -202,7 +202,7 @@
           <div class="title">
             <h1>
               <img src="./src/assets/message-text-outline.svg" alt="message icon">
-              Configurações
+              Settings
             </h1>
           </div>
           <div class="content-wrapper">
@@ -235,7 +235,7 @@
                     </p>
                   </div>
                   <div class="data" id="user-about">
-                    <strong>Sobre</strong>
+                    <strong>About</strong>
                     <p 
                       id="user-about-content"
                       contenteditable="true"
@@ -259,23 +259,23 @@
                 </div>
                 <a href="#" id="delete-account-btn">
                   <img src="./src/assets/thrash-icon.svg" alt="a thrash icon image">
-                  Deletar Conta
+                  Delete Account
                 </a>
               </div>
             </div>
             <div id="delete-account-modal">
               <div class="delete-account-content">
                 <div class="delete-account-start">
-                  <p>Deletar Conta</p>
+                  <p>Delete Account</p>
                 </div>
                 <div class="delete-account-body">
                   <p class="delete-account-info">
-                    Esta ação é <strong>irreversível</strong>. Sua conta, contatos e dados pessoais serão permanentemente removidos.
+                    This action is <strong>irreversible</strong>. Your account, contacts, and personal data will be permanently removed.
                   </p>
                   <div class="delete-account-actions">
-                    <a href="#" id="cancel-delete-account-btn">Cancelar</a>
+                    <a href="#" id="cancel-delete-account-btn">Cancel</a>
                     <a href="#" id="confirm-delete-account-btn">
-                      <span id="delete-account-btn-label">Deletar</span>
+                      <span id="delete-account-btn-label">Delete</span>
                       <div id="delete-account-loading" class="delete-loading hidden"></div>
                     </a>
                   </div>
@@ -288,15 +288,15 @@
           <div class="add-contact">
             <div class="add-contact-component">
               <div class="start">
-                <p>Novo Contato</p>
+                <p>New Contact</p>
                 <a href="#" id="cancel-add-contact">
                   <img src="./src/assets/cancel.svg" alt="add contact icon">
                 </a>
               </div>
               <div class="body">
-                <input type="text" placeholder="Email do contato" id="contact-input">
-                <p id="contact-advise">O contato informado não foi encontrado.</p>
-                <a id="insert-contact-btn" href="#">Adicionar</a>
+                <input type="text" placeholder="Contact email" id="contact-input">
+                <p id="contact-advise">The provided contact was not found.</p>
+                <a id="insert-contact-btn" href="#">Add</a>
               </div>
             </div>
           </div>
@@ -309,9 +309,9 @@
             <img src="./src/assets/home.svg" alt="an svg illustration of a woman chating on laptop">
          </div>
          <div class="content">
-            <h1>Tudo que você precisa em um unico lugar!</h1>
-            <p>Uma solução completa para comunicação em <strong>tempo real</strong>.</p>
-            <p>Envie e receba mensagens de forma simples e com segurança.</p>
+            <h1>Everything you need in one place!</h1>
+            <p>A complete solution for <strong>real-time</strong> communication.</p>
+            <p>Send and receive messages simply and securely.</p>
          </div>
         </section>
 
@@ -342,21 +342,21 @@
           <ul class="media-bar" id="media-bar">
             <li>
               <a href="#" id="take-photo-btn">
-                <img src="./src/assets/camera-action-icon.svg" alt="camera icon" title="Tirar Foto">
+                <img src="./src/assets/camera-action-icon.svg" alt="camera icon" title="Take Photo">
               </a>
             </li>
             <li>
               <a href="#" id="send-picture-btn">
-                <img src="./src/assets/picture-icon.svg" alt="picture icon" title="Enviar Imagem">
+                <img src="./src/assets/picture-icon.svg" alt="picture icon" title="Send Image">
               </a>
             </li>
             <li>
-              <a href="#" id="send-document-btn" title="Enviar Documento">
+              <a href="#" id="send-document-btn" title="Send Document">
                 <img src="./src/assets/document-icon.svg" alt="document icon">
               </a>
             </li>
             <li>
-              <a href="#" id="send-contact-btn" title="Enviar Contato">
+              <a href="#" id="send-contact-btn" title="Send Contact">
                 <img src="./src/assets/contact-action-icon.svg" alt="contact icon">
               </a>
             </li>
@@ -371,23 +371,23 @@
                     class="message user"
                   >
                     <div class="content text">
-                      Quando o chat vai ficar pronto?
+                      When will the chat be ready?
                     </div>
                   </li>
                   <li
                     class="message user"
                   >
                     <div class="content text">
-                      Quero ver o projeto finalizado.
+                      I want to see the finished project.
                     </div>
                   </li>
                   <li
                     class="message contact"
                   >
                     <div class="content text">
-                      O projeto está sendo desenvolvido progressivamente em meu tempo livre. 
-                      Ainda faltam algumas features para ser implementadas, então ainda vai 
-                      demorar algum tempo, porém o projeto está sempre evoluindo.
+                      The project is being developed progressively in my spare time. 
+                      There are still some features to be implemented, so it will take some time, 
+                      but the project is always evolving.
                     </div>
                   </li>
                   <li
@@ -436,10 +436,10 @@
                             alt="contact picture"
                           >
                         </div>
-                        <p class="contact-name">Nome Contato</p>
+                        <p class="contact-name">Contact Name</p>
                       </div>
                       <a href="#" class="send-message">
-                        <span>Enviar Mensagem</span>
+                        <span>Send Message</span>
                       </a>
                     </div>
                   </li>
@@ -455,10 +455,10 @@
                             alt="contact picture"
                           >
                         </div>
-                        <p class="contact-name">Nome Contato</p>
+                        <p class="contact-name">Contact Name</p>
                       </div>
                       <a href="#" class="send-message">
-                        <span>Enviar Mensagem</span>
+                        <span>Send Message</span>
                       </a>
                     </div>
                   </li>
@@ -547,7 +547,7 @@
             <div class="input-wrapper">
               <div id="input" class="customized-input">
                 <div id="input-content" class="input-content" contenteditable="true"></div>
-                <p id="placeholder" class="placeholder">Digite sua mensagem</p>
+                <p id="placeholder" class="placeholder">Type your message</p>
               </div>
               <div class="message-actions">
                 <a href="#" class="emoji" id="emoji-modal-btn">

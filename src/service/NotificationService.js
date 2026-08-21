@@ -144,16 +144,16 @@ class NotificationService {
 
   #resolveBody(data) {
     const typeMap = {
-      'picture': '📷 Imagem',
-      'audio': '🎵 Áudio',
-      'file': '📄 Arquivo',
-      'contact-attachment': '👤 Contato',
+      'picture': '📷 Image',
+      'audio': '🎵 Audio',
+      'file': '📄 File',
+      'contact-attachment': '👤 Contact',
     }
 
     if (typeMap[data.type]) return typeMap[data.type]
 
     if (data.encrypted === true && !data.content) {
-      return '🔒 Mensagem criptografada'
+      return '🔒 Encrypted message'
     }
 
     const text = data.content ?? ''

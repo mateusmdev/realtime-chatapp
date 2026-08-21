@@ -64,7 +64,7 @@ class SystemDocumentManager {
 
       this.#markRecentlyChecked()
     } catch (error) {
-      console.error('[SystemDocumentManager] Falha ao inicializar documentos de sistema — app segue com os valores padrão/fallback já existentes em cada método.', error)
+      console.error('[SystemDocumentManager] Failed to initialize system documents — app continues with default/fallback values already existing in each method.', error)
     }
   }
 

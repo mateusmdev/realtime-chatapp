@@ -519,7 +519,7 @@ class AppController {
       const auth = new Authenticator()
       await auth.signOut()
     } catch (error) {
-      console.error('[Auth] Falha ao encerrar sessão no Firebase (prosseguindo com limpeza local):', error)
+      console.error('[Auth] Failed to terminate Firebase session (proceeding with local cleanup):', error)
     }
 
     LocalStorage.clearSession()
@@ -610,7 +610,7 @@ class AppController {
         try {
           await SystemDocumentManager.incrementUserCount(user.data.email)
         } catch (error) {
-          console.error('[SystemDocumentManager] Falha ao incrementar contador de usuários — contagem pode ficar desalinhada.', error)
+          console.error('[SystemDocumentManager] Failed to increment user counter — count may be misaligned.', error)
         }
       }
 
@@ -640,7 +640,7 @@ class AppController {
     const uid = LocalStorage.getFirebaseUid()
 
     if (!uid) {
-      console.warn('[Crypto] Firebase UID não disponível. E2E desativado para esta sessão.')
+      console.warn('[Crypto] Firebase UID unavailable. E2E disabled for this session.')
       return
     }
 
@@ -661,16 +661,16 @@ class AppController {
         case CryptoInitStatus.READY:
           break
         case CryptoInitStatus.LOCAL_FOUND_REMOTE_MISSING:
-          console.info('[Crypto] Chave local sincronizada com o servidor.')
+          console.info('[Crypto] Local key synchronized with the server.')
           break
         case CryptoInitStatus.REMOTE_FOUND_LOCAL_MISSING:
-          console.info('[Crypto] Chave recuperada do servidor com sucesso.')
+          console.info('[Crypto] Key successfully recovered from the server.')
           break
         case CryptoInitStatus.GENERATED:
-          console.info('[Crypto] Novo par de chaves gerado.')
+          console.info('[Crypto] New key pair generated.')
           break
         case CryptoInitStatus.ERROR:
-          console.error('[Crypto] E2E indisponível nesta sessão.')
+          console.error('[Crypto] E2E unavailable in this session.')
           break
       }
 
@@ -953,7 +953,7 @@ class AppController {
     const value = this.#view.$('contactInput').value
 
     if (value.trim() === '' || value.trim() === userData.email) {
-      this.#view.toggleContactError(true, 'Não é possível adicionar a si mesmo como contato.')
+      this.#view.toggleContactError(true, 'You cannot add yourself as a contact.')
       return
     }
 
@@ -982,11 +982,11 @@ class AppController {
 
         this.#view.setAddContactModal(this.#view.$('cancelAddContact'))
       } catch (error) {
-        console.error('[AddContact] Falha ao adicionar contato:', error)
-        alert('Houve um erro e não foi possível adicionar o contato.')
+        console.error('[AddContact] Failed to add contact:', error)
+        alert('There was an error and the contact could not be added.')
       }
     } else {
-      this.#view.toggleContactError(true, 'O contato informado não foi encontrado.')
+      this.#view.toggleContactError(true, 'The provided contact was not found.')
     }
   }
 
@@ -1092,7 +1092,7 @@ class AppController {
           ...payload,
         }
       } catch (e) {
-        console.warn('[Crypto] Falha ao criptografar. Enviando sem E2E.', e)
+        console.warn('[Crypto] Failed to encrypt. Sending without E2E.', e)
         messageData = {
           content:   plaintext,
           type:      'text',
@@ -1122,7 +1122,7 @@ class AppController {
     } catch (error) {
       inputContent.textContent = plaintext
       inputContent.dispatchEvent(new CustomEvent('keyup', { bubbles: false, cancelable: true }))
-      alert('Não foi possível enviar a mensagem. Aguarde um instante e tente novamente.')
+      alert('The message could not be sent. Please wait a moment and try again.')
     }
   }
 
@@ -1156,7 +1156,7 @@ class AppController {
     const recorder = AudioRecorder.getInstance()
 
     if (!recorder.isSupported()) {
-      alert('Seu navegador não suporta gravação de áudio.')
+      alert('Your browser does not support audio recording.')
       return
     }
 
@@ -1176,7 +1176,7 @@ class AppController {
 
       this.#view.setState('tempRecordedInterval', recordedTime)
     } catch (error) {
-      alert('Erro ao acessar o microfone. Verifique as permissões.')
+      alert('Error accessing the microphone. Check permissions.')
     }
   }
 
@@ -1232,7 +1232,7 @@ class AppController {
       await Message.send(messageData, this.#currentChatId)
 
     } catch (error) {
-      alert('Erro ao enviar o áudio. Tente novamente.')
+      alert('Error sending audio. Try again.')
     } finally {
       this.#view.resetAudioProperties()
     }
@@ -1260,7 +1260,7 @@ class AppController {
       this.#pendingMediaFile = null
       this.handleCloseMediaModal()
     } catch (error) {
-      alert(error.message || 'Erro ao enviar a imagem. Tente novamente.')
+      alert(error.message || 'Error sending image. Try again.')
     }
   }
 
@@ -1287,7 +1287,7 @@ class AppController {
 
       this.handleCloseMediaModal()
     } catch (error) {
-      alert(error.message || 'Erro ao enviar a imagem. Tente novamente.')
+      alert(error.message || 'Error sending image. Try again.')
     }
   }
 
@@ -1314,7 +1314,7 @@ class AppController {
       this.#pendingDocumentFile = null
       this.handleCloseMediaModal()
     } catch (error) {
-      alert(error.message || 'Erro ao enviar o arquivo. Tente novamente.')
+      alert(error.message || 'Error sending file. Try again.')
     }
   }
 
@@ -1329,7 +1329,7 @@ class AppController {
 
     try {
       const response = await fetch(url)
-      if (!response.ok) throw new Error('Falha ao baixar o arquivo.')
+      if (!response.ok) throw new Error('Failed to download the file.')
 
       const blob    = await response.blob()
       const blobUrl = URL.createObjectURL(blob)
@@ -1341,7 +1341,7 @@ class AppController {
 
       URL.revokeObjectURL(blobUrl)
     } catch (error) {
-      alert('Erro ao baixar o arquivo. Tente novamente.')
+      alert('Error downloading file. Try again.')
     }
   }
 
@@ -1353,7 +1353,7 @@ class AppController {
     const userData = JSON.parse(LocalStorage.getUserData())
 
     if (contactEmail === userData.email) {
-      alert('Você não pode enviar mensagem para si mesmo.')
+      alert('You cannot send a message to yourself.')
       return
     }
 
@@ -1383,7 +1383,7 @@ class AppController {
       const contactData = await contactUser.getDocument()
 
       if (!contactData) {
-        alert('Contato não encontrado.')
+        alert('Contact not found.')
         this.#view.toggleConfirmChatModal()
         this.#pendingContactData = null
         return
@@ -1415,8 +1415,8 @@ class AppController {
       this.#pendingContactData = null
 
     } catch (error) {
-      console.error('[ConfirmChat] Erro ao abrir conversa:', error)
-      alert('Erro ao abrir conversa. Tente novamente.')
+      console.error('[ConfirmChat] Error opening chat:', error)
+      alert('Error opening chat. Try again.')
     }
   }
 
@@ -1441,7 +1441,7 @@ class AppController {
       await Message.send(messageData, this.#currentChatId)
 
     } catch (error) {
-      alert('Erro ao enviar o contato. Tente novamente.')
+      alert('Error sending contact. Try again.')
     }
   }
 
@@ -1471,7 +1471,7 @@ class AppController {
       try {
         await SystemDocumentManager.decrementUserCount()
       } catch (error) {
-        console.error('[SystemDocumentManager] Falha ao decrementar contador de usuários — contagem pode ficar desalinhada.', error)
+        console.error('[SystemDocumentManager] Failed to decrement user counter — count may be misaligned.', error)
       }
 
       this.#notificationService?.destroy()
@@ -1485,7 +1485,7 @@ class AppController {
 
     } catch (error) {
       this.#view.setDeleteAccountLoading(false)
-      alert('Erro ao deletar a conta. Tente novamente.')
+      alert('Error deleting account. Try again.')
     }
   }
 

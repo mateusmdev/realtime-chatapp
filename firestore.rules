@@ -220,7 +220,7 @@ service cloud.firestore {
         && request.resource.data.resetLockId is string
         && request.resource.data.resetLockId.size() > 0;
 
-      allow update: if false; // imutável após criado
+      allow update: if false; // immutable after creation
 
       allow delete: if isAuthenticated()
         && (isOwner(email) || (isResetActive() && isLockHolder()));

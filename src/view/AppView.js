@@ -14,7 +14,7 @@ class AppView extends AbstractView {
       isIconListBlock: true,
       isEmojiModalOpen: false,
       isMediaBarOpen: false,
-      placeholderText: 'Digite sua mensagem',
+      placeholderText: 'Type your message',
       range: null,
       mediaButtonId: null,
       appStyle: 'circle',
@@ -721,7 +721,7 @@ class AppView extends AbstractView {
         sendMsgLink.dataset.contactEmail   = data.contactEmail   || ''
         sendMsgLink.dataset.contactPicture = data.contactPicture || ''
         const sendSpan = document.createElement('span')
-        sendSpan.textContent = 'Enviar Mensagem'
+        sendSpan.textContent = 'Send Message'
         sendMsgLink.appendChild(sendSpan)
 
         content.appendChild(detail)
@@ -832,7 +832,7 @@ class AppView extends AbstractView {
         if (isEncryptedWithoutContent) {
           const em = document.createElement('em')
           Object.assign(em.style, { opacity: '0.6', fontStyle: 'italic', fontSize: '0.82rem' })
-          em.textContent = '🔒 Mensagem Criptografada'
+          em.textContent = '🔒 Encrypted Message'
           content.appendChild(em)
         } else {
           content.textContent = data.content ?? '' 
@@ -1074,23 +1074,23 @@ class AppView extends AbstractView {
   }
 
   #appendLastMessageText(container, lastMessage, isFromMe) {
-    const prefix          = isFromMe ? 'Você: ' : ''
+    const prefix          = isFromMe ? 'You: ' : ''
     const knownMediaTypes = ['picture', 'audio', 'file', 'contact-attachment']
 
     if (lastMessage.type === 'picture') {
-      container.appendChild(document.createTextNode(`${prefix}📷 Foto`))
+      container.appendChild(document.createTextNode(`${prefix}📷 Photo`))
       return
     }
     if (lastMessage.type === 'audio') {
-      container.appendChild(document.createTextNode(`${prefix}🎵 Áudio`))
+      container.appendChild(document.createTextNode(`${prefix}🎵 Audio`))
       return
     }
     if (lastMessage.type === 'file') {
-      container.appendChild(document.createTextNode(`${prefix}📄 ${lastMessage.fileName ?? 'Arquivo'}`))
+      container.appendChild(document.createTextNode(`${prefix}📄 ${lastMessage.fileName ?? 'File'}`))
       return
     }
     if (lastMessage.type === 'contact-attachment') {
-      container.appendChild(document.createTextNode(`${prefix}👤 ${lastMessage.contactName ?? 'Contato'}`))
+      container.appendChild(document.createTextNode(`${prefix}👤 ${lastMessage.contactName ?? 'Contact'}`))
       return
     }
 
@@ -1099,7 +1099,7 @@ class AppView extends AbstractView {
       (!lastMessage.content && !knownMediaTypes.includes(lastMessage.type))
 
     if (isEncryptedWithoutContent) {
-      container.appendChild(document.createTextNode(`${prefix}🔒 Mensagem Criptografada`))
+      container.appendChild(document.createTextNode(`${prefix}🔒 Encrypted Message`))
       return
     }
 
@@ -1121,24 +1121,22 @@ class AppView extends AbstractView {
     const isToday = date.toDateString() === now.toDateString()
 
     if (isToday) {
-      return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
     }
 
     const yesterday = new Date(now)
     yesterday.setDate(yesterday.getDate() - 1)
     const isYesterday = date.toDateString() === yesterday.toDateString()
 
-    if (isYesterday) return 'ontem'
+    if (isYesterday) return 'yesterday'
 
     const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24))
     if (diffDays < 7) {
-      return date.toLocaleDateString('pt-BR', { weekday: 'short' })
-                 .replace('-feira', '')
-                 .replace('.', '')
+      return date.toLocaleDateString('en-US', { weekday: 'short' })
                  .trim()
     }
 
-    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+    return date.toLocaleDateString('en-US', { day: '2-digit', month: '2-digit' })
   }
 
   setCryptoLoadingState(isLoading) {
@@ -1156,7 +1154,7 @@ class AppView extends AbstractView {
       dot.classList.add('spinner')
 
       indicator.appendChild(dot)
-      indicator.appendChild(document.createTextNode(' Configurando criptografia…'))
+      indicator.appendChild(document.createTextNode(' Setting up encryption…'))
       document.body.appendChild(indicator)
     }
 
