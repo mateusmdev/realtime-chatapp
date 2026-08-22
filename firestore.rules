@@ -8,13 +8,17 @@ service cloud.firestore {
       return request.auth != null && request.auth.token.email != null;
     }
 
+    function authEmail() {
+      return request.auth.token.email.lower();
+    }
+
     function isOwner(email) {
-      return request.auth.token.email == email;
+      return authEmail() == email;
     }
 
     function isParticipantOf(chatData) {
       return 'participantEmails' in chatData
-          && request.auth.token.email in chatData.participantEmails;
+          && authEmail() in chatData.participantEmails;
     }
 
     function isResetActive() {
@@ -22,7 +26,7 @@ service cloud.firestore {
     }
 
     function isLockHolder() {
-      let actorPath = /databases/$(database)/documents/reset_actor/$(request.auth.token.email);
+      let actorPath = /databases/$(database)/documents/reset_actor/$(authEmail());
       return exists(actorPath)
           && get(actorPath).data.get('resetLockId', null) != null
           && get(actorPath).data.get('resetLockId', null)
@@ -49,14 +53,14 @@ service cloud.firestore {
     }
 
     function justClaimedMetadataCredit() {
-      let userPath = /databases/$(database)/documents/user/$(request.auth.token.email);
+      let userPath = /databases/$(database)/documents/user/$(authEmail());
       return exists(userPath)
           && get(userPath).data.get('countedInMetadata', false) == false
           && getAfter(userPath).data.get('countedInMetadata', false) == true;
     }
 
     function canSendMessage() {
-      let userPath   = /databases/$(database)/documents/user/$(request.auth.token.email);
+      let userPath   = /databases/$(database)/documents/user/$(authEmail());
       let lastSentAt = get(userPath).data.get('lastMessageAt', null);
       return (lastSentAt == null
               || request.time.toMillis() - lastSentAt.toMillis() >= 1500)
@@ -192,9 +196,9 @@ service cloud.firestore {
           || (
             isLockStale()
             && request.resource.data.lock_holder_id != null
-            && exists(/databases/$(database)/documents/reset_actor/$(request.auth.token.email))
+            && exists(/databases/$(database)/documents/reset_actor/$(authEmail()))
             && request.resource.data.lock_holder_id
-               == get(/databases/$(database)/documents/reset_actor/$(request.auth.token.email)).data.get('resetLockId', null)
+               == get(/databases/$(database)/documents/reset_actor/$(authEmail())).data.get('resetLockId', null)
             && (userCountThresholdReached() || scheduledResetDue())
           )
         )
@@ -216,7 +220,7 @@ service cloud.firestore {
         && request.resource.data.resetLockId is string
         && request.resource.data.resetLockId.size() > 0;
 
-      allow update: if false; // imutável após criado
+      allow update: if false; // immutable after creation
 
       allow delete: if isAuthenticated()
         && (isOwner(email) || (isResetActive() && isLockHolder()));
@@ -244,6 +248,7 @@ service cloud.firestore {
             || request.resource.data.email == email)
         
         && (!('countedInMetadata' in request.resource.data)
+            || request.resource.data.countedInMetadata == resource.data.get('countedInMetadata', false)
             || (request.resource.data.countedInMetadata == true
                 && resource.data.get('countedInMetadata', false) != true))
         && (!('lastMessageAt' in request.resource.data)
@@ -252,8 +257,8 @@ service cloud.firestore {
       allow delete:         if isAuthenticated()
         && (
           (resource.data.get('isDeleted', false) == true
-           && exists(/databases/$(database)/documents/user/$(request.auth.token.email))
-           && get(/databases/$(database)/documents/user/$(request.auth.token.email)).data.get('isDeleted', false) == true)
+           && exists(/databases/$(database)/documents/user/$(authEmail()))
+           && get(/databases/$(database)/documents/user/$(authEmail())).data.get('isDeleted', false) == true)
           || (isResetActive() && isLockHolder())
         );
 
@@ -293,7 +298,7 @@ service cloud.firestore {
                     && 'participantEmails' in request.resource.data
                     && request.resource.data.participantEmails.size() == 2
                     && request.resource.data.participantEmails[0] != request.resource.data.participantEmails[1]
-                    && request.auth.token.email in request.resource.data.participantEmails;
+                    && authEmail() in request.resource.data.participantEmails;
 
       allow update: if isAuthenticated()
                     && isParticipantOf(resource.data)
@@ -320,13 +325,13 @@ service cloud.firestore {
           && isParticipantOf(
                get(/databases/$(database)/documents/chats/$(chatId)).data
              )
-          && request.resource.data.from.lower() == request.auth.token.email.lower()
+          && request.resource.data.from.lower() == authEmail()
           && isValidMessagePayload(request.resource.data)
           && canSendMessage();
 
         allow delete: if isAuthenticated()
           && (
-            resource.data.from.lower() == request.auth.token.email.lower()
+            resource.data.from.lower() == authEmail()
             || (
               isParticipantOf(get(/databases/$(database)/documents/chats/$(chatId)).data)
               && bothParticipantsDeleted(get(/databases/$(database)/documents/chats/$(chatId)).data)

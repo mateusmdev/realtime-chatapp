@@ -55,8 +55,8 @@ class LocalStorage {
   static clearSession() {
     localStorage.removeItem(KEY)
     localStorage.removeItem('user-data')
-    localStorage.removeItem('firebase-uid')   // NOVO: limpar UID na saída
-    localStorage.removeItem('reset-lock-id')  // F8: limpar resetLockId na saída
+    localStorage.removeItem('firebase-uid')
+    localStorage.removeItem('reset-lock-id')
   }
 }
 

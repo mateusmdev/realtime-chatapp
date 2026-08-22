@@ -14,7 +14,7 @@ class AppView extends AbstractView {
       isIconListBlock: true,
       isEmojiModalOpen: false,
       isMediaBarOpen: false,
-      placeholderText: 'Digite sua mensagem',
+      placeholderText: 'Type your message',
       range: null,
       mediaButtonId: null,
       appStyle: 'circle',
@@ -48,40 +48,62 @@ class AppView extends AbstractView {
 
   loadContacts(list, options = {}) {
     const { contactContainer } = this.$()
-    const baseItem = contactContainer.querySelector('.item')
     contactContainer.innerHTML = ''
 
     if (list?.length < 1) return
-    
+
     list.forEach(dataItem => {
-      const item = baseItem.cloneNode(true)
-      
-      const profile = item.querySelector('.picture-wrapper img')
-      const name = item.querySelector('.name')
-      const about = item.querySelector('.phrase-contact')
-      
-      profile.src = dataItem.profilePicture ?? dataItem.picture
-      name.innerText = dataItem.name
-      about.innerText = dataItem.about
-      
-      const callbackParam = {
-        profileImage: dataItem.profilePicture ?? dataItem.picture,
-        name:         dataItem.name,
-        email:        dataItem.email,
-        chatId:       dataItem.chatId,
-        publicKey:    dataItem.publicKey ?? null,
-      } 
- 
-      this.addEvent(item, {
-        eventName: 'click',
-        fn: event => options.handleCallback(event, callbackParam),
-        behavior: {
-          preventDefault: true
-        }
-      })
- 
+      const item = this.#buildContactItem(dataItem, options)
       contactContainer.appendChild(item)
     })
+  }
+
+  #buildContactItem(dataItem, options = {}) {
+    const li = document.createElement('li')
+    li.className = 'item'
+
+    const pictureWrapper = document.createElement('div')
+    pictureWrapper.className = 'picture-wrapper'
+    const img = document.createElement('img')
+    img.src = dataItem.profilePicture ?? dataItem.picture
+    img.alt = 'contact profile picture'
+    img.className = 'profile-picture'
+    pictureWrapper.appendChild(img)
+
+    const contactData = document.createElement('div')
+    contactData.className = 'contact-data'
+
+    const nameEl = document.createElement('p')
+    nameEl.className = 'name'
+    nameEl.textContent = dataItem.name
+
+    const aboutEl = document.createElement('p')
+    aboutEl.className = 'phrase-contact'
+    aboutEl.textContent = dataItem.about
+
+    contactData.appendChild(nameEl)
+    contactData.appendChild(aboutEl)
+
+    li.appendChild(pictureWrapper)
+    li.appendChild(contactData)
+
+    const callbackParam = {
+      profileImage: dataItem.profilePicture ?? dataItem.picture,
+      name:         dataItem.name,
+      email:        dataItem.email,
+      chatId:       dataItem.chatId,
+      publicKey:    dataItem.publicKey ?? null,
+    }
+
+    this.addEvent(li, {
+      eventName: 'click',
+      fn: event => options.handleCallback(event, callbackParam),
+      behavior: {
+        preventDefault: true
+      }
+    })
+
+    return li
   }
 
   updateMessageScreen(data) {
@@ -166,7 +188,7 @@ class AppView extends AbstractView {
     const { appStyle } = preferences
     const splashScreen = this.$('splashScreen')
     const appStyleState = this.getState('appStyle')
-  
+    
     this.setState('appStyle', appStyle ?? appStyleState)
     this.setAppStyle()
     splashScreen.remove()
@@ -174,6 +196,12 @@ class AppView extends AbstractView {
     if (isPreviewMode === false) {
       this.clearMockedData()
     }
+  }
+
+  clearUserList() {
+    const { messageContainer, contactContainer } = this.$()
+    contactContainer.innerHTML = ''
+    messageContainer.innerHTML = ''
   }
 
   closeConcorrentModal() {
@@ -231,9 +259,10 @@ class AppView extends AbstractView {
     contentScreen.classList.remove('messages')
   }
 
-  toggleContactError(hasError = true) {
+  toggleContactError(hasError = true, message) {
     const contactAdvise = this.$('contactAdvise')
-      
+    
+    contactAdvise.innerText = message
     this.setStyle(contactAdvise, {
       display: hasError ? 'initial' : 'none',
       opacity: hasError ? '1' : '0'
@@ -365,6 +394,8 @@ class AppView extends AbstractView {
   }
 
   async setUserContent(event) {
+    return
+
     const [isPreviewMode, isBlockMedia] = this.getState('isPreviewMode', 'blockMedia')
     if (isPreviewMode|| isBlockMedia) return
 
@@ -404,11 +435,14 @@ class AppView extends AbstractView {
     const { inputContent, placeholder, microphoneBtn, sendBtn } = this.$()
     const message = inputContent.innerText.trim()
     const isBlockMedia = this.getState('blockMedia')
+    const isPreviewMode = this.getState('isPreviewMode')
+
+    this.togglePlaceholder(message)
 
     if (message.length < 1) {
       placeholder.innerText = this.getState('placeholderText')
 
-      if (isBlockMedia) {
+      if (isBlockMedia || isPreviewMode) {
         this.setStyle(sendBtn, {
           opacity: '0.3',
           cursor: 'initial'
@@ -420,8 +454,8 @@ class AppView extends AbstractView {
       microphoneBtn.classList.remove('hidden')
       sendBtn.classList.add('hidden')
     } else {
-
-      if (isBlockMedia) {
+      
+      if (isBlockMedia || isPreviewMode) {
         this.setStyle(sendBtn, {
           opacity: '1',
           cursor: 'pointer'
@@ -433,6 +467,16 @@ class AppView extends AbstractView {
       placeholder.innerText = ''
       microphoneBtn.classList.add('hidden')
       sendBtn.classList.remove('hidden')   
+    }
+  }
+
+  togglePlaceholder(message) {
+    const { placeholder } = this.$()
+
+    if (message.length < 1) {
+      placeholder.innerText = this.getState('placeholderText')
+    } else {
+      placeholder.innerText = ''
     }
   }
 
@@ -585,7 +629,8 @@ class AppView extends AbstractView {
         try {
           await player.load(url)
           loaded = true
-        } catch (_) {
+        } catch (error) {
+          console.error('[AppView] Failed to load audio message:', error)
           playBtn.disabled = false
           return
         }
@@ -628,8 +673,21 @@ class AppView extends AbstractView {
   addMessage(data, isFromContact = false) {
     if (!data) return
 
+    const { messageList } = this.$()
+    const messageId = data.id ?? null
+    const existingLi = messageId
+      ? messageList.querySelector(`li[data-message-id="${CSS.escape(messageId)}"]`)
+      : null
+
+    if (existingLi) {
+      const existingTimeEl = existingLi.querySelector('.message-time')
+      if (existingTimeEl) existingTimeEl.textContent = this.#formatMessageTime(data.timeStamp)
+      return
+    }
+
     const li = document.createElement('li')
     li.classList.add('message', isFromContact ? 'contact' : 'user')
+    if (messageId) li.dataset.messageId = messageId
 
     const content = document.createElement('div')
     content.className = 'content'
@@ -665,7 +723,7 @@ class AppView extends AbstractView {
         sendMsgLink.dataset.contactEmail   = data.contactEmail   || ''
         sendMsgLink.dataset.contactPicture = data.contactPicture || ''
         const sendSpan = document.createElement('span')
-        sendSpan.textContent = 'Enviar Mensagem'
+        sendSpan.textContent = 'Send Message'
         sendMsgLink.appendChild(sendSpan)
 
         content.appendChild(detail)
@@ -776,12 +834,24 @@ class AppView extends AbstractView {
         if (isEncryptedWithoutContent) {
           const em = document.createElement('em')
           Object.assign(em.style, { opacity: '0.6', fontStyle: 'italic', fontSize: '0.82rem' })
-          em.textContent = '🔒 Mensagem Criptografada'
+          em.textContent = '🔒 Encrypted Message'
           content.appendChild(em)
         } else {
           content.textContent = data.content ?? '' 
         }
       }
+    }
+
+    const timeEl = document.createElement('span')
+    timeEl.className = 'message-time'
+    timeEl.textContent = this.#formatMessageTime(data.timeStamp)
+
+    if (data.type === 'audio') {
+      content.querySelector('.meta-data')?.appendChild(timeEl)
+    } else if (data.type === 'picture') {
+      content.querySelector('.image-area')?.appendChild(timeEl)
+    } else {
+      content.appendChild(timeEl)
     }
 
     li.appendChild(content)
@@ -790,7 +860,6 @@ class AppView extends AbstractView {
       this.bindAudioPlayer(li, data.content, data.duration)
     }
 
-    const { messageList } = this.$()
     messageList.appendChild(li)
   }
 
@@ -904,6 +973,7 @@ class AppView extends AbstractView {
   renderMessageList(sortedItems, options = {}) {
     const { messageContainer } = this.$()
     const existingElements = this.getState('messageListElements')
+    messageContainer.innerHTML = ''
 
     const incomingChatIds = new Set(sortedItems.map(item => item.chatId))
     for (const [chatId, element] of existingElements) {
@@ -1006,23 +1076,23 @@ class AppView extends AbstractView {
   }
 
   #appendLastMessageText(container, lastMessage, isFromMe) {
-    const prefix          = isFromMe ? 'Você: ' : ''
+    const prefix          = isFromMe ? 'You: ' : ''
     const knownMediaTypes = ['picture', 'audio', 'file', 'contact-attachment']
 
     if (lastMessage.type === 'picture') {
-      container.appendChild(document.createTextNode(`${prefix}📷 Foto`))
+      container.appendChild(document.createTextNode(`${prefix}📷 Photo`))
       return
     }
     if (lastMessage.type === 'audio') {
-      container.appendChild(document.createTextNode(`${prefix}🎵 Áudio`))
+      container.appendChild(document.createTextNode(`${prefix}🎵 Audio`))
       return
     }
     if (lastMessage.type === 'file') {
-      container.appendChild(document.createTextNode(`${prefix}📄 ${lastMessage.fileName ?? 'Arquivo'}`))
+      container.appendChild(document.createTextNode(`${prefix}📄 ${lastMessage.fileName ?? 'File'}`))
       return
     }
     if (lastMessage.type === 'contact-attachment') {
-      container.appendChild(document.createTextNode(`${prefix}👤 ${lastMessage.contactName ?? 'Contato'}`))
+      container.appendChild(document.createTextNode(`${prefix}👤 ${lastMessage.contactName ?? 'Contact'}`))
       return
     }
 
@@ -1031,7 +1101,7 @@ class AppView extends AbstractView {
       (!lastMessage.content && !knownMediaTypes.includes(lastMessage.type))
 
     if (isEncryptedWithoutContent) {
-      container.appendChild(document.createTextNode(`${prefix}🔒 Mensagem Criptografada`))
+      container.appendChild(document.createTextNode(`${prefix}🔒 Encrypted Message`))
       return
     }
 
@@ -1053,24 +1123,22 @@ class AppView extends AbstractView {
     const isToday = date.toDateString() === now.toDateString()
 
     if (isToday) {
-      return date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+      return date.toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
     }
 
     const yesterday = new Date(now)
     yesterday.setDate(yesterday.getDate() - 1)
     const isYesterday = date.toDateString() === yesterday.toDateString()
 
-    if (isYesterday) return 'ontem'
+    if (isYesterday) return 'yesterday'
 
     const diffDays = Math.floor((now - date) / (1000 * 60 * 60 * 24))
     if (diffDays < 7) {
-      return date.toLocaleDateString('pt-BR', { weekday: 'short' })
-                 .replace('-feira', '')
-                 .replace('.', '')
+      return date.toLocaleDateString('en-US', { weekday: 'short' })
                  .trim()
     }
 
-    return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+    return date.toLocaleDateString('en-US', { day: '2-digit', month: '2-digit' })
   }
 
   setCryptoLoadingState(isLoading) {
@@ -1083,49 +1151,51 @@ class AppView extends AbstractView {
       indicator.id = 'crypto-loading-indicator'
       indicator.setAttribute('role', 'status')
       indicator.setAttribute('aria-live', 'polite')
-      indicator.style.cssText = `
-        position: fixed;
-        bottom: 1rem;
-        left: 50%;
-        transform: translateX(-50%);
-        background: rgba(127, 118, 255, 0.9);
-        color: #fff;
-        padding: 0.5rem 1.2rem;
-        border-radius: 2rem;
-        font-size: 0.78rem;
-        z-index: 100;
-        display: flex;
-        align-items: center;
-        gap: 0.5rem;
-        backdrop-filter: blur(4px);
-        transition: opacity 0.3s ease;
-      `
 
       const dot = document.createElement('span')
-      dot.style.cssText = `
-        width: 8px; height: 8px;
-        border-radius: 50%;
-        border: 2px solid rgba(255,255,255,0.4);
-        border-top-color: #fff;
-        animation: crypto-spin 0.7s linear infinite;
-      `
-
-      const style = document.createElement('style')
-      style.textContent = '@keyframes crypto-spin { to { transform: rotate(360deg); } }'
-      document.head.appendChild(style)
+      dot.classList.add('spinner')
 
       indicator.appendChild(dot)
-      indicator.appendChild(document.createTextNode(' Configurando criptografia…'))
+      indicator.appendChild(document.createTextNode(' Setting up encryption…'))
       document.body.appendChild(indicator)
     }
 
     if (isLoading) {
-      indicator.style.opacity = '1'
-      indicator.style.pointerEvents = 'auto'
+      this.setStyle(indicator, {
+        opacity: '1',
+        pointerEvents: 'auto'
+      })
     } else {
-      indicator.style.opacity = '0'
-      indicator.style.pointerEvents = 'none'
+      this.setStyle(indicator, {
+        opacity: '0',
+        pointerEvents: 'none'
+      })
+
       setTimeout(() => indicator?.remove(), 400)
+    }
+  }
+
+  appendFakeMessage(message) {
+    if (message.trim().length > 0) {
+      let isInitialLoad = true
+
+      const { messageList, inputContent } = this.$()
+      const li = document.createElement('li')
+      const content = document.createElement('div')
+
+      content.textContent = message
+      content.className = 'content'
+      content.classList.add('text')
+      
+      li.classList.add('message', 'user')
+      li.appendChild(content)
+
+      messageList.appendChild(li)
+      inputContent.innerText = ''
+
+      const shouldScroll = isInitialLoad || this.isAtBottom()
+      if (shouldScroll) this.scrollToBottom()
+      isInitialLoad = false
     }
   }
 }

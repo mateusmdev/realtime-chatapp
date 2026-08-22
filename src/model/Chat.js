@@ -9,7 +9,9 @@ class Chat extends AbstractModel {
   }
 
   static async findByUsers(emailA, emailB) {
-    const firestore = Firestore.instance
+    const instance  = new Chat()
+    const firestore = instance.getModelAttr('firestore')
+    const path      = instance.getModelAttr('path')
     const a = emailA.toLowerCase()
     const b = emailB.toLowerCase()
 
@@ -18,7 +20,7 @@ class Chat extends AbstractModel {
       where(`users.${btoa(b)}`, '==', true),
     ]
 
-    const result = await firestore.findDocs('chats', constraints)
+    const result = await firestore.findDocs(path, constraints)
 
     if (result.empty) return null
 
@@ -27,7 +29,9 @@ class Chat extends AbstractModel {
   }
 
   static async create(emailA, emailB) {
-    const firestore = Firestore.instance
+    const instance  = new Chat()
+    const firestore = instance.getModelAttr('firestore')
+    const path      = instance.getModelAttr('path')
     const a = emailA.toLowerCase()
     const b = emailB.toLowerCase()
 
@@ -39,39 +43,43 @@ class Chat extends AbstractModel {
       participantEmails: [a, b],
     }
     
-    const docSnap = await firestore.save(chatData, 'chats', null)
+    const docSnap = await firestore.save(chatData, path, null)
     return new Chat({ ...docSnap.data(), id: docSnap.id })
   }
 
   static async findAllByUser(email) {
-    const firestore = Firestore.instance
+    const instance  = new Chat()
+    const firestore = instance.getModelAttr('firestore')
+    const path      = instance.getModelAttr('path')
     const e = email.toLowerCase()
 
     const constraints = [
       where('participantEmails', 'array-contains', e),
     ]
 
-    const result = await firestore.findDocs('chats', constraints)
+    const result = await firestore.findDocs(path, constraints)
 
     if (result.empty) return []
 
     return result.docs.map(docSnap => new Chat({ ...docSnap.data(), id: docSnap.id }))
   }
 
-  getOtherParticipantEmail(currentUserEmail) {
+  static getOtherParticipantEmail(chatData, currentUserEmail) {
     const email = currentUserEmail.toLowerCase()
-    const users = this.data.users ?? {}
+    const users = chatData.users ?? {}
     const otherKey = Object.keys(users).find(key => atob(key).toLowerCase() !== email)
     return otherKey ? atob(otherKey).toLowerCase() : null
   }
 
   static async deleteChat(chatId) {
-    const firestore = Firestore.instance
+    const instance  = new Chat()
+    const firestore = instance.getModelAttr('firestore')
+    const path      = instance.getModelAttr('path')
 
-    const messagesPath = `chats/${chatId}/messages`
+    const messagesPath = `${path}/${chatId}/messages`
     await firestore.deleteCollection(messagesPath)
 
-    await firestore.delete('chats', chatId)
+    await firestore.delete(path, chatId)
   }
 
   static listenLastMessages(chatIds, currentUserEmail, callback) {

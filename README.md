@@ -2,7 +2,7 @@
 
 - [English](README.md) | [Portuguese](README.pt-br.md)
 
-## Tabela de Conteúdo
+## Table of Contents
 - [Overview](#overview)
   - [Tools](#tools)
 - [Documentation](#documentation)

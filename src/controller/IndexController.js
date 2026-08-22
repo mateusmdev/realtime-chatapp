@@ -4,8 +4,6 @@ import LocalStorage from '../utils/LocalStorage'
 import ProfileCache from '../utils/ProfileCache'
 import SystemDocumentManager from '../destroyer/system/SystemDocumentManager'
 
-const BACKGROUND = import.meta.env.VITE_BACKGROUND
-
 class IndexController {
   #view = new IndexView()
   #resetListener = null
@@ -27,11 +25,6 @@ class IndexController {
   }
 
   initApp() {
-    const preferences = {
-      backgroundImage: BACKGROUND
-    }
-
-    this.#view.initLayout(preferences)
     this.redirectUser()
   }
 
@@ -80,7 +73,7 @@ class IndexController {
 
       window.location.href = '/app'
     } catch (error) {
-      throw error
+      console.error('[IndexController] Failed to authenticate user:', error)
     }
   }
 }

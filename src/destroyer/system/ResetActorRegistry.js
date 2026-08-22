@@ -29,7 +29,7 @@ class ResetActorRegistry {
       return resetLockId
 
     } catch (error) {
-      console.error('[ResetActorRegistry] Falha ao obter/criar resetLockId.', error)
+      console.error('[ResetActorRegistry] Failed to get/create resetLockId.', error)
       return null
     }
   }
@@ -40,7 +40,7 @@ class ResetActorRegistry {
     try {
       await this.#firestore.delete(COLLECTION, email.toLowerCase())
     } catch (error) {
-      console.error('[ResetActorRegistry] Falha ao remover resetLockId — não é crítico.', error)
+      console.error('[ResetActorRegistry] Failed to remove resetLockId - not critical.', error)
     }
   }
 

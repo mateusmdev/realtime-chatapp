@@ -39,6 +39,8 @@ class AppController {
   #messageListMap = new Map()
   #cryptoService = CryptoService
   #resetListener = null
+  #contactsListener = null
+  #userListenerUnsubscribe = null
 
   #lastMessageSentAt = 0
 
@@ -222,6 +224,14 @@ class AppController {
       }
     })
 
+    this.#view.addEvent('#contactInput', {
+      eventName: 'keypress',
+      fn: (event) => this.handleAddContact(event),
+      behavior: {
+        preventDefault: false,
+      }
+    })
+
     this.#view.addEvent('.custom-input button', {
       eventName: 'click',
       fn: (event) => this.handleToggleStyle(event),
@@ -372,9 +382,15 @@ class AppController {
 
     if (!isPreview) {
       const auth = new Authenticator()
-      await auth.waitForAuth()
+      const firebaseUser = await auth.waitForAuth()
+
+      if (!firebaseUser) {
+        await this.#terminateSession()
+        return
+      }
 
       await SystemDocumentManager.initializeIfNeeded()
+      this.#view.clearUserList()
       await this.getUserData()
     }
 
@@ -403,6 +419,15 @@ class AppController {
       document.dispatchEvent(event)
       this.#setupAuthStateSync()
       this.#startTokenValidationPolling()
+    } else {
+      const { contactContainer, messageContainer } = this.#view.$()
+      const elements = [...contactContainer.children, ...messageContainer.children]
+      
+      this.#view.addEventAll(elements, {
+        eventName: 'click',
+        fn: () => this.#view.toggleMessageScreen(true),
+        behavior: { preventDefault: true }
+      })
     }
   }
 
@@ -431,8 +456,7 @@ class AppController {
 
       if (resetCount !== knownResetCount) {
         this.#notificationService?.destroy()
-        this.#destroyMessageListListeners()
-        this.#destroyResetListener()
+        this.#destroyAllListeners()
         LocalStorage.clearSession()
         ProfileCache.clear()
         window.location.href = '/'
@@ -457,7 +481,7 @@ class AppController {
   }
 
   #startTokenValidationPolling() {
-    const POLLING_INTERVAL_MS = 30 * 60 * 1000 // 30 minutes
+    const POLLING_INTERVAL_MS = 30 * 60 * 1000
 
     const validate = async () => {
       const accessToken = LocalStorage.getAccessToken()
@@ -467,7 +491,8 @@ class AppController {
         await axios.get(TOKEN_VALIDATOR, {
           headers: { 'Authorization': `Bearer ${accessToken}` }
         })
-      } catch {
+      } catch (error) {
+        console.error('[AppController] Token validation failed — treating session as expired:', error)
         await this.#handleSessionExpired()
       }
     }
@@ -485,17 +510,72 @@ class AppController {
     this.#tokenPollingInterval = null
 
     this.#notificationService?.destroy()
-    this.#destroyMessageListListeners()
-    this.#destroyResetListener()
+    this.#destroyAllListeners()
 
+    await this.#terminateSession()
+  }
+
+  async #terminateSession() {
     try {
       const auth = new Authenticator()
       await auth.signOut()
-    } catch (_) {}
+    } catch (error) {
+      console.error('[Auth] Failed to terminate Firebase session (proceeding with local cleanup):', error)
+    }
 
     LocalStorage.clearSession()
     ProfileCache.clear()
     window.location.href = '/'
+  }
+
+  #initContactsListener(userEmail) {
+    this.#destroyContactsListener()
+
+    this.#contactsListener = User.listenContacts(userEmail, (contacts) => {
+      this.#handleContactsUpdate(contacts)
+    })
+  }
+
+  #destroyContactsListener() {
+    if (typeof this.#contactsListener === 'function') {
+      this.#contactsListener()
+      this.#contactsListener = null
+    }
+  }
+
+  #destroyAllListeners() {
+    this.#destroyContactsListener()
+    this.#destroyMessageListListeners()
+    this.#destroyResetListener()
+
+    if (this.#messageListener) {
+      this.#messageListener.offSnapshot()
+      this.#messageListener = null
+    }
+
+    if (typeof this.#userListenerUnsubscribe === 'function') {
+      this.#userListenerUnsubscribe()
+      this.#userListenerUnsubscribe = null
+    }
+  }
+
+  #handleContactsUpdate(contacts) {
+    const sortedContacts = [...contacts].sort((a, b) =>
+      (a.name || '').localeCompare(b.name || '')
+    )
+
+    const options = { handleCallback: this.handleContactItem.bind(this) }
+
+    this.#view.loadContacts(sortedContacts, options)
+    this.#view.loadContactsModal(sortedContacts, {
+      handleCallback: this.handleSendContact.bind(this)
+    })
+
+    this.initMessageList(sortedContacts)
+
+    if (this.#notificationService) {
+      this.#notificationService.updateContacts(sortedContacts)
+    }
   }
 
   async getUserData() {
@@ -531,42 +611,30 @@ class AppController {
         try {
           await SystemDocumentManager.incrementUserCount(user.data.email)
         } catch (error) {
-          console.error('[SystemDocumentManager] Falha ao incrementar contador de usuários — contagem pode ficar desalinhada.', error)
+          console.error('[SystemDocumentManager] Failed to increment user counter — count may be misaligned.', error)
         }
       }
 
-      const cacheObject = ProfileCache.get()
-      const contacts    = await user.getContactsFromCache(!cacheObject?.isCached)
+      const cacheObject    = ProfileCache.get()
+      const cachedContacts = cacheObject?.cache || []
+      if (cachedContacts.length > 0) {
+        this.#handleContactsUpdate(cachedContacts)
+      }
 
-      const sortedContacts = [...contacts].sort((a, b) =>
-        a.name.localeCompare(b.name)
-      )
-
-      await user.onSnapshot(() => {
+      this.#userListenerUnsubscribe = await user.onSnapshot(() => {
         LocalStorage.setUserData(JSON.stringify(user.data))
         this.#view.loadUserContent(user.data)
       })
 
-      const cryptoPromise = this.#initializeCrypto(user.data)
+      await this.#initializeCrypto(user.data)
 
-      const options = { handleCallback: this.handleContactItem.bind(this) }
-
-      await this.#view.loadContacts(sortedContacts, options)
-      this.initMessageList(sortedContacts)
-
-      await cryptoPromise
+      this.#initContactsListener(user.data.email)
 
       this.#initResetListener()
 
     } catch (error) {
-      try {
-        const auth = new Authenticator()
-        await auth.signOut()
-      } catch (_) {}
-
-      LocalStorage.clearSession()
-      ProfileCache.clear()
-      window.location.href = '/'
+      console.error('[AppController] Failed to load user data — terminating session:', error)
+      await this.#terminateSession()
     }
   }
 
@@ -574,7 +642,7 @@ class AppController {
     const uid = LocalStorage.getFirebaseUid()
 
     if (!uid) {
-      console.warn('[Crypto] Firebase UID não disponível. E2E desativado para esta sessão.')
+      console.warn('[Crypto] Firebase UID unavailable. E2E disabled for this session.')
       return
     }
 
@@ -595,16 +663,16 @@ class AppController {
         case CryptoInitStatus.READY:
           break
         case CryptoInitStatus.LOCAL_FOUND_REMOTE_MISSING:
-          console.info('[Crypto] Chave local sincronizada com o servidor.')
+          console.info('[Crypto] Local key synchronized with the server.')
           break
         case CryptoInitStatus.REMOTE_FOUND_LOCAL_MISSING:
-          console.info('[Crypto] Chave recuperada do servidor com sucesso.')
+          console.info('[Crypto] Key successfully recovered from the server.')
           break
         case CryptoInitStatus.GENERATED:
-          console.info('[Crypto] Novo par de chaves gerado.')
+          console.info('[Crypto] New key pair generated.')
           break
         case CryptoInitStatus.ERROR:
-          console.error('[Crypto] E2E indisponível nesta sessão.')
+          console.error('[Crypto] E2E unavailable in this session.')
           break
       }
 
@@ -625,6 +693,7 @@ class AppController {
         iconList = response.data || []
         LocalStorage.setIconList(JSON.stringify(iconList))
       } catch (error) {
+        console.error('[AppController] Failed to fetch emoji icon list:', error)
         iconList = []
       }
     }
@@ -642,18 +711,9 @@ class AppController {
     this.#tokenPollingInterval = null
 
     this.#notificationService?.destroy()
-    this.#destroyMessageListListeners()
-    this.#destroyResetListener()
+    this.#destroyAllListeners()
 
-    try {
-      const auth = new Authenticator()
-      await auth.signOut()
-    } catch (_) {
-    }
-
-    LocalStorage.clearSession()
-    ProfileCache.clear()
-    window.location.href = '/'
+    await this.#terminateSession()
   }
 
   handleMenuBtnClick(e){
@@ -703,7 +763,8 @@ class AppController {
           if (this.#cryptoService.isReady) {
             try {
               displayContent = await this.#cryptoService.decryptMessage(data, !isFromContact)
-            } catch {
+            } catch (error) {
+              console.error('[AppController] Failed to decrypt message for display:', error)
               displayContent = null
             }
           } else {
@@ -849,7 +910,7 @@ class AppController {
 
   async handleSendMessage(event) {
     const isModifiedPressed = event.shiftKey === true || event.ctrlKey === true
-    const keyPressed        = event.key === 'Enter' ?? event.code === 'Enter'
+    const keyPressed        = event.key === 'Enter' || event.code === 'Enter'
 
     if (keyPressed === true && !isModifiedPressed === true) {
       event.preventDefault()
@@ -885,12 +946,22 @@ class AppController {
   }
 
   async handleAddContact(event) {
+    
+    if (event.type === 'keypress') {
+      const keyPressed = event.key === 'Enter' || event.code === 'Enter'
+
+      if (!keyPressed) return
+    }
+
     const userData = JSON.parse(LocalStorage.getUserData())
     const value = this.#view.$('contactInput').value
 
-    if (value.trim() === '' || value.trim() === userData.email) return
+    if (value.trim() === '' || value.trim() === userData.email) {
+      this.#view.toggleContactError(true, 'You cannot add yourself as a contact.')
+      return
+    }
 
-    const MIN_RESPONSE_MS = 800
+    const MIN_RESPONSE_MS = 200
     const startedAt       = Date.now()
 
     const contact = new User({ email: value })
@@ -903,9 +974,6 @@ class AppController {
 
     if (result !== null) {
       try {
-        const userA = new User(userData)
-        const userB = new User(result)
-
         let chat = await Chat.findByUsers(userData.email, result.email)
 
         if (!chat) {
@@ -914,43 +982,15 @@ class AppController {
 
         const chatId = chat.data.id
 
-        await userA.saveContact({
-          email:          result.email,
-          profilePicture: result.profilePicture,
-          picture:        result.picture,
-          name:           result.name,
-          chatId,
-        })
+        await User.saveContactBilateral(userData, result, chatId)
 
-        await userB.saveContact({
-          email:          userData.email,
-          profilePicture: userData.profilePicture,
-          picture:        userData.picture,
-          name:           userData.name,
-          chatId,
-        })
-
-        const freshContacts  = await userA.getContactsFromCache(true)
-        const sortedContacts = [...freshContacts].sort((a, b) =>
-          a.name.localeCompare(b.name)
-        )
-
-        await this.#view.loadContacts(sortedContacts, {
-          handleCallback: this.handleContactItem.bind(this)
-        })
-
-        this.#view.loadContactsModal(sortedContacts, {
-          handleCallback: this.handleSendContact.bind(this)
-        })
-
-        this.initMessageList(sortedContacts)
+        this.#view.setAddContactModal(this.#view.$('cancelAddContact'))
       } catch (error) {
-        throw error
+        console.error('[AddContact] Failed to add contact:', error)
+        alert('There was an error and the contact could not be added.')
       }
-
-      this.#view.setAddContactModal(this.#view.$('cancelAddContact'))
     } else {
-      this.#view.toggleContactError(true)
+      this.#view.toggleContactError(true, 'The provided contact was not found.')
     }
   }
 
@@ -987,6 +1027,7 @@ class AppController {
         this.#view.setState('isVideoRecording', true)
       }
     } catch (error) {
+      console.error('[AppController] Failed to access camera:', error)
       alert("An error occurred while trying to access the camera.")
     }
   }
@@ -1020,13 +1061,18 @@ class AppController {
   }
 
   async handlerSendMessage() {
-    const now = Date.now()
-    if (now - this.#lastMessageSentAt < MIN_MESSAGE_INTERVAL_MS) return
-
-    const { messageList, inputContent } = this.#view.$()
+    const isPreview = this.#view.getState('isPreviewMode')
+    const { inputContent } = this.#view.$()
     const plaintext     = inputContent.innerText.trim()
     const messageLength = plaintext.length
+    const now = Date.now()
 
+    if (isPreview) {
+      this.#view.appendFakeMessage(plaintext)
+      return
+    }
+
+    if (now - this.#lastMessageSentAt < MIN_MESSAGE_INTERVAL_MS) return
     if (messageLength <= 0 || this.#currentChatId === null) return
     if (messageLength > MAX_MESSAGE_LENGTH) return
 
@@ -1051,7 +1097,7 @@ class AppController {
           ...payload,
         }
       } catch (e) {
-        console.warn('[Crypto] Falha ao criptografar. Enviando sem E2E.', e)
+        console.warn('[Crypto] Failed to encrypt. Sending without E2E.', e)
         messageData = {
           content:   plaintext,
           type:      'text',
@@ -1076,15 +1122,13 @@ class AppController {
     inputContent.textContent = ''
     inputContent.dispatchEvent(event)
 
-    const message = new Message(messageData, this.#currentChatId)
-
     try {
-      await message.send()
+      await Message.send(messageData, this.#currentChatId)
     } catch (error) {
-      throw error
+      console.error('[AppController] Failed to send message:', error)
       inputContent.textContent = plaintext
       inputContent.dispatchEvent(new CustomEvent('keyup', { bubbles: false, cancelable: true }))
-      alert('Não foi possível enviar a mensagem. Aguarde um instante e tente novamente.')
+      alert('The message could not be sent. Please wait a moment and try again.')
     }
   }
 
@@ -1118,7 +1162,7 @@ class AppController {
     const recorder = AudioRecorder.getInstance()
 
     if (!recorder.isSupported()) {
-      alert('Seu navegador não suporta gravação de áudio.')
+      alert('Your browser does not support audio recording.')
       return
     }
 
@@ -1138,7 +1182,8 @@ class AppController {
 
       this.#view.setState('tempRecordedInterval', recordedTime)
     } catch (error) {
-      alert('Erro ao acessar o microfone. Verifique as permissões.')
+      console.error('[AppController] Failed to access microphone:', error)
+      alert('Error accessing the microphone. Check permissions.')
     }
   }
 
@@ -1191,11 +1236,11 @@ class AppController {
         from:      userData.email,
       }
 
-      const message = new Message(messageData, this.#currentChatId)
-      await message.send()
+      await Message.send(messageData, this.#currentChatId)
 
     } catch (error) {
-      alert('Erro ao enviar o áudio. Tente novamente.')
+      console.error('[AppController] Failed to send audio message:', error)
+      alert('Error sending audio. Try again.')
     } finally {
       this.#view.resetAudioProperties()
     }
@@ -1218,13 +1263,13 @@ class AppController {
         from:      userData.email,
       }
 
-      const message = new Message(messageData, this.#currentChatId)
-      await message.send()
+      await Message.send(messageData, this.#currentChatId)
 
       this.#pendingMediaFile = null
       this.handleCloseMediaModal()
     } catch (error) {
-      alert('Erro ao enviar a imagem. Tente novamente.')
+      console.error('[AppController] Failed to send image:', error)
+      alert(error.message || 'Error sending image. Try again.')
     }
   }
 
@@ -1247,12 +1292,12 @@ class AppController {
         from:      userData.email,
       }
 
-      const message = new Message(messageData, this.#currentChatId)
-      await message.send()
+      await Message.send(messageData, this.#currentChatId)
 
       this.handleCloseMediaModal()
     } catch (error) {
-      alert(error.message || 'Erro ao enviar a imagem. Tente novamente.')
+      console.error('[AppController] Failed to send captured photo:', error)
+      alert(error.message || 'Error sending image. Try again.')
     }
   }
 
@@ -1274,13 +1319,13 @@ class AppController {
         from:      userData.email,
       }
 
-      const message = new Message(messageData, this.#currentChatId)
-      await message.send()
+      await Message.send(messageData, this.#currentChatId)
 
       this.#pendingDocumentFile = null
       this.handleCloseMediaModal()
     } catch (error) {
-      alert(error.message || 'Erro ao enviar o arquivo. Tente novamente.')
+      console.error('[AppController] Failed to send document:', error)
+      alert(error.message || 'Error sending file. Try again.')
     }
   }
 
@@ -1295,7 +1340,7 @@ class AppController {
 
     try {
       const response = await fetch(url)
-      if (!response.ok) throw new Error('Falha ao baixar o arquivo.')
+      if (!response.ok) throw new Error('Failed to download the file.')
 
       const blob    = await response.blob()
       const blobUrl = URL.createObjectURL(blob)
@@ -1307,7 +1352,8 @@ class AppController {
 
       URL.revokeObjectURL(blobUrl)
     } catch (error) {
-      alert('Erro ao baixar o arquivo. Tente novamente.')
+      console.error('[AppController] Failed to download file:', error)
+      alert('Error downloading file. Try again.')
     }
   }
 
@@ -1319,7 +1365,7 @@ class AppController {
     const userData = JSON.parse(LocalStorage.getUserData())
 
     if (contactEmail === userData.email) {
-      alert('Você não pode enviar mensagem para si mesmo.')
+      alert('You cannot send a message to yourself.')
       return
     }
 
@@ -1349,7 +1395,7 @@ class AppController {
       const contactData = await contactUser.getDocument()
 
       if (!contactData) {
-        alert('Contato não encontrado.')
+        alert('Contact not found.')
         this.#view.toggleConfirmChatModal()
         this.#pendingContactData = null
         return
@@ -1362,39 +1408,8 @@ class AppController {
 
       const chatId = chat.data.id
 
-      const userA = new User(userData)
-      const userB = new User(contactData)
+      await User.saveContactBilateral(userData, contactData, chatId)
 
-      await userA.saveContact({
-        email:          contactData.email,
-        profilePicture: contactData.profilePicture ?? contactData.picture,
-        picture:        contactData.picture,
-        name:           contactData.name,
-        chatId,
-      })
-
-      await userB.saveContact({
-        email:          userData.email,
-        profilePicture: userData.profilePicture ?? userData.picture,
-        picture:        userData.picture,
-        name:           userData.name,
-        chatId,
-      })
-
-      const freshContacts  = await userA.getContactsFromCache(true)
-      const sortedContacts = [...freshContacts].sort((a, b) =>
-        a.name.localeCompare(b.name)
-      )
-
-      await this.#view.loadContacts(sortedContacts, {
-        handleCallback: this.handleContactItem.bind(this)
-      })
-
-      this.#view.loadContactsModal(sortedContacts, {
-        handleCallback: this.handleSendContact.bind(this)
-      })
-
-      this.initMessageList(sortedContacts)
       this.#view.toggleConfirmChatModal()
 
       const openData = {
@@ -1412,8 +1427,8 @@ class AppController {
       this.#pendingContactData = null
 
     } catch (error) {
-      alert('Erro ao abrir conversa. Tente novamente.')
-      throw error
+      console.error('[ConfirmChat] Error opening chat:', error)
+      alert('Error opening chat. Try again.')
     }
   }
 
@@ -1434,12 +1449,12 @@ class AppController {
         timeStamp:      Date.now(),
       }
 
-      const message = new Message(messageData, this.#currentChatId)
-      await message.send()
-
       this.handleCloseMediaModal()
+      await Message.send(messageData, this.#currentChatId)
+
     } catch (error) {
-      alert('Erro ao enviar o contato. Tente novamente.')
+      console.error('[AppController] Failed to send contact card:', error)
+      alert('Error sending contact. Try again.')
     }
   }
 
@@ -1452,10 +1467,9 @@ class AppController {
       await auth.reauthenticate()
 
       const userData = JSON.parse(LocalStorage.getUserData())
-      const user     = new User(userData)
 
-      await user.markContactAsDeleted(userData.email)
-      await user.delete()
+      await User.markContactAsDeleted(userData.email, userData.email)
+      await User.delete(userData)
       await ResetActorRegistry.delete(userData.email)
       await this.#handleMutualDeletionCascade(userData)
 
@@ -1466,26 +1480,26 @@ class AppController {
 
       clearInterval(this.#tokenPollingInterval)
       this.#tokenPollingInterval = null
-      await auth.finalizeAccountDeletion()
 
       try {
         await SystemDocumentManager.decrementUserCount()
       } catch (error) {
-        console.error('[SystemDocumentManager] Falha ao decrementar contador de usuários — contagem pode ficar desalinhada.', error)
+        console.error('[SystemDocumentManager] Failed to decrement user counter — count may be misaligned.', error)
       }
 
       this.#notificationService?.destroy()
-      this.#destroyResetListener()
+      this.#destroyAllListeners()
+
+      await auth.finalizeAccountDeletion()
 
       LocalStorage.clearSession()
       ProfileCache.clear()
-
       window.location.href = '/'
 
     } catch (error) {
+      console.error('[AppController] Failed to delete account:', error)
       this.#view.setDeleteAccountLoading(false)
-      alert('Erro ao deletar a conta. Tente novamente.')
-      throw error
+      alert('Error deleting account. Try again.')
     }
   }
 
@@ -1500,7 +1514,7 @@ class AppController {
     }
 
     for (const chat of chats) {
-      const otherEmail = chat.getOtherParticipantEmail(userData.email)
+      const otherEmail = Chat.getOtherParticipantEmail(chat.data, userData.email)
       if (!otherEmail) continue
 
       const otherUser     = new User({ email: otherEmail })
@@ -1579,6 +1593,7 @@ class AppController {
         try {
           lastMessage.content = await this.#cryptoService.decryptMessage(lastMessage, isFromMe)
         } catch (e) {
+          console.error('[AppController] Failed to decrypt last message preview:', e)
           lastMessage.content = null
         }
       }

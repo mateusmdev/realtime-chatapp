@@ -27,7 +27,7 @@ class CryptoService {
 
   async init(firebaseUid, firestoreUserDoc, persistToFirestore, dynamicSalt) {
     if (!dynamicSalt || typeof dynamicSalt !== 'string' || dynamicSalt.trim().length === 0) {
-      console.error('[Crypto] Dynamic salt ausente ou inválido. E2E não inicializado.')
+      console.error('[Crypto] Dynamic salt missing or invalid. E2E not initialized.')
       return CryptoInitStatus.ERROR
     }
 
@@ -79,7 +79,7 @@ class CryptoService {
         this.#ready = true
         return CryptoInitStatus.REMOTE_FOUND_LOCAL_MISSING
       } catch (err) {
-        console.error('[Crypto] Falha ao recuperar chave remota. Gerando novo par de chaves.', err)
+        console.error('[Crypto] Failed to retrieve remote key. Generating new key pair.', err)
       }
     }
 
@@ -341,14 +341,15 @@ class CryptoService {
         req.onsuccess = ({ target }) => resolve(target.result ?? null)
         req.onerror   = ({ target }) => reject(target.error)
       })
-    } catch {
+    } catch (error) {
+      console.error('[Crypto] Failed to read private key from IndexedDB. Treating as not found.', error)
       return null
     }
   }
 
   #assertReady() {
     if (!this.#ready) {
-      throw new Error('CryptoService não está inicializado. Chame await cryptoService.init() primeiro.')
+      throw new Error('CryptoService is not initialized. Call await cryptoService.init() first.')
     }
   }
 

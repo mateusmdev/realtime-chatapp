@@ -39,9 +39,39 @@ body{
   display: grid;
   grid-template-columns: 5rem 1fr;
   overflow: hidden;
+
+  #crypto-loading-indicator {
+    position: fixed;
+    bottom: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(127, 118, 255, 0.9);
+    color: #fff;
+    padding: 0.5rem 1.2rem;
+    border-radius: 2rem;
+    font-size: 0.78rem;
+    z-index: 100;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    backdrop-filter: blur(4px);
+    transition: opacity 0.3s ease;
+
+    .spinner {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      border: 2px solid rgba(255,255,255,0.4);
+      border-top-color: #fff;
+      animation: crypto-spin 0.7s linear infinite;
+
+      @keyframes crypto-spin {
+        to { transform: rotate(360deg); }
+      }
+    }
+  }
   
   #splash-screen {
-    z-index: 5;
+    z-index: 20;
     position: fixed;
     top: 0;
     left: 0;
@@ -176,6 +206,11 @@ body{
       
       &.messages {
         grid-template-areas: "menu conversation";
+
+        a {
+          text-decoration: underline;
+          cursor: pointer;
+        }
       }
     }
     
@@ -458,6 +493,12 @@ body{
     white-space: nowrap;
     padding-top: 0.1rem;
   }
+
+  .phrase-contact {
+    width: 0;
+    height: 0;
+    display: none;
+  }
 }
 
 main {
@@ -466,8 +507,8 @@ main {
   &.messages {
     .app-content {
       grid-area: conversation;
-      z-index: 2;
-
+      z-index: 6;
+      
       section.message-screen {
         display: flex;
       }

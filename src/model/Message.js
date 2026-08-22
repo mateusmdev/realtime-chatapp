@@ -1,5 +1,4 @@
 import AbstractModel from "./AbstractModel"
-import Firestore from "../firebase/Firestore"
 import { orderBy, serverTimestamp } from "firebase/firestore"
 
 class Message extends AbstractModel {
@@ -49,16 +48,14 @@ class Message extends AbstractModel {
     return snapshot
   }
 
-  async send() {
-    const firestore   = this.getModelAttr('firestore')
-    const messagePath = `chats/${this.#chatId}/messages`
-    const writeData   = { ...this.data, timeStamp: serverTimestamp() }
-    const lastMessage = Message.#buildLastMessageSnapshot(writeData)
-    const senderEmail = writeData.from.toLowerCase()
+  static async send(data, chatId) {
+    const instance     = new Message({}, chatId)
+    const firestore    = instance.getModelAttr('firestore')
+    const messagePath  = `chats/${chatId}/messages`
+    const writeData    = { ...data, timeStamp: serverTimestamp() }
+    const lastMessage  = Message.#buildLastMessageSnapshot(writeData)
+    const senderEmail  = writeData.from.toLowerCase()
 
-    // F4 — a regra canSendMessage() em firestore.rules exige que esta
-    // escrita companheira aconteça no MESMO batch; sem ela, a criação da
-    // mensagem é rejeitada (getAfter() não veria a atualização).
     await firestore.batchWrite([
       {
         path:       messagePath,
@@ -67,7 +64,7 @@ class Message extends AbstractModel {
       },
       {
         path:       'chats',
-        documentId: this.#chatId,
+        documentId: chatId,
         data:       { lastMessage },
         merge:      true,
       },
@@ -80,20 +77,9 @@ class Message extends AbstractModel {
     ])
   }
 
-  static async findByChatId(chatId) {
-    const firestore   = Firestore.instance
-    const path        = `chats/${chatId}/messages`
-    const constraints = [orderBy('timeStamp')]
-
-    const result = await firestore.findDocs(path, constraints)
-
-    if (result.empty) return []
-
-    return result.docs.map(docSnap => new Message(docSnap.data(), chatId))
-  }
-
   static async findAllByChatId(chatId) {
-    const firestore   = Firestore.instance
+    const instance    = new Message({}, chatId)
+    const firestore   = instance.getModelAttr('firestore')
     const path        = `chats/${chatId}/messages`
     const constraints = [orderBy('timeStamp')]
 
@@ -108,6 +94,7 @@ class Message extends AbstractModel {
       return new Message(
         {
           ...data,
+          id: docSnap.id,
           hasMedia,
           resourceType: hasMedia ? Message.#resolveResourceType(data.type) : null,
         },
@@ -131,12 +118,23 @@ class Message extends AbstractModel {
     const constraints = [orderBy('timeStamp')]
 
     listener.onSnapshot((snapshot) => {
-      const messages = snapshot.docChanges()
-        .filter(change => change.type === 'added')
-        .map(change => new Message(change.doc.data(), chatId))
+      const messages = snapshot.docChanges({ includeMetadataChanges: true })
+        .filter(change => {
+          if (change.type !== 'added' && change.type !== 'modified') return false
+
+          const data     = change.doc.data()
+          const isExempt = data.type === 'text' || data.type === 'contact-attachment'
+
+          if (!isExempt && change.doc.metadata.hasPendingWrites) {
+            return false
+          }
+
+          return true
+        })
+        .map(change => new Message({ ...change.doc.data(), id: change.doc.id }, chatId))
 
       if (messages.length > 0) callback(messages)
-    }, constraints, path)
+    }, constraints, path, { includeMetadataChanges: true })
 
     return listener
   }
