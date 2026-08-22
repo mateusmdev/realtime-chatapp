@@ -435,13 +435,14 @@ class AppView extends AbstractView {
     const { inputContent, placeholder, microphoneBtn, sendBtn } = this.$()
     const message = inputContent.innerText.trim()
     const isBlockMedia = this.getState('blockMedia')
+    const isPreviewMode = this.getState('isPreviewMode')
 
     this.togglePlaceholder(message)
 
     if (message.length < 1) {
       placeholder.innerText = this.getState('placeholderText')
 
-      if (isBlockMedia) {
+      if (isBlockMedia || isPreviewMode) {
         this.setStyle(sendBtn, {
           opacity: '0.3',
           cursor: 'initial'
@@ -453,8 +454,8 @@ class AppView extends AbstractView {
       microphoneBtn.classList.remove('hidden')
       sendBtn.classList.add('hidden')
     } else {
-
-      if (isBlockMedia) {
+      
+      if (isBlockMedia || isPreviewMode) {
         this.setStyle(sendBtn, {
           opacity: '1',
           cursor: 'pointer'
