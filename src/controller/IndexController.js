@@ -73,7 +73,7 @@ class IndexController {
 
       window.location.href = '/app'
     } catch (error) {
-      throw error
+      console.error('[IndexController] Failed to authenticate user:', error)
     }
   }
 }

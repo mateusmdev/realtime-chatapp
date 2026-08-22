@@ -116,7 +116,8 @@ class NotificationService {
         try {
           const plaintext = await this.#cryptoService.decryptMessage(data, false)
           resolvedData = { ...data, content: plaintext }
-        } catch {
+        } catch (error) {
+          console.error('[NotificationService] Failed to decrypt message for notification preview:', error)
           resolvedData = { ...data, content: null }
         }
       }

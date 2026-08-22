@@ -628,7 +628,8 @@ class AppView extends AbstractView {
         try {
           await player.load(url)
           loaded = true
-        } catch (_) {
+        } catch (error) {
+          console.error('[AppView] Failed to load audio message:', error)
           playBtn.disabled = false
           return
         }

@@ -491,7 +491,8 @@ class AppController {
         await axios.get(TOKEN_VALIDATOR, {
           headers: { 'Authorization': `Bearer ${accessToken}` }
         })
-      } catch {
+      } catch (error) {
+        console.error('[AppController] Token validation failed — treating session as expired:', error)
         await this.#handleSessionExpired()
       }
     }
@@ -632,6 +633,7 @@ class AppController {
       this.#initResetListener()
 
     } catch (error) {
+      console.error('[AppController] Failed to load user data — terminating session:', error)
       await this.#terminateSession()
     }
   }
@@ -691,6 +693,7 @@ class AppController {
         iconList = response.data || []
         LocalStorage.setIconList(JSON.stringify(iconList))
       } catch (error) {
+        console.error('[AppController] Failed to fetch emoji icon list:', error)
         iconList = []
       }
     }
@@ -760,7 +763,8 @@ class AppController {
           if (this.#cryptoService.isReady) {
             try {
               displayContent = await this.#cryptoService.decryptMessage(data, !isFromContact)
-            } catch {
+            } catch (error) {
+              console.error('[AppController] Failed to decrypt message for display:', error)
               displayContent = null
             }
           } else {
@@ -1023,6 +1027,7 @@ class AppController {
         this.#view.setState('isVideoRecording', true)
       }
     } catch (error) {
+      console.error('[AppController] Failed to access camera:', error)
       alert("An error occurred while trying to access the camera.")
     }
   }
@@ -1120,6 +1125,7 @@ class AppController {
     try {
       await Message.send(messageData, this.#currentChatId)
     } catch (error) {
+      console.error('[AppController] Failed to send message:', error)
       inputContent.textContent = plaintext
       inputContent.dispatchEvent(new CustomEvent('keyup', { bubbles: false, cancelable: true }))
       alert('The message could not be sent. Please wait a moment and try again.')
@@ -1176,6 +1182,7 @@ class AppController {
 
       this.#view.setState('tempRecordedInterval', recordedTime)
     } catch (error) {
+      console.error('[AppController] Failed to access microphone:', error)
       alert('Error accessing the microphone. Check permissions.')
     }
   }
@@ -1232,6 +1239,7 @@ class AppController {
       await Message.send(messageData, this.#currentChatId)
 
     } catch (error) {
+      console.error('[AppController] Failed to send audio message:', error)
       alert('Error sending audio. Try again.')
     } finally {
       this.#view.resetAudioProperties()
@@ -1260,6 +1268,7 @@ class AppController {
       this.#pendingMediaFile = null
       this.handleCloseMediaModal()
     } catch (error) {
+      console.error('[AppController] Failed to send image:', error)
       alert(error.message || 'Error sending image. Try again.')
     }
   }
@@ -1287,6 +1296,7 @@ class AppController {
 
       this.handleCloseMediaModal()
     } catch (error) {
+      console.error('[AppController] Failed to send captured photo:', error)
       alert(error.message || 'Error sending image. Try again.')
     }
   }
@@ -1314,6 +1324,7 @@ class AppController {
       this.#pendingDocumentFile = null
       this.handleCloseMediaModal()
     } catch (error) {
+      console.error('[AppController] Failed to send document:', error)
       alert(error.message || 'Error sending file. Try again.')
     }
   }
@@ -1341,6 +1352,7 @@ class AppController {
 
       URL.revokeObjectURL(blobUrl)
     } catch (error) {
+      console.error('[AppController] Failed to download file:', error)
       alert('Error downloading file. Try again.')
     }
   }
@@ -1441,6 +1453,7 @@ class AppController {
       await Message.send(messageData, this.#currentChatId)
 
     } catch (error) {
+      console.error('[AppController] Failed to send contact card:', error)
       alert('Error sending contact. Try again.')
     }
   }
@@ -1484,6 +1497,7 @@ class AppController {
       window.location.href = '/'
 
     } catch (error) {
+      console.error('[AppController] Failed to delete account:', error)
       this.#view.setDeleteAccountLoading(false)
       alert('Error deleting account. Try again.')
     }
@@ -1579,6 +1593,7 @@ class AppController {
         try {
           lastMessage.content = await this.#cryptoService.decryptMessage(lastMessage, isFromMe)
         } catch (e) {
+          console.error('[AppController] Failed to decrypt last message preview:', e)
           lastMessage.content = null
         }
       }

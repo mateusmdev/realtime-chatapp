@@ -341,7 +341,8 @@ class CryptoService {
         req.onsuccess = ({ target }) => resolve(target.result ?? null)
         req.onerror   = ({ target }) => reject(target.error)
       })
-    } catch {
+    } catch (error) {
+      console.error('[Crypto] Failed to read private key from IndexedDB. Treating as not found.', error)
       return null
     }
   }
