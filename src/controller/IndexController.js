@@ -22,6 +22,14 @@ class IndexController {
         preventDefault: true
       }
     })
+
+    this.#view.addEvent('#termsBtn', {
+      eventName: 'click',
+      fn: () => {},
+      behavior: {
+        preventDefault: true
+      }
+    })
   }
 
   initApp() {

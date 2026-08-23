@@ -64,7 +64,7 @@ main{
         justify-content: center;
         align-items: center;
         flex-direction: column;
-        transform: translateY(-70%);
+        margin-bottom: 5.0rem;
 
         img {
           width: 46.2467%;
@@ -81,9 +81,8 @@ main{
       }
 
       .form-wrapper{
-        position: absolute;
-        bottom: 4.375rem;
         width: 100%;
+        height: auto;
 
         .sign-text{
           text-align: center;
@@ -98,7 +97,7 @@ main{
             margin-top: 1rem;
             background-color: variables.$primary-color;
             color: variables.$color-text;
-            width: 75%;
+            width: 78%;
             padding: 0.8rem;
             border-radius: 4px;
             outline: none;
@@ -108,6 +107,32 @@ main{
             &:hover{
               $hover-color: variables.$primary-color;
               background-color: scale-color($hover-color, $lightness: -5.7%);
+            }
+          }
+        }
+
+        .term-container {
+          display: none;
+          padding: 0.74rem 0;
+          display: flex;
+          margin: auto;
+          align-items: flex-start;
+          color: variables.$color-text;
+          width: 78%;
+          font-size: 0.063rem;
+
+          input {
+            margin-top: 0.244rem;
+            margin-right: 0.75rem;
+          }
+
+          p {
+            font-size: 0.813rem;
+            text-align: left;
+
+            a {
+              font-size: 0.813rem;
+              color: variables.$primary-color;
             }
           }
         }
