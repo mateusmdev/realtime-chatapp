@@ -25,16 +25,23 @@ class IndexController {
 
     this.#view.addEvent('#termsBtn', {
       eventName: 'click',
-      fn: () => {},
+      fn: () => this.#view.toggleUserTermsModal(open = true),
       behavior: {
         preventDefault: true
       }
     })
     
-    this.#view.addEventAll('.container', {
+    this.#view.addEvent('#closeTermsBtn', {
       eventName: 'click',
-      fn: (event) => {
-      },
+      fn: (event) => this.#view.toggleUserTermsModal(open = false),
+      behavior: {
+        preventDefault: true
+      }
+    })
+
+    this.#view.addEventAll('.term-btn', {
+      eventName: 'click',
+      fn: (event) => this.#view.setTermsModal(event.target),
       behavior: {
         preventDefault: true
       }

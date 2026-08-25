@@ -158,7 +158,7 @@ main{
     .container {
       border-radius: 4px;
       background-color: variables.$bg-primary;
-      max-width: 1152px;
+      max-width: 1100px;
       width: 90%;
       height: 80%;
       display: flex;
@@ -170,6 +170,9 @@ main{
         width: 100%;
         padding: 0 1rem;
         padding-top: 1.15rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
         
         .container {
           width: 100%;
@@ -203,8 +206,21 @@ main{
             }
             
             &.disabled {
-              opacity: 0.7;
+              opacity: 0.6;
             }
+          }
+        }
+
+        #close-terms-btn {
+          margin-left: -1.4rem;
+          width: 18px;
+          height: 18px;
+          display: inline-block;
+          
+          img{
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
           }
         }
       }
