@@ -30,6 +30,15 @@ class IndexController {
         preventDefault: true
       }
     })
+    
+    this.#view.addEventAll('.container', {
+      eventName: 'click',
+      fn: (event) => {
+      },
+      behavior: {
+        preventDefault: true
+      }
+    })
   }
 
   initApp() {

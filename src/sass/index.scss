@@ -139,4 +139,104 @@ main{
       }
     }
   }
+  section.terms-of-use {
+    position: fixed;
+    background-color: variables.$bg-overlay-layer;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+
+    &.disabled {
+      opacity: 0;
+      display: none;
+      visibility: hidden;
+      z-index: -5;
+    }
+    
+    .container {
+      border-radius: 4px;
+      background-color: variables.$bg-primary;
+      max-width: 1152px;
+      width: 90%;
+      height: 80%;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      color: variables.$color-text;
+      
+      .languages-button {
+        width: 100%;
+        padding: 0 1rem;
+        padding-top: 1.15rem;
+        
+        .container {
+          width: 100%;
+          display: flex;
+          flex-direction: row;
+          
+          @media (max-width: 202px) {
+            & {
+              flex-direction: column;
+              margin-bottom: -0.25rem;
+            }
+          }
+          
+          button {
+            background-color: variables.$primary-color;
+            outline: none;
+            border: none;
+            padding: 0.2rem 0.4rem;
+            width: 4.5rem;
+            border-radius: 4px;
+            color: variables.$color-text;
+            cursor: pointer;
+            margin-right: 0.5rem;
+            
+            @media (max-width: 202px) {
+              & {
+                margin-right: 0rem;
+                margin-bottom: 0.5rem;
+                width: 100%;
+              }
+            }
+            
+            &.disabled {
+              opacity: 0.7;
+            }
+          }
+        }
+      }
+      
+      .terms-container {
+        display: flex;
+        height: 100%;
+        width: 100%;
+        padding: 0.8rem 1rem;
+        position: relative;
+        
+        .terms {
+          border-radius: 4px;
+          background-color: variables.$bg-secundary;
+          padding: 0.7rem 1rem;
+          width: calc(100% - 2rem);
+          height: calc(100% - 2rem);
+          position: absolute;
+
+          p {
+            text-align: justify;
+            word-wrap: break-word;
+          }
+          
+          &.disabled {
+            opacity: 0;
+            display: none;
+            visibility: hidden;
+            z-index: -5;
+          }
+        }
+      }
+    }
+  }
 }
