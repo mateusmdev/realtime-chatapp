@@ -12,6 +12,7 @@ import ProfileCache from '../utils/ProfileCache'
 import CloudinaryService from '../service/CloudinaryService'
 import Authenticator from '../firebase/Authenticator'
 import Firestore from '../firebase/Firestore'
+import { serverTimestamp } from 'firebase/firestore'
 import NotificationService from '../service/NotificationService'
 import CryptoService, { CryptoInitStatus } from '../service/CryptoService.js'
 import SystemDocumentManager from '../destroyer/system/SystemDocumentManager'
@@ -586,6 +587,8 @@ class AppController {
       return
     }
 
+    const hasPendingTermsAcceptance = !!LocalStorage.getPendingTermsAcceptance()
+
     try {
       const response = await axios.get(TOKEN_VALIDATOR, {
         headers: { 'Authorization': `Bearer ${accessToken}` }
@@ -599,12 +602,23 @@ class AppController {
         picture:        data.picture,
         profilePicture: data.picture,
         about:          'I am using Realtime Chat App',
+        ...(hasPendingTermsAcceptance && {
+          termsAcceptedVersion: User.CURRENT_TERMS_VERSION,
+          termsAcceptedAt:      serverTimestamp(),
+        }),
       }))
 
       const resetLockId = await ResetActorRegistry.ensureResetLockId(data.email)
       await DestroyerOrchestrator.evaluateAndExecute(resetLockId)
 
       const { wasCreated } = await user.findOrCreate()
+      LocalStorage.removePendingTermsAcceptance()
+
+      if (!user.data.termsAcceptedVersion) {
+        await this.#rejectForMissingTerms()
+        return
+      }
+
       LocalStorage.setUserData(JSON.stringify(user.data))
 
       if (wasCreated) {
@@ -634,8 +648,19 @@ class AppController {
 
     } catch (error) {
       console.error('[AppController] Failed to load user data — terminating session:', error)
+
+      if (!hasPendingTermsAcceptance) {
+        await this.#rejectForMissingTerms()
+        return
+      }
+
       await this.#terminateSession()
     }
+  }
+
+  async #rejectForMissingTerms() {
+    alert('You have not accepted the Terms of Use, so you are not authorized to use this application. You will now be redirected to the sign-in page.')
+    await this.#terminateSession()
   }
 
   async #initializeCrypto(userData) {
@@ -935,13 +960,12 @@ class AppController {
     if (wasModified) {
       const { changes, value } = event.detail
 
-      const user = new User(User.sanitize({
-        ...userData,
+      const user = new User({ email: userData.email })
+
+      await user.savePartial(User.sanitize({
         name:  changes.name  ? value : userData.name,
         about: changes.about ? value : userData.about,
       }))
-
-      await user.save()
     }
   }
 

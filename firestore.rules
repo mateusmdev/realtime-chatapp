@@ -67,6 +67,21 @@ service cloud.firestore {
           && getAfter(userPath).data.lastMessageAt == request.time;
     }
 
+    function hasValidNewTermsAcceptance() {
+      return 'termsAcceptedVersion' in request.resource.data
+          && request.resource.data.termsAcceptedVersion is string
+          && request.resource.data.termsAcceptedVersion.size() > 0
+          && 'termsAcceptedAt' in request.resource.data
+          && request.resource.data.termsAcceptedAt == request.time;
+    }
+
+    function hasAcceptedTerms() {
+      let userPath = /databases/$(database)/documents/user/$(authEmail());
+      return exists(userPath)
+          && get(userPath).data.get('termsAcceptedVersion', '') is string
+          && get(userPath).data.get('termsAcceptedVersion', '') != '';
+    }
+
     function bothParticipantsDeleted(chatData) {
       let p = chatData.participantEmails;
       let pathA = /databases/$(database)/documents/user/$(p[0]);
@@ -232,11 +247,31 @@ service cloud.firestore {
       allow get:  if isAuthenticated();
       allow list: if isAuthenticated() && isResetActive() && isLockHolder();
 
-      allow create, update: if isAuthenticated() && isOwner(email)
+      allow create: if isAuthenticated() && isOwner(email)
         && request.resource.data.keys().hasOnly([
              'name', 'email', 'picture', 'profilePicture', 'about',
              'isDeleted', 'deletedAt', 'publicKey', 'encryptedPrivateKey',
-             'countedInMetadata', 'lastMessageAt'
+             'countedInMetadata', 'lastMessageAt', 'termsAcceptedVersion', 'termsAcceptedAt'
+           ])
+        && (!('isDeleted' in request.resource.data)
+            || request.resource.data.isDeleted is bool)
+        && (!('publicKey' in request.resource.data)
+            || request.resource.data.publicKey is map)
+        && (!('encryptedPrivateKey' in request.resource.data)
+            || request.resource.data.encryptedPrivateKey is string)
+        && (!('email' in request.resource.data)
+            || request.resource.data.email == email)
+        && (!('countedInMetadata' in request.resource.data)
+            || request.resource.data.countedInMetadata == false)
+        && (!('lastMessageAt' in request.resource.data)
+            || request.resource.data.lastMessageAt == request.time)
+        && hasValidNewTermsAcceptance();
+
+      allow update: if isAuthenticated() && isOwner(email)
+        && request.resource.data.keys().hasOnly([
+             'name', 'email', 'picture', 'profilePicture', 'about',
+             'isDeleted', 'deletedAt', 'publicKey', 'encryptedPrivateKey',
+             'countedInMetadata', 'lastMessageAt', 'termsAcceptedVersion', 'termsAcceptedAt'
            ])
         && (!('isDeleted' in request.resource.data)
             || request.resource.data.isDeleted is bool)
@@ -252,7 +287,12 @@ service cloud.firestore {
             || (request.resource.data.countedInMetadata == true
                 && resource.data.get('countedInMetadata', false) != true))
         && (!('lastMessageAt' in request.resource.data)
-            || request.resource.data.lastMessageAt == request.time);
+            || request.resource.data.lastMessageAt == request.time)
+        && (!('termsAcceptedVersion' in request.resource.data)
+            || (request.resource.data.termsAcceptedVersion is string
+                && request.resource.data.termsAcceptedVersion.size() > 0))
+        && (!('termsAcceptedAt' in request.resource.data)
+            || request.resource.data.termsAcceptedAt is timestamp);
 
       allow delete:         if isAuthenticated()
         && (
@@ -267,7 +307,11 @@ service cloud.firestore {
                      && (isOwner(email) || isOwner(contactEmail) || (isResetActive() && isLockHolder()));
 
         allow write: if isAuthenticated()
-                     && (isOwner(email) || isOwner(contactEmail) || (isResetActive() && isLockHolder()))
+                     && (
+                       (isOwner(email) && hasAcceptedTerms())
+                       || (isOwner(contactEmail) && hasAcceptedTerms())
+                       || (isResetActive() && isLockHolder())
+                     )
                      && (
                        request.resource == null
                        || (
@@ -298,7 +342,8 @@ service cloud.firestore {
                     && 'participantEmails' in request.resource.data
                     && request.resource.data.participantEmails.size() == 2
                     && request.resource.data.participantEmails[0] != request.resource.data.participantEmails[1]
-                    && authEmail() in request.resource.data.participantEmails;
+                    && authEmail() in request.resource.data.participantEmails
+                    && hasAcceptedTerms();
 
       allow update: if isAuthenticated()
                     && isParticipantOf(resource.data)
@@ -327,7 +372,8 @@ service cloud.firestore {
              )
           && request.resource.data.from.lower() == authEmail()
           && isValidMessagePayload(request.resource.data)
-          && canSendMessage();
+          && canSendMessage()
+          && hasAcceptedTerms();
 
         allow delete: if isAuthenticated()
           && (

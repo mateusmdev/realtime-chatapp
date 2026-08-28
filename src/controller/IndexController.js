@@ -105,6 +105,7 @@ class IndexController {
 
         LocalStorage.setAccessToken(token)
         LocalStorage.setFirebaseUid(uid)
+        LocalStorage.setPendingTermsAcceptance()
 
         window.location.href = '/app'
       }

@@ -2,10 +2,12 @@ import ProfileCache from "../utils/ProfileCache"
 import AbstractModel from "./AbstractModel"
 
 class User extends AbstractModel {
+  static CURRENT_TERMS_VERSION = 'v1'
 
   static ALLOWED_FIELDS = [
     'name', 'email', 'picture', 'profilePicture', 'about',
     'isDeleted', 'deletedAt', 'publicKey', 'encryptedPrivateKey',
+    'termsAcceptedVersion', 'termsAcceptedAt',
   ]
 
   static sanitize(data = {}) {
