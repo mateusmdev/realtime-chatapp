@@ -54,6 +54,14 @@ class IndexController {
         preventDefault: true
       }
     })
+
+    this.#view.addEvent('#enterPreviewBtn', {
+      eventName: 'click',
+      fn: (event) => window.location.href = '/app?mode=preview',
+      behavior: {
+        preventDefault: true
+      }
+    })
   }
 
   initApp() {

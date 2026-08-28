@@ -64,7 +64,6 @@ main{
         justify-content: center;
         align-items: center;
         flex-direction: column;
-        margin-bottom: 5.0rem;
 
         img {
           width: 46.2467%;
@@ -77,6 +76,18 @@ main{
           color: variables.$primary-color;
           text-align: center;
           margin: 0 0.4rem;
+        }
+      }
+
+      .preview-container {
+        margin: 3.80rem 0;
+        margin-bottom: 1.20rem;
+        text-align: center;
+
+        a {
+          color: variables.$primary-color;
+          text-decoration: none;
+          font-weight: bold;
         }
       }
 
