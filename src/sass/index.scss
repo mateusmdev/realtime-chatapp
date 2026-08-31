@@ -156,6 +156,28 @@ main{
         }
       }
     }
+
+    .social-midia-container {
+      position: absolute;
+      margin: 0 auto;
+      bottom: 2%;
+      width: 78%;
+      max-width: 18.0rem;
+      height: 40px;
+      display: flex;
+      justify-content: space-around;
+      align-items: center;
+
+      a {
+        width: 30px;
+        height: 30px;
+        
+        img {
+          width: 100%;
+          height: 100%;
+        }
+      }
+    }
   }
   section.terms-of-use {
     position: fixed;
