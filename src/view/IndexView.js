@@ -122,10 +122,13 @@ class IndexView extends AbstractView {
         const button = this.$(midiaBtn[currentMidia.name])
         button.href = currentMidia.url
 
-        button.addEventListener('click', event => {
-          event.preventDefault()
-          window.location.href = currentMidia.url
-        }, false)
+        this.addEvent(button, {
+          eventName: 'click',
+          fn: (event) => window.location.href = currentMidia.url,
+          behavior: {
+            preventDefault: true
+          }
+        })
         
         button.classList.add('show')
       })
