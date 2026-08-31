@@ -82,6 +82,59 @@ class IndexView extends AbstractView {
     submitBtn.disabled = true
     submitBtn.classList.remove('enabled')
   }
+
+  setSocialMidiaVisibility(socialMedias) {
+    const filteredMidias = Object.entries(socialMedias)
+    .filter(currentMedia => {
+      const [, value] = currentMedia
+      
+      return value != null && value.trim() !== ''
+    })
+    .map(currentMedia => {
+      const [name, url] = currentMedia
+      return { name, url }
+    })
+
+    
+    if (filteredMidias.length < 1) return
+    
+    const dict = {
+      1: 'one-item',
+      2: 'two-items',
+      3: 'three-items',
+    }
+
+    const { socialMidiaContainer } = this.$()
+    const selectedClass = dict[filteredMidias.length] || 'three-items'
+
+    if (selectedClass) {
+      socialMidiaContainer.classList.add(selectedClass);
+      
+      const midiaBtn = {
+        'github': 'githubBtn',
+        'linkedin': 'linkedinBtn',
+        'portfolio': 'portfolioBtn'
+      }
+      
+      filteredMidias.forEach(currentMidia => {
+        if (!midiaBtn[currentMidia.name]) return
+        
+        const button = this.$(midiaBtn[currentMidia.name])
+        button.href = currentMidia.url
+
+        button.addEventListener('click', event => {
+          event.preventDefault()
+          window.location.href = currentMidia.url
+        }, false)
+        
+        button.classList.add('show')
+      })
+
+      return
+    }
+
+    socialMidiaContainer.classList.add('three-items')
+  }
 }
 
 export default IndexView

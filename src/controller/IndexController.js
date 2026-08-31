@@ -4,6 +4,10 @@ import LocalStorage from '../utils/LocalStorage'
 import ProfileCache from '../utils/ProfileCache'
 import SystemDocumentManager from '../destroyer/system/SystemDocumentManager'
 
+const GITHUB_URL = import.meta.env.VITE_GITHUB_URL
+const LINKEDIN_URL = import.meta.env.VITE_LINKEDIN_URL
+const PORTFOLIO_URL = import.meta.env.VITE_PORTFOLIO_URL
+
 class IndexController {
   #view = new IndexView()
   #resetListener = null
@@ -65,6 +69,13 @@ class IndexController {
   }
 
   initApp() {
+    const socialMedias = {
+      github: GITHUB_URL, 
+      linkedin: LINKEDIN_URL,
+      portfolio: PORTFOLIO_URL
+    }
+
+    this.#view.setSocialMidiaVisibility(socialMedias)
     this.redirectUser()
   }
 

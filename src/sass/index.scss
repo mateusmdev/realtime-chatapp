@@ -170,12 +170,18 @@ main{
       height: 40px;
       align-items: center;
 
-      a {
+      a.social-midia-buttons {
         width: 30px;
         height: 30px;
         display: none;
         visibility: hidden;
         opacity: 0;
+
+        &.show {
+          display: initial;
+          visibility: initial;
+          opacity: initial;
+        }
 
         img {
           width: 100%;
@@ -190,8 +196,8 @@ main{
       &.two-items {
         justify-content: center;
 
-        a:first-of-type {
-          margin-right: 2.5rem;
+        a.social-midia-buttons.show:not(:has(~ .social-midia-buttons.show)) {
+            margin-left: 2.5rem;
         }
       }
 
@@ -206,12 +212,6 @@ main{
         opacity: initial;
         z-index: initial;
         visibility: initial;
-
-        a {
-          display: initial;
-          visibility: initial;
-          opacity: initial;
-        }
       }
     }
   }
