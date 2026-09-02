@@ -4,7 +4,7 @@ import '../../firebase/firebaseConfig'
 
 const COLLECTION      = '_system'
 const DOC_LOCK        = 'reset_lock'
-const LOCK_TIMEOUT_MS = 120_000
+const LOCK_TIMEOUT_MS = 300_000
 
 class ResetLockManager {
   #firestore = Firestore.instance

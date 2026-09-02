@@ -39,7 +39,7 @@ service cloud.firestore {
           || resource.data.locked != true
           || !('locked_at' in resource.data)
           || resource.data.locked_at == null
-          || (request.time.toMillis() - resource.data.locked_at) > 120000;
+          || (request.time.toMillis() - resource.data.locked_at) > 300000;
     }
 
     function userCountThresholdReached() {

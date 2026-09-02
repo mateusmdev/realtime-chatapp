@@ -1,5 +1,7 @@
 import ProfileCache from "../utils/ProfileCache"
 import AbstractModel from "./AbstractModel"
+import InvalidArgumentException from "../exception/InvalidArgumentException"
+import { serverTimestamp } from "firebase/firestore"
 
 class User extends AbstractModel {
   static CURRENT_TERMS_VERSION = 'v1'
@@ -153,6 +155,10 @@ class User extends AbstractModel {
   }
 
   static async markContactAsDeleted(ownerEmail, deletedEmail) {
+    if (!ownerEmail || !deletedEmail) {
+      throw new InvalidArgumentException('markContactAsDeleted requires both ownerEmail and deletedEmail.')
+    }
+
     const email    = deletedEmail.toLowerCase()
     const contacts = await User.getContacts(ownerEmail)
 
@@ -188,15 +194,40 @@ class User extends AbstractModel {
     const path      = instance.getModelAttr('path')
 
     const tombstone = {
+      email:     email,
       name:      userData.name,
       isDeleted: true,
-      deletedAt: Date.now(),
+      deletedAt: serverTimestamp(),
     }
 
     await firestore.save(tombstone, path, email)
 
     const contactsPath = `${path}/${email}/contacts`
     await firestore.deleteCollection(contactsPath)
+  }
+
+  async reviveAsNewAccount(freshPayload) {
+    const firestore = this.getModelAttr('firestore')
+    const path       = this.getModelAttr('path')
+    const email       = freshPayload.email
+
+    await firestore.deleteCollection(`${path}/${email}/contacts`)
+    await firestore.save(freshPayload, path, email)
+    await this.getDocument(freshPayload)
+  }
+
+  async reconcileTermsAcceptance() {
+    if (this.data.termsAcceptedVersion === User.CURRENT_TERMS_VERSION) {
+      return false
+    }
+
+    const updated = await this.savePartial({
+      termsAcceptedVersion: User.CURRENT_TERMS_VERSION,
+      termsAcceptedAt:      serverTimestamp(),
+    })
+
+    Object.assign(this.data, updated)
+    return true
   }
 }
 

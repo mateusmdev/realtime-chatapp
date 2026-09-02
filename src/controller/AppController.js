@@ -589,73 +589,101 @@ class AppController {
 
     const hasPendingTermsAcceptance = !!LocalStorage.getPendingTermsAcceptance()
 
+    let data
     try {
       const response = await axios.get(TOKEN_VALIDATOR, {
         headers: { 'Authorization': `Bearer ${accessToken}` }
       })
-
-      const { data } = response
-
-      const user = new User(User.sanitize({
-        email:          data.email,
-        name:           data.name,
-        picture:        data.picture,
-        profilePicture: data.picture,
-        about:          'I am using Realtime Chat App',
-        ...(hasPendingTermsAcceptance && {
-          termsAcceptedVersion: User.CURRENT_TERMS_VERSION,
-          termsAcceptedAt:      serverTimestamp(),
-        }),
-      }))
-
-      const resetLockId = await ResetActorRegistry.ensureResetLockId(data.email)
-      await DestroyerOrchestrator.evaluateAndExecute(resetLockId)
-
-      const { wasCreated } = await user.findOrCreate()
-      LocalStorage.removePendingTermsAcceptance()
-
-      if (!user.data.termsAcceptedVersion) {
-        await this.#rejectForMissingTerms()
-        return
-      }
-
-      LocalStorage.setUserData(JSON.stringify(user.data))
-
-      if (wasCreated) {
-        try {
-          await SystemDocumentManager.incrementUserCount(user.data.email)
-        } catch (error) {
-          console.error('[SystemDocumentManager] Failed to increment user counter — count may be misaligned.', error)
-        }
-      }
-
-      const cacheObject    = ProfileCache.get()
-      const cachedContacts = cacheObject?.cache || []
-      if (cachedContacts.length > 0) {
-        this.#handleContactsUpdate(cachedContacts)
-      }
-
-      this.#userListenerUnsubscribe = await user.onSnapshot(() => {
-        LocalStorage.setUserData(JSON.stringify(user.data))
-        this.#view.loadUserContent(user.data)
-      })
-
-      await this.#initializeCrypto(user.data)
-
-      this.#initContactsListener(user.data.email)
-
-      this.#initResetListener()
-
+      data = response.data
     } catch (error) {
-      console.error('[AppController] Failed to load user data — terminating session:', error)
-
-      if (!hasPendingTermsAcceptance) {
-        await this.#rejectForMissingTerms()
-        return
-      }
-
+      console.error('[AppController] Failed to validate access token:', error)
       await this.#terminateSession()
+      return
     }
+
+    const freshPayload = User.sanitize({
+      email:          data.email,
+      name:           data.name,
+      picture:        data.picture,
+      profilePicture: data.picture,
+      about:          'I am using Realtime Chat App',
+      ...(hasPendingTermsAcceptance && {
+        termsAcceptedVersion: User.CURRENT_TERMS_VERSION,
+        termsAcceptedAt:      serverTimestamp(),
+      }),
+    })
+
+    const user = new User(freshPayload)
+    const resetLockId = await ResetActorRegistry.ensureResetLockId(data.email)
+    await DestroyerOrchestrator.evaluateAndExecute(resetLockId)
+
+    let wasCreated
+    try {
+      ;({ wasCreated } = await user.findOrCreate())
+    } catch (error) {
+      console.error('[AppController] Failed to load/create user document:', error)
+      await this.#terminateSession()
+      return
+    }
+
+    LocalStorage.removePendingTermsAcceptance()
+
+    let wasRevivedAsNewAccount = false
+
+    try {
+      const isPreviouslyDeletedAccount = !wasCreated && user.data.isDeleted === true
+
+      if (isPreviouslyDeletedAccount) {
+        if (!hasPendingTermsAcceptance) {
+          await this.#rejectForMissingTerms()
+          return
+        }
+        await user.reviveAsNewAccount(freshPayload)
+        wasRevivedAsNewAccount = true
+
+      } else if (user.data.termsAcceptedVersion !== User.CURRENT_TERMS_VERSION) {
+        if (!hasPendingTermsAcceptance) {
+          await this.#rejectForMissingTerms()
+          return
+        }
+        await user.reconcileTermsAcceptance()
+      }
+    } catch (error) {
+      console.error('[AppController] Failed to reconcile terms acceptance:', error)
+      await this.#terminateSession()
+      return
+    }
+
+    LocalStorage.setUserData(JSON.stringify(user.data))
+
+    if (wasCreated || wasRevivedAsNewAccount) {
+      try {
+        await SystemDocumentManager.incrementUserCount(user.data.email)
+      } catch (error) {
+        console.error('[SystemDocumentManager] Failed to increment user counter — count may be misaligned.', error)
+      }
+    }
+
+    const cacheObject    = ProfileCache.get()
+    const cachedContacts = cacheObject?.cache || []
+    if (cachedContacts.length > 0) {
+      this.#handleContactsUpdate(cachedContacts)
+    }
+
+    this.#userListenerUnsubscribe = await user.onSnapshot(() => {
+      LocalStorage.setUserData(JSON.stringify(user.data))
+      this.#view.loadUserContent(user.data)
+    })
+
+    try {
+      await this.#initializeCrypto(user.data)
+    } catch (error) {
+      console.error('[AppController] Failed to initialize E2E crypto for this session — continuing without it:', error)
+    }
+
+    this.#initContactsListener(user.data.email)
+
+    this.#initResetListener()
   }
 
   async #rejectForMissingTerms() {
@@ -1491,6 +1519,13 @@ class AppController {
       await auth.reauthenticate()
 
       const userData = JSON.parse(LocalStorage.getUserData())
+
+      if (!userData?.email) {
+        console.error('[AppController] Corrupted local user data detected — aborting account deletion and resetting session.')
+        this.#view.setDeleteAccountLoading(false)
+        await this.#terminateSession()
+        return
+      }
 
       await User.markContactAsDeleted(userData.email, userData.email)
       await User.delete(userData)
