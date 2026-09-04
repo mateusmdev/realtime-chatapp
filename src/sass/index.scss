@@ -3,6 +3,28 @@
 @use 'parts/mixins';
 @use 'sass:color';
 
+* {
+  scrollbar-width: thin;
+  scrollbar-color: variables.$primary-color variables.$bg-primary; 
+}
+
+::-webkit-scrollbar {
+  width: 0.313rem;
+
+  &-track {
+    background: variables.$bg-primary;
+  }
+
+  &-thumb {
+    background: variables.$primary-color;
+    border-radius: 0;
+  }
+
+  &-corner {
+    background: transparent;
+  }
+}
+
 html,
 body{
   min-width: 100vw;
@@ -315,6 +337,7 @@ main{
           width: calc(100% - 2rem);
           height: calc(100% - 2rem);
           position: absolute;
+          overflow-y: auto;
 
           p {
             text-align: justify;
