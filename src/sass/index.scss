@@ -333,15 +333,29 @@ main{
         .terms {
           border-radius: 4px;
           background-color: variables.$bg-secundary;
-          padding: 0.7rem 1rem;
+          padding: 0.7rem 1.6rem;
           width: calc(100% - 2rem);
           height: calc(100% - 2rem);
           position: absolute;
           overflow-y: auto;
 
+          h1, h2, p {
+            margin: 1rem 0;
+          }
+
+          h1 {
+            font-size: 1.6rem;
+          }
+
+          h2 {
+            font-size: 1.2rem;
+            color: rgba(255, 255, 255, 0.9);
+          }
+
           p {
             text-align: justify;
             word-wrap: break-word;
+            margin-bottom: 1.5rem;
           }
           
           &.disabled {
