@@ -3,6 +3,8 @@ import Authenticator from './../firebase/Authenticator'
 import LocalStorage from '../utils/LocalStorage'
 import ProfileCache from '../utils/ProfileCache'
 import SystemDocumentManager from '../destroyer/system/SystemDocumentManager'
+import portugueseTerm from './../terms/portuguese.md?raw'
+import englishTerm from './../terms/english.md?raw'
 
 const GITHUB_URL = import.meta.env.VITE_GITHUB_URL
 const LINKEDIN_URL = import.meta.env.VITE_LINKEDIN_URL
@@ -68,13 +70,14 @@ class IndexController {
     })
   }
 
-  initApp() {
+  async initApp() {
     const socialMedias = {
       github: GITHUB_URL, 
       linkedin: LINKEDIN_URL,
       portfolio: PORTFOLIO_URL
     }
 
+    await this.loadUserTerms()
     this.#view.setSocialMidiaVisibility(socialMedias)
     this.redirectUser()
   }
@@ -131,6 +134,16 @@ class IndexController {
     } catch (error) {
       console.error('[IndexController] Failed to authenticate user:', error)
     }
+  }
+
+  async loadUserTerms() {
+    const { enTerms, ptTerms } = this.#view.$()
+    const terms = [englishTerm, portugueseTerm]
+
+    await [enTerms, ptTerms].forEach(async (element, index) => {
+      console.log(element)
+      await this.#view.loadMarkdownContent(terms[index], element)
+    })
   }
 }
 

@@ -1,5 +1,6 @@
 import AbstractView from './AbstractView'
 import './../sass/index.scss'
+import { marked } from 'marked'
 
 class IndexView extends AbstractView {
   constructor(){
@@ -137,6 +138,11 @@ class IndexView extends AbstractView {
     }
 
     socialMidiaContainer.classList.add('three-items')
+  }
+
+  async loadMarkdownContent(term, element) {
+    const html = await marked.parse(term)
+    element.innerHTML = html
   }
 }
 
