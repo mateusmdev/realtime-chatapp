@@ -17,12 +17,52 @@
             <img src="./src/assets/app-icon.svg" alt="app Logo" id="logo">
             <p>Realtime Chat App</p>
           </div>
-          
+          <div class="preview-container">
+            <a id="enter-preview-btn" href="/app?mode=preview">Enter Preview Mode</a>
+          </div>
           <div class="form-wrapper">
             <p class="sign-text">Sign in with</p>
             <form action="#" id="form">
-              <button id="submit-btn" type="submit">Google</button>
+              <button id="submit-btn" type="submit" disabled>Google</button>
             </form>
+            <div class="term-container">
+              <input id="term-toggle" type="checkbox">
+              <p>When using this application, you accept all of the <a id="terms-btn" href="#">Terms of Use</a>.</p>
+            </div>
+          </div>
+        </div>
+        <div class="social-midia-container" id="social-midia-container">
+          <a id="github-btn" class="social-midia-buttons" href="#">
+            <img src="./src/assets/github-icon.svg" alt="github icon button">
+          </a>
+          <a id="linkedin-btn" class="social-midia-buttons" href="#">
+            <img src="./src/assets/linkedin-icon.svg" alt="linkedin icon button">
+          </a>
+          <a id="portfolio-btn" class="social-midia-buttons" href="#">
+            <img src="./src/assets/portfolio-icon.svg" alt="portfolio icon button">
+          </a>
+        </div>
+      </section>
+      <section id="terms-of-use" class="terms-of-use disabled">
+        <div class="container">
+          <div class="languages-button">
+            <div class="container">
+              <button id="english-term-btn" class="term-btn" >En</button>
+              <button id="portuguese-term-btn" class="term-btn disabled">Pt-Br</button>
+            </div>
+            <div>
+              <a id="close-terms-btn" href="#">
+                <img src="./src/assets/cancel.svg" alt="Button to close term's modal.">
+              </a>
+            </div>
+          </div>
+          <div class="terms-container">
+            <div class="terms" id="en-terms">
+              <p>Terms of Use in English comes here.</p>
+            </div>
+            <div class="terms disabled" id="pt-terms">
+              <p>Terms of Use in Portuguese comes here.</p>
+            </div>
           </div>
         </div>
       </section>

@@ -3,6 +3,7 @@ import { getFirestore, collection, getDocs, writeBatch } from 'firebase/firestor
 import '../../firebase/firebaseConfig'
 
 const BATCH_SIZE = 500
+const PARENT_CONCURRENCY = 15
 
 class FirestoreDestroyer {
   #db = getFirestore()
@@ -88,15 +89,24 @@ class FirestoreDestroyer {
         return this.#buildStepResult(stepName, 'SUCCESS', 0, null)
       }
 
-      for (const parentDoc of parentSnapshot.docs) {
-        const subcollectionPath = `${parentPath}/${parentDoc.id}/${subcollectionName}`
+      const parentDocs = parentSnapshot.docs
 
-        const result = await this.#destroyCollection(subcollectionPath, stepName)
-        count += result.count
+      for (let i = 0; i < parentDocs.length; i += PARENT_CONCURRENCY) {
+        const chunk = parentDocs.slice(i, i + PARENT_CONCURRENCY)
+        const results = await Promise.all(
+          chunk.map(parentDoc => {
+            const subcollectionPath = `${parentPath}/${parentDoc.id}/${subcollectionName}`
+            return this.#destroyCollection(subcollectionPath, stepName)
+          })
+        )
 
-        if (result.status === 'FAILURE') {
-          hasFailure = true
-          lastError  = result.error
+        for (const result of results) {
+          count += result.count
+
+          if (result.status === 'FAILURE') {
+            hasFailure = true
+            lastError  = result.error
+          }
         }
       }
 

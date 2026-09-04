@@ -1,4 +1,3 @@
-
 const KEY = import.meta.env.VITE_STORAGE_KEY
 
 class LocalStorage {
@@ -51,12 +50,24 @@ class LocalStorage {
     localStorage.setItem('reset-lock-id', resetLockId)
   }
 
+  static getPendingTermsAcceptance() {
+    return localStorage.getItem('pending-terms-acceptance')
+  }
+
+  static setPendingTermsAcceptance() {
+    localStorage.setItem('pending-terms-acceptance', '1')
+  }
+
+  static removePendingTermsAcceptance() {
+    localStorage.removeItem('pending-terms-acceptance')
+  }
 
   static clearSession() {
     localStorage.removeItem(KEY)
     localStorage.removeItem('user-data')
     localStorage.removeItem('firebase-uid')
     localStorage.removeItem('reset-lock-id')
+    localStorage.removeItem('pending-terms-acceptance')
   }
 }
 
