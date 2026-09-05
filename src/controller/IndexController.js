@@ -141,7 +141,6 @@ class IndexController {
     const terms = [englishTerm, portugueseTerm]
 
     await [enTerms, ptTerms].forEach(async (element, index) => {
-      console.log(element)
       await this.#view.loadMarkdownContent(terms[index], element)
     })
   }
