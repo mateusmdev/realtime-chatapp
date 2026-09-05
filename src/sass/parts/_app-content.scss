@@ -514,7 +514,7 @@ section.message-screen {
         width: 100%;
 
         .input-content{
-          width: 92%;
+          width: 100%;
           word-break: break-all;
           outline: none;
           overflow: auto;
@@ -544,7 +544,7 @@ section.message-screen {
           position: absolute;
           right: 2.375rem;
           bottom: -0.03rem;
-          z-index: 1;
+          z-index: 5;
 
           img {
             width: 1.15rem;
