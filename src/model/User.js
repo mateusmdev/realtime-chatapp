@@ -196,7 +196,7 @@ class User extends AbstractModel {
 
     if (existing && existing.exists()) {
       const currentData = existing.data()
-      
+
       const tombstone = {
         email:     email,
         name:      userData.name,

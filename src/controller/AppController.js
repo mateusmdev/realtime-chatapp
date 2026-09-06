@@ -1534,15 +1534,19 @@ class AppController {
       await User.markContactAsDeleted(userData.email, userData.email)
 
       currentStep = 'tombstone-user-document'
+
       await User.delete(userData)
 
       currentStep = 'delete-reset-actor'
+
       await ResetActorRegistry.delete(userData.email)
 
       currentStep = 'mutual-deletion-cascade'
+
       await this.#handleMutualDeletionCascade(userData)
 
       currentStep = 'teardown-auth-state-listener'
+
       if (this.#authStateUnsubscribe) {
         this.#authStateUnsubscribe()
         this.#authStateUnsubscribe = null
@@ -1571,6 +1575,7 @@ class AppController {
       window.location.href = '/'
 
     } catch (error) {
+
       const { message, code } = this.#describeDeleteAccountError(error)
 
       console.error(
