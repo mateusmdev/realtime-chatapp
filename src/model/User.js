@@ -192,18 +192,26 @@ class User extends AbstractModel {
     const email     = userData[instance.getModelAttr('primaryKeyProp')].toLowerCase()
     const firestore = instance.getModelAttr('firestore')
     const path      = instance.getModelAttr('path')
-
     const existing = await firestore.findById(path, email)
 
     if (existing && existing.exists()) {
+      const currentData = existing.data()
+      
       const tombstone = {
         email:     email,
         name:      userData.name,
         isDeleted: true,
         deletedAt: serverTimestamp(),
+        ...(currentData.picture             !== undefined && { picture: currentData.picture }),
+        ...(currentData.profilePicture      !== undefined && { profilePicture: currentData.profilePicture }),
+        ...(currentData.about               !== undefined && { about: currentData.about }),
+        ...(currentData.publicKey           !== undefined && { publicKey: currentData.publicKey }),
+        ...(currentData.encryptedPrivateKey !== undefined && { encryptedPrivateKey: currentData.encryptedPrivateKey }),
+        ...(currentData.termsAcceptedVersion !== undefined && { termsAcceptedVersion: currentData.termsAcceptedVersion }),
+        ...(currentData.termsAcceptedAt     !== undefined && { termsAcceptedAt: currentData.termsAcceptedAt }),
       }
 
-      await firestore.save(tombstone, path, email, { merge: true })
+      await firestore.save(tombstone, path, email)
     }
 
     const contactsPath = `${path}/${email}/contacts`

@@ -8,19 +8,21 @@ class ResetActorRegistry {
 
   async ensureResetLockId(email) {
     const cached = LocalStorage.getResetLockId()
-    if (cached) return cached
 
+    if (cached && !email) return cached
     if (!email) return null
 
     const normalizedEmail = email.toLowerCase()
 
     try {
-      const existing = await this.#firestore.findById(COLLECTION, normalizedEmail)
+      if (cached) {
+        const existing = await this.#firestore.findById(COLLECTION, normalizedEmail)
 
-      if (existing && existing.exists()) {
-        const resetLockId = existing.data().resetLockId
-        LocalStorage.setResetLockId(resetLockId)
-        return resetLockId
+        if (existing && existing.exists() && existing.data().resetLockId === cached) {
+          return cached
+        }
+
+        LocalStorage.removeResetLockId()
       }
 
       const resetLockId = this.#generateId()
@@ -41,6 +43,8 @@ class ResetActorRegistry {
       await this.#firestore.delete(COLLECTION, email.toLowerCase())
     } catch (error) {
       console.error('[ResetActorRegistry] Failed to remove resetLockId - not critical.', error)
+    } finally {
+      LocalStorage.removeResetLockId()
     }
   }
 
