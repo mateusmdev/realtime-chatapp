@@ -193,18 +193,14 @@ class User extends AbstractModel {
     const firestore = instance.getModelAttr('firestore')
     const path      = instance.getModelAttr('path')
 
-    const existing = await firestore.findById(path, email)
-
-    if (existing && existing.exists()) {
-      const tombstone = {
-        email:     email,
-        name:      userData.name,
-        isDeleted: true,
-        deletedAt: serverTimestamp(),
-      }
-
-      await firestore.save(tombstone, path, email, { merge: true })
+    const tombstone = {
+      email:     email,
+      name:      userData.name,
+      isDeleted: true,
+      deletedAt: serverTimestamp(),
     }
+
+    await firestore.save(tombstone, path, email)
 
     const contactsPath = `${path}/${email}/contacts`
     await firestore.deleteCollection(contactsPath)
