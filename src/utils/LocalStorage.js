@@ -50,6 +50,10 @@ class LocalStorage {
     localStorage.setItem('reset-lock-id', resetLockId)
   }
 
+  static removeResetLockId() {
+    localStorage.removeItem('reset-lock-id')
+  }
+
   static getPendingTermsAcceptance() {
     return localStorage.getItem('pending-terms-acceptance')
   }

@@ -1513,11 +1513,14 @@ class AppController {
   async handleDeleteAccount() {
     this.#view.setDeleteAccountLoading(true)
 
+    let currentStep = 'reauthenticate'
+
     try {
       const auth = new Authenticator()
 
       await auth.reauthenticate()
 
+      currentStep = 'read-local-user-data'
       const userData = JSON.parse(LocalStorage.getUserData())
 
       if (!userData?.email) {
@@ -1527,11 +1530,19 @@ class AppController {
         return
       }
 
+      currentStep = 'mark-contacts-as-deleted'
       await User.markContactAsDeleted(userData.email, userData.email)
+
+      currentStep = 'tombstone-user-document'
       await User.delete(userData)
+
+      currentStep = 'delete-reset-actor'
       await ResetActorRegistry.delete(userData.email)
+
+      currentStep = 'mutual-deletion-cascade'
       await this.#handleMutualDeletionCascade(userData)
 
+      currentStep = 'teardown-auth-state-listener'
       if (this.#authStateUnsubscribe) {
         this.#authStateUnsubscribe()
         this.#authStateUnsubscribe = null
@@ -1540,25 +1551,74 @@ class AppController {
       clearInterval(this.#tokenPollingInterval)
       this.#tokenPollingInterval = null
 
+      currentStep = 'decrement-user-count'
       try {
         await SystemDocumentManager.decrementUserCount()
       } catch (error) {
         console.error('[SystemDocumentManager] Failed to decrement user counter — count may be misaligned.', error)
       }
 
+      currentStep = 'destroy-listeners-and-notifications'
       this.#notificationService?.destroy()
       this.#destroyAllListeners()
 
+      currentStep = 'finalize-account-deletion'
       await auth.finalizeAccountDeletion()
 
+      currentStep = 'clear-local-session'
       LocalStorage.clearSession()
       ProfileCache.clear()
       window.location.href = '/'
 
     } catch (error) {
-      console.error('[AppController] Failed to delete account:', error)
+      const { message, code } = this.#describeDeleteAccountError(error)
+
+      console.error(
+        `[AppController] Failed to delete account at step "${currentStep}" (code: ${code}):`,
+        error
+      )
+
       this.#view.setDeleteAccountLoading(false)
-      alert('Error deleting account. Try again.')
+      alert(message)
+    }
+  }
+
+  // Classifica o erro de handleDeleteAccount para dar feedback específico ao
+  // usuário (em vez do "Try again" genérico) e para deixar registrado, junto ao
+  // "currentStep" logado acima, o tipo de falha observado. Os códigos abaixo são
+  // os códigos de erro documentados do SDK do Firestore/Firebase; não há como
+  // detectar de forma confiável, a partir do objeto de erro em JS, que a causa
+  // específica foi "ERR_BLOCKED_BY_CLIENT" (esse rótulo é interno do Chromium e
+  // normalmente não chega ao texto da exceção) — por isso a mensagem fala em
+  // "connection blocked" de forma geral, cobrindo extensões, proxies e afins.
+  #describeDeleteAccountError(error) {
+    const code = error?.code ?? 'unknown'
+    const CONNECTIVITY_CODES = new Set(['unavailable', 'deadline-exceeded', 'cancelled'])
+
+    if (CONNECTIVITY_CODES.has(code)) {
+      return {
+        code,
+        message:
+          'Could not reach the server to delete your account. This can happen when a browser ' +
+          'extension (such as an ad blocker or privacy tool) is blocking the connection, or when ' +
+          'your network is unstable. Please disable such extensions for this site, or try a ' +
+          'private/incognito window, and try again.',
+      }
+    }
+
+    if (code === 'permission-denied') {
+      return {
+        code,
+        message:
+          'Your account deletion could not be completed due to a permission error. Part of your ' +
+          'account data may already have been removed. Please try again; if the problem persists, ' +
+          'contact support.',
+      }
+    }
+
+    return {
+      code,
+      message: 'Error deleting account. Please try again.',
     }
   }
 

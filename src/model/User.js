@@ -193,14 +193,41 @@ class User extends AbstractModel {
     const firestore = instance.getModelAttr('firestore')
     const path      = instance.getModelAttr('path')
 
-    const tombstone = {
-      email:     email,
-      name:      userData.name,
-      isDeleted: true,
-      deletedAt: serverTimestamp(),
-    }
+    // Idempotência: se o documento já não existir (ex.: uma tentativa anterior já
+    // concluiu a exclusão definitiva, ou o documento foi removido por outro fluxo),
+    // não há o que tombstonear. Sem esta checagem, a escrita abaixo seria avaliada
+    // pelas Firestore Security Rules como CREATE (resource == null), e a regra de
+    // create exige hasValidNewTermsAcceptance() - termsAcceptedVersion/termsAcceptedAt -
+    // que este payload nunca inclui, resultando em "Missing or insufficient permissions".
+    const existing = await firestore.findById(path, email)
 
-    await firestore.save(tombstone, path, email)
+    if (existing && existing.exists()) {
+      const currentData = existing.data()
+
+      // Overwrite completo (merge:false) construído manualmente, preservando só os
+      // campos com validação "estática" na regra de update (tipo/presença). Campos
+      // com validação "dinâmica" - lastMessageAt (exige == request.time quando
+      // presente) e countedInMetadata (exige == valor atual OU uma transição
+      // específica) - são deliberadamente OMITIDOS: com merge:true eles seriam
+      // herdados do documento existente e violariam essas condições, pois o valor
+      // herdado nunca é "agora". Omitir o campo é seguro: a regra só valida
+      // quando ele ESTÁ no payload.
+      const tombstone = {
+        email:     email,
+        name:      userData.name,
+        isDeleted: true,
+        deletedAt: serverTimestamp(),
+        ...(currentData.picture             !== undefined && { picture: currentData.picture }),
+        ...(currentData.profilePicture      !== undefined && { profilePicture: currentData.profilePicture }),
+        ...(currentData.about               !== undefined && { about: currentData.about }),
+        ...(currentData.publicKey           !== undefined && { publicKey: currentData.publicKey }),
+        ...(currentData.encryptedPrivateKey !== undefined && { encryptedPrivateKey: currentData.encryptedPrivateKey }),
+        ...(currentData.termsAcceptedVersion !== undefined && { termsAcceptedVersion: currentData.termsAcceptedVersion }),
+        ...(currentData.termsAcceptedAt     !== undefined && { termsAcceptedAt: currentData.termsAcceptedAt }),
+      }
+
+      await firestore.save(tombstone, path, email)
+    }
 
     const contactsPath = `${path}/${email}/contacts`
     await firestore.deleteCollection(contactsPath)
