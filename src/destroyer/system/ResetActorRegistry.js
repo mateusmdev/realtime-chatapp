@@ -16,13 +16,6 @@ class ResetActorRegistry {
 
     try {
       if (cached) {
-        // Não confiar cegamente no cache: o reset_actor correspondente pode já ter
-        // sido apagado (ex.: por uma tentativa anterior de exclusão de conta que
-        // chegou a rodar delete() aqui, mas falhou depois em outra etapa do fluxo,
-        // sem nunca chegar a limpar a sessão local). Sem esta checagem,
-        // ResetLockManager.acquireLock() rejeita com "Missing or insufficient
-        // permissions" ao gravar um lock_holder_id que não bate com nenhum
-        // reset_actor existente para o e-mail autenticado.
         const existing = await this.#firestore.findById(COLLECTION, normalizedEmail)
 
         if (existing && existing.exists() && existing.data().resetLockId === cached) {
@@ -51,9 +44,6 @@ class ResetActorRegistry {
     } catch (error) {
       console.error('[ResetActorRegistry] Failed to remove resetLockId - not critical.', error)
     } finally {
-      // O cache local precisa ser invalidado independentemente do resultado da
-      // exclusão remota: se o Firestore falhar, ainda assim não queremos que uma
-      // futura sessão reutilize este resetLockId como se o documento existisse.
       LocalStorage.removeResetLockId()
     }
   }

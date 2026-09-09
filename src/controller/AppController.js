@@ -615,7 +615,7 @@ class AppController {
 
     const user = new User(freshPayload)
     const resetLockId = await ResetActorRegistry.ensureResetLockId(data.email)
-    await DestroyerOrchestrator.evaluateAndExecute(resetLockId)
+    await DestroyerOrchestrator.evaluateAndExecute(resetLockId, data.email)
 
     let wasCreated
     try {
@@ -1534,7 +1534,7 @@ class AppController {
       await User.markContactAsDeleted(userData.email, userData.email)
 
       currentStep = 'tombstone-user-document'
-      await User.delete(userData)
+      await User.delete(userData, (step) => { currentStep = step })
 
       currentStep = 'delete-reset-actor'
       await ResetActorRegistry.delete(userData.email)
@@ -1573,8 +1573,21 @@ class AppController {
     } catch (error) {
       const { message, code } = this.#describeDeleteAccountError(error)
 
+      let authDiagnostic = 'not collected'
+      try {
+        const diagnosticAuth = new Authenticator()
+        const firebaseUser   = await diagnosticAuth.waitForAuth()
+        const storedUserData = JSON.parse(LocalStorage.getUserData() || 'null')
+
+        authDiagnostic =
+          `firebaseAuthEmail="${firebaseUser?.email ?? 'null'}" ` +
+          `localStorageEmail="${storedUserData?.email ?? 'null'}"`
+      } catch (diagError) {
+        authDiagnostic = `failed to collect: ${diagError?.message ?? diagError}`
+      }
+
       console.error(
-        `[AppController] Failed to delete account at step "${currentStep}" (code: ${code}):`,
+        `[AppController] Failed to delete account at step "${currentStep}" (code: ${code}) | ${authDiagnostic}:`,
         error
       )
 
@@ -1583,14 +1596,6 @@ class AppController {
     }
   }
 
-  // Classifica o erro de handleDeleteAccount para dar feedback específico ao
-  // usuário (em vez do "Try again" genérico) e para deixar registrado, junto ao
-  // "currentStep" logado acima, o tipo de falha observado. Os códigos abaixo são
-  // os códigos de erro documentados do SDK do Firestore/Firebase; não há como
-  // detectar de forma confiável, a partir do objeto de erro em JS, que a causa
-  // específica foi "ERR_BLOCKED_BY_CLIENT" (esse rótulo é interno do Chromium e
-  // normalmente não chega ao texto da exceção) — por isso a mensagem fala em
-  // "connection blocked" de forma geral, cobrindo extensões, proxies e afins.
   #describeDeleteAccountError(error) {
     const code = error?.code ?? 'unknown'
     const CONNECTIVITY_CODES = new Set(['unavailable', 'deadline-exceeded', 'cancelled'])

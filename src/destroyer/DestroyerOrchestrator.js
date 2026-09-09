@@ -13,21 +13,21 @@ class DestroyerOrchestrator {
   #cloudinaryDestroyer = CloudinaryDestroyer
   #authDestroyer       = AuthDestroyer
 
-  async evaluateAndExecute(holderId) {
+  async evaluateAndExecute(holderId, email) {
     try {
       const triggerType = await this.#shouldReset()
       if (triggerType === null) return
 
       if (!holderId) return
 
-      const acquired = await this.#lockManager.acquireLock(holderId)
+      const acquired = await this.#lockManager.acquireLock(holderId, email)
 
       if (!acquired) return
 
       await this.#executeReset(triggerType)
 
     } catch (error) {
-      console.error('[DestroyerOrchestrator] Failed to evaluate/execute reset cycle:', error)
+      console.error('[DestroyerOrchestrator] Failed to evaluate/execute reset cycle:', error, '| client clock (ms):', Date.now())
     }
   }
 
@@ -57,13 +57,32 @@ class DestroyerOrchestrator {
       this.#authDestroyer.destroy(),
     ])
 
+    let hasFailure = false
+
     settledResults.forEach(result => {
       if (result.status === 'rejected') {
         console.error('[DestroyerOrchestrator] A destroyer step rejected unexpectedly:', result.reason)
+        hasFailure = true
       } else if (result.value?.status === 'FAILURE' || result.value?.status === 'PARTIAL_FAILURE') {
         console.error(`[DestroyerOrchestrator] Destroyer '${result.value.service}' finished with status ${result.value.status}:`, result.value.steps)
+        hasFailure = true
       }
     })
+    if (hasFailure) {
+      console.error(
+        '[DestroyerOrchestrator] One or more destroyers did not complete successfully — ' +
+        'skipping reinitialize() so the system is not marked as freshly reset while stale ' +
+        'data may still remain. Releasing the lock so a future cycle can retry.'
+      )
+
+      try {
+        await this.#lockManager.releaseLock()
+      } catch (releaseError) {
+        console.error('[DestroyerOrchestrator] Failed to release reset lock after a partial/failed reset — system may remain locked:', releaseError)
+      }
+
+      return
+    }
 
     try {
       await this.#systemManager.reinitialize()

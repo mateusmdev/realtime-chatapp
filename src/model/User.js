@@ -187,31 +187,18 @@ class User extends AbstractModel {
     await Promise.all(updatePromises)
   }
 
-  static async delete(userData) {
+  static async delete(userData, onStep = () => {}) {
     const instance  = new User()
     const email     = userData[instance.getModelAttr('primaryKeyProp')].toLowerCase()
     const firestore = instance.getModelAttr('firestore')
     const path      = instance.getModelAttr('path')
 
-    // Idempotência: se o documento já não existir (ex.: uma tentativa anterior já
-    // concluiu a exclusão definitiva, ou o documento foi removido por outro fluxo),
-    // não há o que tombstonear. Sem esta checagem, a escrita abaixo seria avaliada
-    // pelas Firestore Security Rules como CREATE (resource == null), e a regra de
-    // create exige hasValidNewTermsAcceptance() - termsAcceptedVersion/termsAcceptedAt -
-    // que este payload nunca inclui, resultando em "Missing or insufficient permissions".
+    onStep('tombstone-check-existing')
     const existing = await firestore.findById(path, email)
 
     if (existing && existing.exists()) {
       const currentData = existing.data()
 
-      // Overwrite completo (merge:false) construído manualmente, preservando só os
-      // campos com validação "estática" na regra de update (tipo/presença). Campos
-      // com validação "dinâmica" - lastMessageAt (exige == request.time quando
-      // presente) e countedInMetadata (exige == valor atual OU uma transição
-      // específica) - são deliberadamente OMITIDOS: com merge:true eles seriam
-      // herdados do documento existente e violariam essas condições, pois o valor
-      // herdado nunca é "agora". Omitir o campo é seguro: a regra só valida
-      // quando ele ESTÁ no payload.
       const tombstone = {
         email:     email,
         name:      userData.name,
@@ -226,9 +213,11 @@ class User extends AbstractModel {
         ...(currentData.termsAcceptedAt     !== undefined && { termsAcceptedAt: currentData.termsAcceptedAt }),
       }
 
+      onStep('tombstone-write')
       await firestore.save(tombstone, path, email)
     }
 
+    onStep('tombstone-delete-contacts')
     const contactsPath = `${path}/${email}/contacts`
     await firestore.deleteCollection(contactsPath)
   }
