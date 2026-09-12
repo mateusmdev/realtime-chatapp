@@ -1518,6 +1518,7 @@ class AppController {
       }
 
       this.handleCloseMediaModal()
+      this.#view.toggleMediaBar()
       await Message.send(messageData, this.#currentChatId)
 
     } catch (error) {
