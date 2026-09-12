@@ -670,7 +670,12 @@ class AppController {
       this.#handleContactsUpdate(cachedContacts)
     }
 
-    this.#userListenerUnsubscribe = await user.onSnapshot(() => {
+    this.#userListenerUnsubscribe = await user.onSnapshot((snapshot) => {
+      if (!snapshot.exists()) {
+        this.#handleSessionExpired()
+        return
+      }
+
       LocalStorage.setUserData(JSON.stringify(user.data))
       this.#view.loadUserContent(user.data)
     })
@@ -802,6 +807,7 @@ class AppController {
     messageList.innerHTML = ''
 
     let isInitialLoad = true
+    const chatIdAtOpen = this.#currentChatId
 
     this.#messageListener = Message.listenByChatId(this.#currentChatId, async (messages) => {
       const shouldScroll = isInitialLoad || this.#view.isAtBottom()
@@ -838,6 +844,16 @@ class AppController {
 
       if (shouldScroll) this.#view.scrollToBottom()
       isInitialLoad = false
+    }, (error) => {
+      console.error(`[AppController] Message listener for chat ${chatIdAtOpen} failed — the conversation may no longer exist:`, error)
+
+      if (this.#currentChatId === chatIdAtOpen) {
+        this.#messageListener?.offSnapshot()
+        this.#messageListener    = null
+        this.#currentChatId      = null
+        this.#currentContactData = null
+        messageList.innerHTML   = ''
+      }
     })
   }
 
@@ -1024,7 +1040,7 @@ class AppController {
       await new Promise(resolve => setTimeout(resolve, MIN_RESPONSE_MS - elapsed))
     }
 
-    if (result !== null) {
+    if (result !== null && !result.isDeleted) {
       try {
         let chat = await Chat.findByUsers(userData.email, result.email)
 
@@ -1664,7 +1680,6 @@ class AppController {
       )
 
       await Chat.deleteChat(chatId)
-      await firestore.delete('user', otherEmail)
     }
 
     if (!hasActiveConnections) {
@@ -1689,6 +1704,9 @@ class AppController {
 
     this.#messageListListeners = Chat.listenLastMessages(chatIds, userData.email, (changes) => {
       this.#handleMessageListSnapshot(changes)
+    }, (error) => {
+      console.error('[AppController] Last-messages listener failed — one or more chats may have been removed:', error)
+      this.#destroyMessageListListeners()
     })
   }
 

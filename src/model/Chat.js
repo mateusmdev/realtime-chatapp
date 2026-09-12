@@ -82,7 +82,7 @@ class Chat extends AbstractModel {
     await firestore.delete(path, chatId)
   }
 
-  static listenLastMessages(chatIds, currentUserEmail, callback) {
+  static listenLastMessages(chatIds, currentUserEmail, callback, onError = null) {
     if (!chatIds?.length) return []
 
     const firestore = Firestore.instance
@@ -104,7 +104,7 @@ class Chat extends AbstractModel {
             }))
 
             if (changes.length > 0) callback(changes)
-        }, constraints)
+        }, constraints, onError)
 
         unsubscribers.push(unsubscribe)
     }

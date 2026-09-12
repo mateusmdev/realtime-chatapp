@@ -21,6 +21,14 @@ service cloud.firestore {
           && authEmail() in chatData.participantEmails;
     }
 
+    function chatExists(chatId) {
+      return exists(/databases/$(database)/documents/chats/$(chatId));
+    }
+
+    function chatOf(chatId) {
+      return get(/databases/$(database)/documents/chats/$(chatId)).data;
+    }
+
     function isResetActive() {
       return get(/databases/$(database)/documents/_system/reset_lock).data.locked == true;
     }
@@ -227,7 +235,8 @@ service cloud.firestore {
     }
 
     match /reset_actor/{email} {
-      allow read:   if isAuthenticated() && isOwner(email);
+      allow get:  if isAuthenticated() && isOwner(email);
+      allow list: if isAuthenticated() && isResetActive() && isLockHolder();
 
       allow create: if isAuthenticated() && isOwner(email)
         && request.resource.data.keys().hasOnly(['resetLockId'])
@@ -295,9 +304,10 @@ service cloud.firestore {
 
       allow delete:         if isAuthenticated()
         && (
-          (resource.data.get('isDeleted', false) == true
-           && exists(/databases/$(database)/documents/user/$(authEmail()))
-           && get(/databases/$(database)/documents/user/$(authEmail())).data.get('isDeleted', false) == true)
+          resource == null
+          || (resource.data.get('isDeleted', false) == true
+              && exists(/databases/$(database)/documents/user/$(authEmail()))
+              && get(/databases/$(database)/documents/user/$(authEmail())).data.get('isDeleted', false) == true)
           || (isResetActive() && isLockHolder())
         );
 
@@ -323,8 +333,8 @@ service cloud.firestore {
                          && (!('chatId' in request.resource.data)
                              || (
                                request.resource.data.chatId is string
-                               && get(/databases/$(database)/documents/chats/$(request.resource.data.chatId))
-                                    .data.participantEmails.hasAll([email, contactEmail])
+                               && chatExists(request.resource.data.chatId)
+                               && chatOf(request.resource.data.chatId).participantEmails.hasAll([email, contactEmail])
                              ))
                        )
                      );
@@ -361,14 +371,12 @@ service cloud.firestore {
       match /messages/{messageId} {
 
         allow read: if isAuthenticated()
-          && (isParticipantOf(
-               get(/databases/$(database)/documents/chats/$(chatId)).data
-             ) || (isResetActive() && isLockHolder()));
+          && ((chatExists(chatId) && isParticipantOf(chatOf(chatId)))
+              || (isResetActive() && isLockHolder()));
 
         allow create: if isAuthenticated()
-          && isParticipantOf(
-               get(/databases/$(database)/documents/chats/$(chatId)).data
-             )
+          && chatExists(chatId)
+          && isParticipantOf(chatOf(chatId))
           && request.resource.data.from.lower() == authEmail()
           && isValidMessagePayload(request.resource.data)
           && canSendMessage()
@@ -378,8 +386,9 @@ service cloud.firestore {
           && (
             resource.data.from.lower() == authEmail()
             || (
-              isParticipantOf(get(/databases/$(database)/documents/chats/$(chatId)).data)
-              && bothParticipantsDeleted(get(/databases/$(database)/documents/chats/$(chatId)).data)
+              chatExists(chatId)
+              && isParticipantOf(chatOf(chatId))
+              && bothParticipantsDeleted(chatOf(chatId))
             )
             || (isResetActive() && isLockHolder())
           );

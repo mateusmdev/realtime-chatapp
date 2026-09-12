@@ -51,6 +51,7 @@ class User extends AbstractModel {
       picture:        userB.picture ?? '',
       profilePicture: userB.profilePicture ?? userB.picture ?? '',
       chatId:         chatId,
+      isDeleted:      false,
     }
 
     const contactForB = {
@@ -59,6 +60,7 @@ class User extends AbstractModel {
       picture:        userA.picture ?? '',
       profilePicture: userA.profilePicture ?? userA.picture ?? '',
       chatId:         chatId,
+      isDeleted:      false,
     }
 
     await firestore.batchWrite([
@@ -215,6 +217,16 @@ class User extends AbstractModel {
 
       onStep('tombstone-write')
       await firestore.save(tombstone, path, email)
+    } else {
+      onStep('tombstone-write-minimal')
+      await firestore.save({
+        email:                email,
+        name:                 userData.name,
+        isDeleted:            true,
+        deletedAt:            serverTimestamp(),
+        termsAcceptedVersion: userData.termsAcceptedVersion || User.CURRENT_TERMS_VERSION,
+        termsAcceptedAt:      serverTimestamp(),
+      }, path, email)
     }
 
     onStep('tombstone-delete-contacts')

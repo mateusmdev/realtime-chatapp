@@ -15,15 +15,17 @@ class ResetActorRegistry {
     const normalizedEmail = email.toLowerCase()
 
     try {
-      if (cached) {
-        const existing = await this.#firestore.findById(COLLECTION, normalizedEmail)
+      const existing = await this.#firestore.findById(COLLECTION, normalizedEmail)
 
-        if (existing && existing.exists() && existing.data().resetLockId === cached) {
-          return cached
-        }
-
-        LocalStorage.removeResetLockId()
+      if (cached && existing && existing.exists() && existing.data().resetLockId === cached) {
+        return cached
       }
+
+      if (existing && existing.exists()) {
+        await this.#firestore.delete(COLLECTION, normalizedEmail)
+      }
+
+      LocalStorage.removeResetLockId()
 
       const resetLockId = this.#generateId()
       await this.#firestore.save({ resetLockId }, COLLECTION, normalizedEmail)
