@@ -831,7 +831,12 @@ class AppView extends AbstractView {
         content.classList.add('text')
         const isEncryptedWithoutContent = data.encrypted === true && !data.content
 
-        if (isEncryptedWithoutContent) {
+        if (data.decryptionFailed === true) {
+          const em = document.createElement('em')
+          Object.assign(em.style, { opacity: '0.6', fontStyle: 'italic', fontSize: '0.82rem' })
+          em.textContent = '🔒 Message cannot be decrypted (key changed)'
+          content.appendChild(em)
+        } else if (isEncryptedWithoutContent) {
           const em = document.createElement('em')
           Object.assign(em.style, { opacity: '0.6', fontStyle: 'italic', fontSize: '0.82rem' })
           em.textContent = '🔒 Encrypted Message'
@@ -1093,6 +1098,11 @@ class AppView extends AbstractView {
     }
     if (lastMessage.type === 'contact-attachment') {
       container.appendChild(document.createTextNode(`${prefix}👤 ${lastMessage.contactName ?? 'Contact'}`))
+      return
+    }
+
+    if (lastMessage.decryptionFailed === true) {
+      container.appendChild(document.createTextNode(`${prefix}🔒 Message cannot be decrypted (key changed)`))
       return
     }
 
