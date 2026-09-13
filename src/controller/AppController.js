@@ -826,11 +826,6 @@ class AppController {
             } catch (error) {
               console.error('[AppController] Failed to decrypt message for display:', error)
               displayContent = null
-              // isReady is true here, so this isn't a "still loading" race — the crypto
-              // service is up and running but this specific message doesn't unwrap with the
-              // current key pair (most commonly: the account's E2E key was regenerated after
-              // this message was encrypted, e.g. by an account deletion + recreation). Flagged
-              // separately so the UI can tell this apart from a normal transient state.
               decryptionFailed = true
             }
           } else {
@@ -1746,8 +1741,6 @@ class AppController {
         } catch (e) {
           console.error('[AppController] Failed to decrypt last message preview:', e)
           lastMessage.content = null
-          // Same distinction as in #openChat: isReady === true here, so this is a key
-          // mismatch (most commonly account recreation), not a still-loading state.
           lastMessage.decryptionFailed = true
         }
       }

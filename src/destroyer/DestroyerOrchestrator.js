@@ -53,12 +53,6 @@ class DestroyerOrchestrator {
   async #executeReset(triggerType, email) {
     const triggeredAt = Date.now()
 
-    // `email` (the current lock holder) is deliberately excluded from the reset_actor wipe
-    // below. The Firestore rule guarding `_system/crypto` re-validates isLockHolder() at write
-    // time, which reads this exact document — deleting it here, before reinitialize() runs,
-    // used to make that write fail with "Missing or insufficient permissions" on every single
-    // reset cycle (see diagnostic report, Erro 1). It's cleaned up explicitly at the end of this
-    // method instead, once it's no longer needed for authorization.
     const settledResults = await Promise.allSettled([
       this.#firestoreDestroyer.destroy(email),
       this.#cloudinaryDestroyer.destroy(),
@@ -89,10 +83,6 @@ class DestroyerOrchestrator {
         console.error('[DestroyerOrchestrator] Failed to release reset lock after a partial/failed reset — system may remain locked:', releaseError)
       }
 
-      // The lock holder's reset_actor document is intentionally left alone here: a
-      // partial/failed destroy pass means the system's state isn't fully known, so we avoid
-      // deleting more of it. ensureResetLockId() self-heals it on this user's next login, and a
-      // future successful reset cycle will sweep it up normally.
       return
     }
 
@@ -108,11 +98,6 @@ class DestroyerOrchestrator {
       }
     }
 
-    // Reschedule regardless of reinitialize()'s outcome above: `triggeredAt` was captured
-    // before any destructive work started, so it doesn't depend on reinitialize() having
-    // succeeded. This specifically prevents a failed/partial reinitialize() from leaving
-    // `_system/schedule.next_reset_at` stuck in the past, which would otherwise make every
-    // subsequent login re-trigger a brand new full reset cycle indefinitely.
     if (triggerType === 'timer') {
       try {
         await this.#systemManager.scheduleNextReset(triggeredAt, TimerTrigger.getIntervalMs())
@@ -121,10 +106,6 @@ class DestroyerOrchestrator {
       }
     }
 
-    // Finally, remove the reset_actor document that was preserved above so the collection ends
-    // up empty either way, matching the pre-fix end state. This only requires the caller to own
-    // the document (see firestore.rules: `allow delete: if isOwner(email) || ...`), so it's safe
-    // here regardless of whether reinitialize() above succeeded or the lock's current state.
     try {
       await this.#actorRegistry.delete(email)
     } catch (cleanupError) {
