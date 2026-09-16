@@ -134,7 +134,7 @@ class IndexController {
           }
 
           console.warn('[IndexController] Terms acceptance was revoked during sign-in; aborting login.')
-          alert('É necessário aceitar os termos de uso para continuar. Marque a caixa e tente novamente.')
+          alert('You must accept the terms of use to continue. Check the box and try again.')
           return
         }
 
