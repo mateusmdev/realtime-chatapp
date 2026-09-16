@@ -634,6 +634,40 @@ class AppController {
       const isPreviouslyDeletedAccount = !wasCreated && user.data.isDeleted === true
 
       if (isPreviouslyDeletedAccount) {
+        // Antes de oferecer revive, verifica se isDeleted:true na verdade
+        // reflete uma exclusão de conta INTERROMPIDA (marcador persistido em
+        // handleDeleteAccount), não uma exclusão concluída de propósito.
+        // Sem essa checagem, uma conta com exclusão pela metade seria
+        // silenciosamente reofertada como revive, mascarando o estado
+        // inconsistente (Problema 2 do relatório).
+        let interruptedDeletion = null
+        try {
+          const raw = LocalStorage.getDeletionInterrupted()
+          interruptedDeletion = raw ? JSON.parse(raw) : null
+        } catch (parseError) {
+          interruptedDeletion = null
+        }
+
+        const matchesInterrupted = interruptedDeletion?.email
+          && interruptedDeletion.email.toLowerCase() === user.data.email.toLowerCase()
+
+        if (matchesInterrupted) {
+          const shouldResume = confirm(
+            'Sua exclusão de conta anterior foi interrompida antes de terminar. ' +
+            'Deseja concluir a exclusão agora? Essa ação não pode ser desfeita.'
+          )
+
+          if (shouldResume) {
+            LocalStorage.setUserData(JSON.stringify(user.data))
+            await this.handleDeleteAccount()
+            return
+          }
+
+          LocalStorage.removeDeletionInterrupted()
+          await this.#terminateSession()
+          return
+        }
+
         if (!hasPendingTermsAcceptance) {
           await this.#rejectForMissingTerms()
           return
@@ -734,6 +768,18 @@ class AppController {
           break
       }
 
+      // Sem isso, uma mensagem renderizada como "transitória" (isReady
+      // ainda false no momento do primeiro snapshot em #openChat) ficava
+      // presa nesse estado para sempre: Message.listenByChatId só entrega
+      // deltas (docChanges), não a lista completa a cada evento, então nada
+      // forçava uma nova tentativa depois que a inicialização do crypto
+      // terminasse. Reabrir o chat atualmente aberto (se houver) força uma
+      // nova decriptação agora que isReady mudou (Problema 1 / Alternativa 1
+      // do relatório de investigação).
+      if (this.#cryptoService.isReady && this.#currentChatId && this.#currentContactData) {
+        this.#openChat(this.#currentContactData)
+      }
+
     } finally {
       this.#view.setCryptoLoadingState(false)
     }
@@ -818,15 +864,33 @@ class AppController {
 
         let displayContent   = data.content ?? null
         let decryptionFailed = false
+        let decryptionFailureReason = null
 
         if (data.encrypted === true) {
-          if (this.#cryptoService.isReady) {
+          const isFromMe = !isFromContact
+          // Mensagem criptografada antes da introdução de senderKey (commit
+          // 5bfb66c, 07/05/2026): encryptedKey foi envelopado só para a
+          // chave do destinatário, nunca para a do remetente. Para o próprio
+          // remetente reabrindo essa mensagem, a decriptação é matematicamente
+          // garantida de falhar (OperationError) — não é um estado transitório
+          // nem "chave alterada", é irrecuperável por natureza. Detectar isso
+          // antes de tentar evita uma chamada ao WebCrypto fadada a falhar e
+          // permite uma mensagem de UI específica (Problema 1 / Causa A e
+          // Alternativa 1 do relatório de investigação).
+          const isLegacyMessageMissingSenderKey = isFromMe && data.encryptedContent != null && !data.senderKey
+
+          if (isLegacyMessageMissingSenderKey) {
+            displayContent = null
+            decryptionFailed = true
+            decryptionFailureReason = 'legacy-missing-sender-key'
+          } else if (this.#cryptoService.isReady) {
             try {
-              displayContent = await this.#cryptoService.decryptMessage(data, !isFromContact)
+              displayContent = await this.#cryptoService.decryptMessage(data, isFromMe)
             } catch (error) {
               console.error('[AppController] Failed to decrypt message for display:', error)
               displayContent = null
               decryptionFailed = true
+              decryptionFailureReason = 'key-mismatch'
             }
           } else {
             displayContent = null
@@ -837,6 +901,7 @@ class AppController {
           ...data,
           content:          displayContent,
           decryptionFailed,
+          decryptionFailureReason,
           profilePicture: isFromContact
             ? this.#currentContactData.profileImage
             : (userData.profilePicture ?? userData.picture)
@@ -1534,6 +1599,7 @@ class AppController {
     this.#view.setDeleteAccountLoading(true)
 
     let currentStep = 'reauthenticate'
+    let userData = null // hoisted para fora do try: precisa estar acessível no catch, para persistir o marcador de retomada
 
     try {
       const auth = new Authenticator()
@@ -1541,7 +1607,7 @@ class AppController {
       await auth.reauthenticate()
 
       currentStep = 'read-local-user-data'
-      const userData = JSON.parse(LocalStorage.getUserData())
+      userData = JSON.parse(LocalStorage.getUserData())
 
       if (!userData?.email) {
         console.error('[AppController] Corrupted local user data detected — aborting account deletion and resetting session.')
@@ -1592,6 +1658,19 @@ class AppController {
 
     } catch (error) {
       const { message, code } = this.#describeDeleteAccountError(error)
+
+      const stepsWithNoWritesYet = new Set(['reauthenticate', 'read-local-user-data'])
+      if (userData?.email && !stepsWithNoWritesYet.has(currentStep)) {
+        try {
+          LocalStorage.setDeletionInterrupted(JSON.stringify({
+            email: userData.email,
+            step:  currentStep,
+            at:    Date.now(),
+          }))
+        } catch (storageError) {
+          console.error('[AppController] Failed to persist deletion-interrupted marker:', storageError)
+        }
+      }
 
       let authDiagnostic = 'not collected'
       try {
@@ -1735,13 +1814,26 @@ class AppController {
       const isFromMe    = data.lastMessage.from.toLowerCase() === userData.email.toLowerCase()
       const lastMessage = { ...data.lastMessage }
 
-      if (lastMessage.encrypted === true && this.#cryptoService.isReady) {
-        try {
-          lastMessage.content = await this.#cryptoService.decryptMessage(lastMessage, isFromMe)
-        } catch (e) {
-          console.error('[AppController] Failed to decrypt last message preview:', e)
+      if (lastMessage.encrypted === true) {
+        const isLegacyMessageMissingSenderKey = isFromMe && lastMessage.encryptedContent != null && !lastMessage.senderKey
+
+        if (isLegacyMessageMissingSenderKey) {
+          // Mesmo raciocínio de #openChat: mensagem anterior ao campo
+          // senderKey (commit 5bfb66c), irrecuperável por natureza para o
+          // próprio remetente — não tenta decryptMessage (Problema 1 do
+          // relatório).
           lastMessage.content = null
           lastMessage.decryptionFailed = true
+          lastMessage.decryptionFailureReason = 'legacy-missing-sender-key'
+        } else if (this.#cryptoService.isReady) {
+          try {
+            lastMessage.content = await this.#cryptoService.decryptMessage(lastMessage, isFromMe)
+          } catch (e) {
+            console.error('[AppController] Failed to decrypt last message preview:', e)
+            lastMessage.content = null
+            lastMessage.decryptionFailed = true
+            lastMessage.decryptionFailureReason = 'key-mismatch'
+          }
         }
       }
 

@@ -834,7 +834,9 @@ class AppView extends AbstractView {
         if (data.decryptionFailed === true) {
           const em = document.createElement('em')
           Object.assign(em.style, { opacity: '0.6', fontStyle: 'italic', fontSize: '0.82rem' })
-          em.textContent = '🔒 Message cannot be decrypted (key changed)'
+          em.textContent = data.decryptionFailureReason === 'legacy-missing-sender-key'
+            ? '🔒 Message sent before an encryption update — cannot be reopened'
+            : '🔒 Message cannot be decrypted (key changed)'
           content.appendChild(em)
         } else if (isEncryptedWithoutContent) {
           const em = document.createElement('em')
@@ -1102,7 +1104,10 @@ class AppView extends AbstractView {
     }
 
     if (lastMessage.decryptionFailed === true) {
-      container.appendChild(document.createTextNode(`${prefix}🔒 Message cannot be decrypted (key changed)`))
+      const text = lastMessage.decryptionFailureReason === 'legacy-missing-sender-key'
+        ? `${prefix}🔒 Message sent before an encryption update`
+        : `${prefix}🔒 Message cannot be decrypted (key changed)`
+      container.appendChild(document.createTextNode(text))
       return
     }
 
