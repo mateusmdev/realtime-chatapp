@@ -125,6 +125,25 @@ class IndexController {
         const auth = new Authenticator()
         const { token, uid } = await auth.signIn()
 
+        // Revalida o aceite dos termos agora que o popup assíncrono do Google
+        // foi resolvido: o checkbox pode ter sido desmarcado enquanto o popup
+        // estava aberto. Sem essa revalidação, a intenção capturada em
+        // `wasAccepted` fica obsoleta (TOCTOU) e o login prossegue mesmo com
+        // o aceite revogado. Don't Trust. Verify.
+        const stillAccepted = this.#view.validateUseTerms()
+
+        if (stillAccepted !== true) {
+          try {
+            await auth.signOut()
+          } catch (signOutError) {
+            console.error('[IndexController] Failed to terminate Firebase session after terms rejection:', signOutError)
+          }
+
+          console.warn('[IndexController] Terms acceptance was revoked during sign-in; aborting login.')
+          alert('É necessário aceitar os termos de uso para continuar. Marque a caixa e tente novamente.')
+          return
+        }
+
         LocalStorage.setAccessToken(token)
         LocalStorage.setFirebaseUid(uid)
         LocalStorage.setPendingTermsAcceptance()
