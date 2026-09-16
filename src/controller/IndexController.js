@@ -124,12 +124,6 @@ class IndexController {
       if (wasAccepted === true) {
         const auth = new Authenticator()
         const { token, uid } = await auth.signIn()
-
-        // Revalida o aceite dos termos agora que o popup assíncrono do Google
-        // foi resolvido: o checkbox pode ter sido desmarcado enquanto o popup
-        // estava aberto. Sem essa revalidação, a intenção capturada em
-        // `wasAccepted` fica obsoleta (TOCTOU) e o login prossegue mesmo com
-        // o aceite revogado. Don't Trust. Verify.
         const stillAccepted = this.#view.validateUseTerms()
 
         if (stillAccepted !== true) {

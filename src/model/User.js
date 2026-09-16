@@ -177,12 +177,6 @@ class User extends AbstractModel {
 
       if (!existingEntry || !existingEntry.exists()) return
 
-      // Antes, os demais campos (name/picture/profilePicture/chatId) eram
-      // preservados via spread: a entrada ficava isDeleted:true, mas o
-      // nome/foto do usuário excluído continuavam de fato gravados no
-      // Firestore de terceiros indefinidamente — a UI só os escondia via
-      // filtro (Problema 2 do relatório). save() sem merge:true sobrescreve
-      // o documento inteiro, então omitir os campos aqui já os remove.
       const updatedEntry = {
         email:     email,
         isDeleted: true,

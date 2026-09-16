@@ -91,12 +91,6 @@ service cloud.firestore {
           && get(userPath).data.get('termsAcceptedVersion', '') != '';
     }
 
-    // Usado apenas para CRIAR chats/mensagens (não para a subcoleção
-    // contacts): User.delete() precisa apagar a própria subcoleção
-    // 'contacts' logo depois de já ter gravado isDeleted:true no próprio
-    // doc — se essa checagem estivesse dentro de hasAcceptedTerms() (usada
-    // também na regra de contacts), esse passo da exclusão de conta
-    // quebraria. Ver Problema 2 / achado adicional #6 do relatório.
     function isSenderActive() {
       let userPath = /databases/$(database)/documents/user/$(authEmail());
       return exists(userPath) && get(userPath).data.get('isDeleted', false) == false;
@@ -310,25 +304,11 @@ service cloud.firestore {
         && (!('termsAcceptedVersion' in request.resource.data)
             || (request.resource.data.termsAcceptedVersion is string
                 && request.resource.data.termsAcceptedVersion.size() > 0))
-        // Antes, bastava ser um timestamp válido — um usuário podia gravar
-        // qualquer data (passada ou futura) nesse campo via update, o que
-        // esvaziava seu valor como trilha de auditoria (Problema 3 do
-        // relatório). Agora só aceita request.time (aceite/reconciliação
-        // genuína, ex.: User.reconcileTermsAcceptance) ou exatamente o valor
-        // já existente no documento (necessário para o tombstone de
-        // User.delete, que deliberadamente preserva o termsAcceptedAt
-        // original do usuário).
+        
         && (!('termsAcceptedAt' in request.resource.data)
             || request.resource.data.termsAcceptedAt == request.time
             || request.resource.data.termsAcceptedAt == resource.data.get('termsAcceptedAt', null));
 
-      // Antes: qualquer usuário autenticado cujo próprio doc já estivesse
-      // isDeleted:true podia apagar o doc de QUALQUER outro usuário também
-      // isDeleted:true, sem nenhum vínculo com o dono do documento-alvo
-      // (Problema 2 do relatório de investigação). Corrigido para exigir
-      // isOwner(email): só o próprio dono pode finalizar o hard-delete do
-      // seu tombstone. isOwner(email) já implica email == authEmail(), então
-      // a checagem redundante via get() do próprio doc foi removida.
       allow delete:         if isAuthenticated()
         && (
           resource == null
