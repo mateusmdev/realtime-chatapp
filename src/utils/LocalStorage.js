@@ -66,12 +66,25 @@ class LocalStorage {
     localStorage.removeItem('pending-terms-acceptance')
   }
 
+  static getDeletionInterrupted() {
+    return localStorage.getItem('deletion-interrupted')
+  }
+
+  static setDeletionInterrupted(data) {
+    localStorage.setItem('deletion-interrupted', data)
+  }
+
+  static removeDeletionInterrupted() {
+    localStorage.removeItem('deletion-interrupted')
+  }
+
   static clearSession() {
     localStorage.removeItem(KEY)
     localStorage.removeItem('user-data')
     localStorage.removeItem('firebase-uid')
     localStorage.removeItem('reset-lock-id')
     localStorage.removeItem('pending-terms-acceptance')
+    localStorage.removeItem('deletion-interrupted')
   }
 }
 
