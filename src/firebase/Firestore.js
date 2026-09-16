@@ -5,6 +5,8 @@ import {
   setDoc, onSnapshot, deleteDoc, writeBatch
 } from 'firebase/firestore'
 
+const DELETE_COLLECTION_BATCH_SIZE = 500
+
 class Firestore {
   _instance = null
   #firebaseInstance = firebaseConfig
@@ -118,8 +120,15 @@ class Firestore {
       const result = await this.findDocs(path)
       if (result.empty) return
 
-      const deletePromises = result.docs.map(docSnap => deleteDoc(docSnap.ref))
-      await Promise.all(deletePromises)
+      const docs = result.docs
+
+      for (let i = 0; i < docs.length; i += DELETE_COLLECTION_BATCH_SIZE) {
+        const batch     = writeBatch(this.#db)
+        const batchDocs = docs.slice(i, i + DELETE_COLLECTION_BATCH_SIZE)
+
+        batchDocs.forEach(docSnap => batch.delete(docSnap.ref))
+        await batch.commit()
+      }
     } catch (error) {
       throw error
     }

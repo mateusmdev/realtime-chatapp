@@ -51,6 +51,7 @@ class User extends AbstractModel {
       picture:        userB.picture ?? '',
       profilePicture: userB.profilePicture ?? userB.picture ?? '',
       chatId:         chatId,
+      isDeleted:      false,
     }
 
     const contactForB = {
@@ -59,6 +60,7 @@ class User extends AbstractModel {
       picture:        userA.picture ?? '',
       profilePicture: userA.profilePicture ?? userA.picture ?? '',
       chatId:         chatId,
+      isDeleted:      false,
     }
 
     await firestore.batchWrite([
@@ -176,7 +178,6 @@ class User extends AbstractModel {
       if (!existingEntry || !existingEntry.exists()) return
 
       const updatedEntry = {
-        ...existingEntry.data(),
         email:     email,
         isDeleted: true,
       }
@@ -187,21 +188,47 @@ class User extends AbstractModel {
     await Promise.all(updatePromises)
   }
 
-  static async delete(userData) {
+  static async delete(userData, onStep = () => {}) {
     const instance  = new User()
     const email     = userData[instance.getModelAttr('primaryKeyProp')].toLowerCase()
     const firestore = instance.getModelAttr('firestore')
     const path      = instance.getModelAttr('path')
 
-    const tombstone = {
-      email:     email,
-      name:      userData.name,
-      isDeleted: true,
-      deletedAt: serverTimestamp(),
+    onStep('tombstone-check-existing')
+    const existing = await firestore.findById(path, email)
+
+    if (existing && existing.exists()) {
+      const currentData = existing.data()
+
+      const tombstone = {
+        email:     email,
+        name:      userData.name,
+        isDeleted: true,
+        deletedAt: serverTimestamp(),
+        ...(currentData.picture             !== undefined && { picture: currentData.picture }),
+        ...(currentData.profilePicture      !== undefined && { profilePicture: currentData.profilePicture }),
+        ...(currentData.about               !== undefined && { about: currentData.about }),
+        ...(currentData.publicKey           !== undefined && { publicKey: currentData.publicKey }),
+        ...(currentData.encryptedPrivateKey !== undefined && { encryptedPrivateKey: currentData.encryptedPrivateKey }),
+        ...(currentData.termsAcceptedVersion !== undefined && { termsAcceptedVersion: currentData.termsAcceptedVersion }),
+        ...(currentData.termsAcceptedAt     !== undefined && { termsAcceptedAt: currentData.termsAcceptedAt }),
+      }
+
+      onStep('tombstone-write')
+      await firestore.save(tombstone, path, email)
+    } else {
+      onStep('tombstone-write-minimal')
+      await firestore.save({
+        email:                email,
+        name:                 userData.name,
+        isDeleted:            true,
+        deletedAt:            serverTimestamp(),
+        termsAcceptedVersion: userData.termsAcceptedVersion || User.CURRENT_TERMS_VERSION,
+        termsAcceptedAt:      serverTimestamp(),
+      }, path, email)
     }
 
-    await firestore.save(tombstone, path, email)
-
+    onStep('tombstone-delete-contacts')
     const contactsPath = `${path}/${email}/contacts`
     await firestore.deleteCollection(contactsPath)
   }

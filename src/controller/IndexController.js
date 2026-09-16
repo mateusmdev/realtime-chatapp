@@ -124,6 +124,19 @@ class IndexController {
       if (wasAccepted === true) {
         const auth = new Authenticator()
         const { token, uid } = await auth.signIn()
+        const stillAccepted = this.#view.validateUseTerms()
+
+        if (stillAccepted !== true) {
+          try {
+            await auth.signOut()
+          } catch (signOutError) {
+            console.error('[IndexController] Failed to terminate Firebase session after terms rejection:', signOutError)
+          }
+
+          console.warn('[IndexController] Terms acceptance was revoked during sign-in; aborting login.')
+          alert('You must accept the terms of use to continue. Check the box and try again.')
+          return
+        }
 
         LocalStorage.setAccessToken(token)
         LocalStorage.setFirebaseUid(uid)

@@ -615,7 +615,7 @@ class AppController {
 
     const user = new User(freshPayload)
     const resetLockId = await ResetActorRegistry.ensureResetLockId(data.email)
-    await DestroyerOrchestrator.evaluateAndExecute(resetLockId)
+    await DestroyerOrchestrator.evaluateAndExecute(resetLockId, data.email)
 
     let wasCreated
     try {
@@ -634,6 +634,35 @@ class AppController {
       const isPreviouslyDeletedAccount = !wasCreated && user.data.isDeleted === true
 
       if (isPreviouslyDeletedAccount) {
+        
+        let interruptedDeletion = null
+        try {
+          const raw = LocalStorage.getDeletionInterrupted()
+          interruptedDeletion = raw ? JSON.parse(raw) : null
+        } catch (parseError) {
+          interruptedDeletion = null
+        }
+
+        const matchesInterrupted = interruptedDeletion?.email
+          && interruptedDeletion.email.toLowerCase() === user.data.email.toLowerCase()
+
+        if (matchesInterrupted) {
+          const shouldResume = confirm(
+            'Sua exclusão de conta anterior foi interrompida antes de terminar. ' +
+            'Deseja concluir a exclusão agora? Essa ação não pode ser desfeita.'
+          )
+
+          if (shouldResume) {
+            LocalStorage.setUserData(JSON.stringify(user.data))
+            await this.handleDeleteAccount()
+            return
+          }
+
+          LocalStorage.removeDeletionInterrupted()
+          await this.#terminateSession()
+          return
+        }
+
         if (!hasPendingTermsAcceptance) {
           await this.#rejectForMissingTerms()
           return
@@ -670,7 +699,12 @@ class AppController {
       this.#handleContactsUpdate(cachedContacts)
     }
 
-    this.#userListenerUnsubscribe = await user.onSnapshot(() => {
+    this.#userListenerUnsubscribe = await user.onSnapshot((snapshot) => {
+      if (!snapshot.exists()) {
+        this.#handleSessionExpired()
+        return
+      }
+
       LocalStorage.setUserData(JSON.stringify(user.data))
       this.#view.loadUserContent(user.data)
     })
@@ -727,6 +761,10 @@ class AppController {
         case CryptoInitStatus.ERROR:
           console.error('[Crypto] E2E unavailable in this session.')
           break
+      }
+
+      if (this.#cryptoService.isReady && this.#currentChatId && this.#currentContactData) {
+        this.#openChat(this.#currentContactData)
       }
 
     } finally {
@@ -802,6 +840,7 @@ class AppController {
     messageList.innerHTML = ''
 
     let isInitialLoad = true
+    const chatIdAtOpen = this.#currentChatId
 
     this.#messageListener = Message.listenByChatId(this.#currentChatId, async (messages) => {
       const shouldScroll = isInitialLoad || this.#view.isAtBottom()
@@ -810,15 +849,26 @@ class AppController {
         const { data }      = currentMessage
         const isFromContact = data.from.toLowerCase() !== userData.email.toLowerCase()
 
-        let displayContent = data.content ?? null
+        let displayContent   = data.content ?? null
+        let decryptionFailed = false
+        let decryptionFailureReason = null
 
         if (data.encrypted === true) {
-          if (this.#cryptoService.isReady) {
+          const isFromMe = !isFromContact
+          const isLegacyMessageMissingSenderKey = isFromMe && data.encryptedContent != null && !data.senderKey
+
+          if (isLegacyMessageMissingSenderKey) {
+            displayContent = null
+            decryptionFailed = true
+            decryptionFailureReason = 'legacy-missing-sender-key'
+          } else if (this.#cryptoService.isReady) {
             try {
-              displayContent = await this.#cryptoService.decryptMessage(data, !isFromContact)
+              displayContent = await this.#cryptoService.decryptMessage(data, isFromMe)
             } catch (error) {
               console.error('[AppController] Failed to decrypt message for display:', error)
               displayContent = null
+              decryptionFailed = true
+              decryptionFailureReason = 'key-mismatch'
             }
           } else {
             displayContent = null
@@ -827,7 +877,9 @@ class AppController {
 
         const enrichedData = {
           ...data,
-          content: displayContent,
+          content:          displayContent,
+          decryptionFailed,
+          decryptionFailureReason,
           profilePicture: isFromContact
             ? this.#currentContactData.profileImage
             : (userData.profilePicture ?? userData.picture)
@@ -838,6 +890,16 @@ class AppController {
 
       if (shouldScroll) this.#view.scrollToBottom()
       isInitialLoad = false
+    }, (error) => {
+      console.error(`[AppController] Message listener for chat ${chatIdAtOpen} failed — the conversation may no longer exist:`, error)
+
+      if (this.#currentChatId === chatIdAtOpen) {
+        this.#messageListener?.offSnapshot()
+        this.#messageListener    = null
+        this.#currentChatId      = null
+        this.#currentContactData = null
+        messageList.innerHTML   = ''
+      }
     })
   }
 
@@ -1024,7 +1086,7 @@ class AppController {
       await new Promise(resolve => setTimeout(resolve, MIN_RESPONSE_MS - elapsed))
     }
 
-    if (result !== null) {
+    if (result !== null && !result.isDeleted) {
       try {
         let chat = await Chat.findByUsers(userData.email, result.email)
 
@@ -1502,6 +1564,7 @@ class AppController {
       }
 
       this.handleCloseMediaModal()
+      this.#view.toggleMediaBar()
       await Message.send(messageData, this.#currentChatId)
 
     } catch (error) {
@@ -1513,12 +1576,16 @@ class AppController {
   async handleDeleteAccount() {
     this.#view.setDeleteAccountLoading(true)
 
+    let currentStep = 'reauthenticate'
+    let userData = null
+
     try {
       const auth = new Authenticator()
 
       await auth.reauthenticate()
 
-      const userData = JSON.parse(LocalStorage.getUserData())
+      currentStep = 'read-local-user-data'
+      userData = JSON.parse(LocalStorage.getUserData())
 
       if (!userData?.email) {
         console.error('[AppController] Corrupted local user data detected — aborting account deletion and resetting session.')
@@ -1527,11 +1594,19 @@ class AppController {
         return
       }
 
+      currentStep = 'mark-contacts-as-deleted'
       await User.markContactAsDeleted(userData.email, userData.email)
-      await User.delete(userData)
+
+      currentStep = 'tombstone-user-document'
+      await User.delete(userData, (step) => { currentStep = step })
+
+      currentStep = 'delete-reset-actor'
       await ResetActorRegistry.delete(userData.email)
+
+      currentStep = 'mutual-deletion-cascade'
       await this.#handleMutualDeletionCascade(userData)
 
+      currentStep = 'teardown-auth-state-listener'
       if (this.#authStateUnsubscribe) {
         this.#authStateUnsubscribe()
         this.#authStateUnsubscribe = null
@@ -1540,25 +1615,92 @@ class AppController {
       clearInterval(this.#tokenPollingInterval)
       this.#tokenPollingInterval = null
 
+      currentStep = 'decrement-user-count'
       try {
         await SystemDocumentManager.decrementUserCount()
       } catch (error) {
         console.error('[SystemDocumentManager] Failed to decrement user counter — count may be misaligned.', error)
       }
 
+      currentStep = 'destroy-listeners-and-notifications'
       this.#notificationService?.destroy()
       this.#destroyAllListeners()
 
+      currentStep = 'finalize-account-deletion'
       await auth.finalizeAccountDeletion()
 
+      currentStep = 'clear-local-session'
       LocalStorage.clearSession()
       ProfileCache.clear()
       window.location.href = '/'
 
     } catch (error) {
-      console.error('[AppController] Failed to delete account:', error)
+      const { message, code } = this.#describeDeleteAccountError(error)
+
+      const stepsWithNoWritesYet = new Set(['reauthenticate', 'read-local-user-data'])
+      if (userData?.email && !stepsWithNoWritesYet.has(currentStep)) {
+        try {
+          LocalStorage.setDeletionInterrupted(JSON.stringify({
+            email: userData.email,
+            step:  currentStep,
+            at:    Date.now(),
+          }))
+        } catch (storageError) {
+          console.error('[AppController] Failed to persist deletion-interrupted marker:', storageError)
+        }
+      }
+
+      let authDiagnostic = 'not collected'
+      try {
+        const diagnosticAuth = new Authenticator()
+        const firebaseUser   = await diagnosticAuth.waitForAuth()
+        const storedUserData = JSON.parse(LocalStorage.getUserData() || 'null')
+
+        authDiagnostic =
+          `firebaseAuthEmail="${firebaseUser?.email ?? 'null'}" ` +
+          `localStorageEmail="${storedUserData?.email ?? 'null'}"`
+      } catch (diagError) {
+        authDiagnostic = `failed to collect: ${diagError?.message ?? diagError}`
+      }
+
+      console.error(
+        `[AppController] Failed to delete account at step "${currentStep}" (code: ${code}) | ${authDiagnostic}:`,
+        error
+      )
+
       this.#view.setDeleteAccountLoading(false)
-      alert('Error deleting account. Try again.')
+      alert(message)
+    }
+  }
+
+  #describeDeleteAccountError(error) {
+    const code = error?.code ?? 'unknown'
+    const CONNECTIVITY_CODES = new Set(['unavailable', 'deadline-exceeded', 'cancelled'])
+
+    if (CONNECTIVITY_CODES.has(code)) {
+      return {
+        code,
+        message:
+          'Could not reach the server to delete your account. This can happen when a browser ' +
+          'extension (such as an ad blocker or privacy tool) is blocking the connection, or when ' +
+          'your network is unstable. Please disable such extensions for this site, or try a ' +
+          'private/incognito window, and try again.',
+      }
+    }
+
+    if (code === 'permission-denied') {
+      return {
+        code,
+        message:
+          'Your account deletion could not be completed due to a permission error. Part of your ' +
+          'account data may already have been removed. Please try again; if the problem persists, ' +
+          'contact support.',
+      }
+    }
+
+    return {
+      code,
+      message: 'Error deleting account. Please try again.',
     }
   }
 
@@ -1599,7 +1741,6 @@ class AppController {
       )
 
       await Chat.deleteChat(chatId)
-      await firestore.delete('user', otherEmail)
     }
 
     if (!hasActiveConnections) {
@@ -1624,6 +1765,9 @@ class AppController {
 
     this.#messageListListeners = Chat.listenLastMessages(chatIds, userData.email, (changes) => {
       this.#handleMessageListSnapshot(changes)
+    }, (error) => {
+      console.error('[AppController] Last-messages listener failed — one or more chats may have been removed:', error)
+      this.#destroyMessageListListeners()
     })
   }
 
@@ -1648,12 +1792,22 @@ class AppController {
       const isFromMe    = data.lastMessage.from.toLowerCase() === userData.email.toLowerCase()
       const lastMessage = { ...data.lastMessage }
 
-      if (lastMessage.encrypted === true && this.#cryptoService.isReady) {
-        try {
-          lastMessage.content = await this.#cryptoService.decryptMessage(lastMessage, isFromMe)
-        } catch (e) {
-          console.error('[AppController] Failed to decrypt last message preview:', e)
+      if (lastMessage.encrypted === true) {
+        const isLegacyMessageMissingSenderKey = isFromMe && lastMessage.encryptedContent != null && !lastMessage.senderKey
+
+        if (isLegacyMessageMissingSenderKey) {
           lastMessage.content = null
+          lastMessage.decryptionFailed = true
+          lastMessage.decryptionFailureReason = 'legacy-missing-sender-key'
+        } else if (this.#cryptoService.isReady) {
+          try {
+            lastMessage.content = await this.#cryptoService.decryptMessage(lastMessage, isFromMe)
+          } catch (e) {
+            console.error('[AppController] Failed to decrypt last message preview:', e)
+            lastMessage.content = null
+            lastMessage.decryptionFailed = true
+            lastMessage.decryptionFailureReason = 'key-mismatch'
+          }
         }
       }
 

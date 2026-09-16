@@ -93,7 +93,7 @@ class AbstractModel {
         await this.#firestore.delete(this.#path, documentId)
     }
 
-    async onSnapshot(callback, constraints = [], path = null, options = null) {
+    async onSnapshot(callback, constraints = [], path = null, options = null, onError = null) {
       if (!callback || typeof callback !== 'function') {
          throw new InvalidArgumentException(`You must pass a callback function when calling 'onSnapshot'`)
       }
@@ -105,14 +105,16 @@ class AbstractModel {
       
       this.#listener = this.#firestore.onSnapshot(snapshotPath, documentId, (snapshot) => {
         if (documentId) {
-          if (snapshot && snapshot.exists()) {
-            this.#data = snapshot.data()
+          if (snapshot) {
+            if (snapshot.exists()) {
+              this.#data = snapshot.data()
+            }
             callback(snapshot)
           }
         } else {
           callback(snapshot)
         }
-      }, constraints, null, options)
+      }, constraints, onError, options)
       
       return this.#listener
     }

@@ -112,7 +112,7 @@ class Message extends AbstractModel {
     return map[messageType] ?? 'image'
   }
 
-  static listenByChatId(chatId, callback) {
+  static listenByChatId(chatId, callback, onError = null) {
     const listener    = new Message({}, chatId)
     const path        = `chats/${chatId}/messages`
     const constraints = [orderBy('timeStamp')]
@@ -134,7 +134,7 @@ class Message extends AbstractModel {
         .map(change => new Message({ ...change.doc.data(), id: change.doc.id }, chatId))
 
       if (messages.length > 0) callback(messages)
-    }, constraints, path, { includeMetadataChanges: true })
+    }, constraints, path, { includeMetadataChanges: true }, onError)
 
     return listener
   }
