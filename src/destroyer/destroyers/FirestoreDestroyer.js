@@ -3,11 +3,20 @@ import { getFirestore, collection, getDocs, writeBatch } from 'firebase/firestor
 import '../../firebase/firebaseConfig'
 
 const BATCH_SIZE = 500
+const PARENT_CONCURRENCY = 15
 
 class FirestoreDestroyer {
   #db = getFirestore()
 
-  async destroy() {
+  /**
+   * @param {string|null} preserveActorEmail - when destroying `reset_actor`, keep this one
+   *   document intact. Used to preserve the current reset lock holder's own actor document,
+   *   which SystemDocumentManager.reinitialize() still needs a moment later to prove — via the
+   *   isLockHolder() Firestore rule — that it is authorized to rotate `_system/crypto`.
+   *   DestroyerOrchestrator is responsible for deleting this last document afterwards, once
+   *   reinitialize() no longer needs it.
+   */
+  async destroy(preserveActorEmail = null) {
     const startedAt = Date.now()
     const steps     = []
 
@@ -15,7 +24,7 @@ class FirestoreDestroyer {
     steps.push(await this.#destroyChats())
     steps.push(await this.#destroyUserContacts())
     steps.push(await this.#destroyUsers())
-    steps.push(await this.#destroyResetActors())
+    steps.push(await this.#destroyResetActors(preserveActorEmail))
 
     return {
       service:     'firestore',
@@ -41,11 +50,12 @@ class FirestoreDestroyer {
     return this.#destroyCollection('user', 'users')
   }
 
-  async #destroyResetActors() {
-    return this.#destroyCollection('reset_actor', 'reset_actors')
+  async #destroyResetActors(preserveActorEmail = null) {
+    const excludeIds = preserveActorEmail ? [preserveActorEmail.toLowerCase()] : []
+    return this.#destroyCollection('reset_actor', 'reset_actors', excludeIds)
   }
 
-  async #destroyCollection(path, stepName) {
+  async #destroyCollection(path, stepName, excludeIds = []) {
     let count = 0
 
     try {
@@ -56,7 +66,13 @@ class FirestoreDestroyer {
         return this.#buildStepResult(stepName, 'SUCCESS', 0, null)
       }
 
-      const docs = snapshot.docs
+      const docs = excludeIds.length > 0
+        ? snapshot.docs.filter(docSnap => !excludeIds.includes(docSnap.id))
+        : snapshot.docs
+
+      if (docs.length === 0) {
+        return this.#buildStepResult(stepName, 'SUCCESS', 0, null)
+      }
 
       for (let i = 0; i < docs.length; i += BATCH_SIZE) {
         const batch     = writeBatch(this.#db)
@@ -88,15 +104,24 @@ class FirestoreDestroyer {
         return this.#buildStepResult(stepName, 'SUCCESS', 0, null)
       }
 
-      for (const parentDoc of parentSnapshot.docs) {
-        const subcollectionPath = `${parentPath}/${parentDoc.id}/${subcollectionName}`
+      const parentDocs = parentSnapshot.docs
 
-        const result = await this.#destroyCollection(subcollectionPath, stepName)
-        count += result.count
+      for (let i = 0; i < parentDocs.length; i += PARENT_CONCURRENCY) {
+        const chunk = parentDocs.slice(i, i + PARENT_CONCURRENCY)
+        const results = await Promise.all(
+          chunk.map(parentDoc => {
+            const subcollectionPath = `${parentPath}/${parentDoc.id}/${subcollectionName}`
+            return this.#destroyCollection(subcollectionPath, stepName)
+          })
+        )
 
-        if (result.status === 'FAILURE') {
-          hasFailure = true
-          lastError  = result.error
+        for (const result of results) {
+          count += result.count
+
+          if (result.status === 'FAILURE') {
+            hasFailure = true
+            lastError  = result.error
+          }
         }
       }
 

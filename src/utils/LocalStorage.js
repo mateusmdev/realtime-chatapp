@@ -1,4 +1,3 @@
-
 const KEY = import.meta.env.VITE_STORAGE_KEY
 
 class LocalStorage {
@@ -51,12 +50,41 @@ class LocalStorage {
     localStorage.setItem('reset-lock-id', resetLockId)
   }
 
+  static removeResetLockId() {
+    localStorage.removeItem('reset-lock-id')
+  }
+
+  static getPendingTermsAcceptance() {
+    return localStorage.getItem('pending-terms-acceptance')
+  }
+
+  static setPendingTermsAcceptance() {
+    localStorage.setItem('pending-terms-acceptance', '1')
+  }
+
+  static removePendingTermsAcceptance() {
+    localStorage.removeItem('pending-terms-acceptance')
+  }
+
+  static getDeletionInterrupted() {
+    return localStorage.getItem('deletion-interrupted')
+  }
+
+  static setDeletionInterrupted(data) {
+    localStorage.setItem('deletion-interrupted', data)
+  }
+
+  static removeDeletionInterrupted() {
+    localStorage.removeItem('deletion-interrupted')
+  }
 
   static clearSession() {
     localStorage.removeItem(KEY)
     localStorage.removeItem('user-data')
-    localStorage.removeItem('firebase-uid')   // NOVO: limpar UID na saída
-    localStorage.removeItem('reset-lock-id')  // F8: limpar resetLockId na saída
+    localStorage.removeItem('firebase-uid')
+    localStorage.removeItem('reset-lock-id')
+    localStorage.removeItem('pending-terms-acceptance')
+    localStorage.removeItem('deletion-interrupted')
   }
 }
 

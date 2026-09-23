@@ -1,4 +1,5 @@
 import { initializeApp } from 'firebase/app';
+import { initializeFirestore } from 'firebase/firestore'
 import { initializeAppCheck, ReCaptchaEnterpriseProvider } from 'firebase/app-check'
 
 const firebaseConfig =  {
@@ -11,6 +12,21 @@ const firebaseConfig =  {
 }
 
 const app = initializeApp(firebaseConfig)
+
+initializeFirestore(app, {
+  experimentalAutoDetectLongPolling: true,
+})
+
+if (import.meta.env.DEV || window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+  const envToken = import.meta.env.VITE_APPCHECK_DEBUG_TOKEN;
+  if (envToken && envToken.trim() !== '') {
+    self.FIREBASE_APPCHECK_DEBUG_TOKEN = envToken;
+    console.log('[AppCheck] Using token from .env:', envToken);
+  } else {
+    self.FIREBASE_APPCHECK_DEBUG_TOKEN = true;
+    console.warn('[AppCheck] VITE_APPCHECK_DEBUG_TOKEN is empty in .env. Generating a new one in the console...');
+  }
+}
 
 initializeAppCheck(app, {
   provider: new ReCaptchaEnterpriseProvider(import.meta.env.VITE_RECAPTCHA_SITE_KEY),

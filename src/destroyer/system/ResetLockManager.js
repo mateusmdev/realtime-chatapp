@@ -1,20 +1,30 @@
 import Firestore from '../../firebase/Firestore'
-import { getFirestore, runTransaction, doc } from 'firebase/firestore'
+import { getFirestore, runTransaction, doc, serverTimestamp } from 'firebase/firestore'
 import '../../firebase/firebaseConfig'
 
 const COLLECTION      = '_system'
 const DOC_LOCK        = 'reset_lock'
-const LOCK_TIMEOUT_MS = 120_000
+const LOCK_TIMEOUT_MS = 300_000
 
 class ResetLockManager {
   #firestore = Firestore.instance
   #db        = getFirestore()
 
-  async acquireLock(holderId) {
-    const lockRef = doc(this.#db, COLLECTION, DOC_LOCK)
+  async acquireLock(holderId, email) {
+    const lockRef  = doc(this.#db, COLLECTION, DOC_LOCK)
+    const actorRef = email ? doc(this.#db, 'reset_actor', email.toLowerCase()) : null
 
     const acquired = await runTransaction(this.#db, async (transaction) => {
       const snap = await transaction.get(lockRef)
+
+      if (actorRef) {
+        const actorSnap = await transaction.get(actorRef)
+
+        if (!actorSnap.exists() || actorSnap.data()?.resetLockId !== holderId) {
+          console.error('[ResetLockManager] Aborting acquireLock: holderId does not match the current reset_actor document (stale value from another tab/session, or reset_actor missing).')
+          return false
+        }
+      }
 
       if (!snap.exists()) {
         transaction.set(lockRef, this.#buildAcquiredState(holderId))
@@ -58,13 +68,20 @@ class ResetLockManager {
 
   #isLockStale(lockedAt) {
     if (lockedAt == null) return true
-    return Date.now() - lockedAt > LOCK_TIMEOUT_MS
+
+    const millis = typeof lockedAt?.toMillis === 'function'
+      ? lockedAt.toMillis()
+      : lockedAt
+
+    if (typeof millis !== 'number' || Number.isNaN(millis)) return true
+
+    return Date.now() - millis > LOCK_TIMEOUT_MS
   }
 
   #buildAcquiredState(holderId) {
     return {
       locked:         true,
-      locked_at:      Date.now(),
+      locked_at:      serverTimestamp(),
       lock_holder_id: holderId,
     }
   }

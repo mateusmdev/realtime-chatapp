@@ -10,7 +10,7 @@ class CloudinaryService {
     MediaPolicy.assertUploadAllowed()
 
     if (file.size > CloudinaryService.#MAX_SIZE_BYTES) {
-      throw new Error('O arquivo excede o tamanho máximo permitido de 5MB.')
+      throw new Error('The file exceeds the maximum allowed size of 5MB.')
     }
 
     const formData = new FormData()
@@ -36,7 +36,7 @@ class CloudinaryService {
     const base64Regex = /^data:(.+);base64,(.*)$/
 
     if (!base64DataUrl.match(base64Regex)) {
-      throw new Error('Formato de imagem inválido.')
+      throw new Error('Invalid image format.')
     }
 
     const formData = new FormData()
@@ -60,7 +60,7 @@ class CloudinaryService {
     MediaPolicy.assertUploadAllowed()
 
     if (file.size > CloudinaryService.#MAX_SIZE_BYTES) {
-      throw new Error('O arquivo excede o tamanho máximo permitido de 5MB.')
+      throw new Error('The file exceeds the maximum allowed size of 5MB.')
     }
 
     const formData = new FormData()
@@ -84,7 +84,7 @@ class CloudinaryService {
     MediaPolicy.assertUploadAllowed()
 
     if (blob.size > CloudinaryService.#MAX_SIZE_BYTES) {
-      throw new Error('O arquivo de áudio excede o tamanho máximo permitido de 5MB.')
+      throw new Error('The audio file exceeds the maximum allowed size of 5MB.')
     }
 
     const formData = new FormData()

@@ -32,10 +32,10 @@ class AbstractModel {
       
       const primaryKeyValue = userData[this.#primaryKeyProp]
       if (!primaryKeyValue) {
-          throw new PrimaryKeyException(`A chave primária ('${this.#primaryKeyProp}') é necessária para buscar o documento.`)
+          throw new PrimaryKeyException(`The primary key ('${this.#primaryKeyProp}') is required to fetch the document.`)
       }
 
-      const query = await this.#firestore.findById(documentPath, this.#data[this.#primaryKeyProp])
+      const query = await this.#firestore.findById(documentPath, primaryKeyValue)
       const isExist = query && query?.exists()
 
       if (isExist){
@@ -93,7 +93,7 @@ class AbstractModel {
         await this.#firestore.delete(this.#path, documentId)
     }
 
-    async onSnapshot(callback, constraints = [], path = null) {
+    async onSnapshot(callback, constraints = [], path = null, options = null, onError = null) {
       if (!callback || typeof callback !== 'function') {
          throw new InvalidArgumentException(`You must pass a callback function when calling 'onSnapshot'`)
       }
@@ -105,14 +105,16 @@ class AbstractModel {
       
       this.#listener = this.#firestore.onSnapshot(snapshotPath, documentId, (snapshot) => {
         if (documentId) {
-          if (snapshot && snapshot.exists()) {
-            this.#data = snapshot.data()
+          if (snapshot) {
+            if (snapshot.exists()) {
+              this.#data = snapshot.data()
+            }
             callback(snapshot)
           }
         } else {
           callback(snapshot)
         }
-      }, constraints)
+      }, constraints, onError, options)
       
       return this.#listener
     }
@@ -147,12 +149,12 @@ class AbstractModel {
     getAttribute(name) {
       const attr = this.#data[name]
 
-      if (attr == null) throw InvalidArgumentException(`Attribute '${name}' not found.`)
+      if (attr == null) throw new InvalidArgumentException(`Attribute '${name}' not found.`)
       return attr
     }
 
     setAttribute(name, value) {
-      if (name === 'id' || name === this.#primaryKeyProp) throw ProtectedAttributeException(`Modification of '${name}' attribute is not allowed.`)
+      if (name === 'id' || name === this.#primaryKeyProp) throw new ProtectedAttributeException(`Modification of '${name}' attribute is not allowed.`)
 
       this.#data[name] = value
     }

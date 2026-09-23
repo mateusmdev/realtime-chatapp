@@ -4,7 +4,7 @@ import { orderBy } from 'firebase/firestore'
 class NotificationService {
   #userData = null
   #cryptoService = null
-  #listeners = []
+  #listeners = new Map()
   #initialSnapshots = new Map()
   #queue = []
   #isConsuming = false
@@ -22,24 +22,41 @@ class NotificationService {
   init(userData, contacts, cryptoService = null) {
     this.#userData = userData
     this.#cryptoService = cryptoService
+    this.updateContacts(contacts)
+  }
+
+  updateContacts(contacts) {
+    if (!this.#userData) return
 
     const firestore = Firestore.instance
     const constraints = [orderBy('timeStamp')]
+    const currentChatIds = new Set()
 
     contacts.forEach(contact => {
       if (!contact.chatId) return
 
       const chatId = contact.chatId
-      const path = `chats/${chatId}/messages`
+      currentChatIds.add(chatId)
 
+      if (this.#listeners.has(chatId)) return
+
+      const path = `chats/${chatId}/messages`
       this.#initialSnapshots.set(chatId, true)
 
       const unsubscribe = firestore.onSnapshot(path, null, (snapshot) => {
         this.#handleSnapshot(snapshot, chatId, contact)
       }, constraints)
 
-      this.#listeners.push(unsubscribe)
+      this.#listeners.set(chatId, unsubscribe)
     })
+
+    for (const [chatId, unsubscribe] of this.#listeners.entries()) {
+      if (!currentChatIds.has(chatId)) {
+        if (typeof unsubscribe === 'function') unsubscribe()
+        this.#listeners.delete(chatId)
+        this.#initialSnapshots.delete(chatId)
+      }
+    }
   }
 
   destroy() {
@@ -47,8 +64,8 @@ class NotificationService {
       if (typeof unsubscribe === 'function') unsubscribe()
     })
 
-    this.#listeners = []
-    this.#initialSnapshots = new Map()
+    this.#listeners.clear()
+    this.#initialSnapshots.clear()
     this.#queue = []
     this.#isConsuming = false
     this.#userData = null
@@ -99,7 +116,8 @@ class NotificationService {
         try {
           const plaintext = await this.#cryptoService.decryptMessage(data, false)
           resolvedData = { ...data, content: plaintext }
-        } catch {
+        } catch (error) {
+          console.error('[NotificationService] Failed to decrypt message for notification preview:', error)
           resolvedData = { ...data, content: null }
         }
       }
@@ -127,17 +145,16 @@ class NotificationService {
 
   #resolveBody(data) {
     const typeMap = {
-      'picture': '📷 Imagem',
-      'audio': '🎵 Áudio',
-      'file': '📄 Arquivo',
-      'contact-attachment': '👤 Contato',
+      'picture': '📷 Image',
+      'audio': '🎵 Audio',
+      'file': '📄 File',
+      'contact-attachment': '👤 Contact',
     }
 
     if (typeMap[data.type]) return typeMap[data.type]
 
-
     if (data.encrypted === true && !data.content) {
-      return '🔒 Mensagem criptografada'
+      return '🔒 Encrypted message'
     }
 
     const text = data.content ?? ''

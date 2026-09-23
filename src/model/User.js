@@ -1,11 +1,15 @@
 import ProfileCache from "../utils/ProfileCache"
 import AbstractModel from "./AbstractModel"
+import InvalidArgumentException from "../exception/InvalidArgumentException"
+import { serverTimestamp } from "firebase/firestore"
 
 class User extends AbstractModel {
+  static CURRENT_TERMS_VERSION = 'v1'
 
   static ALLOWED_FIELDS = [
     'name', 'email', 'picture', 'profilePicture', 'about',
     'isDeleted', 'deletedAt', 'publicKey', 'encryptedPrivateKey',
+    'termsAcceptedVersion', 'termsAcceptedAt',
   ]
 
   static sanitize(data = {}) {
@@ -21,19 +25,109 @@ class User extends AbstractModel {
     super(data, 'user', 'email')
   }
 
-  async saveContact(contactData) {
+  static async saveContact(ownerEmail, contactData) {
+    const instance = new User()
+
     if (contactData.email) {
       contactData.email = contactData.email.toLowerCase()
     }
-    const documentPath = `${this.getModelAttr('path')}/${this.data[this.getModelAttr('primaryKeyProp')]}/contacts`
-    const documentRef = await this.getModelAttr('firestore').save(contactData, documentPath, contactData[this.getModelAttr('primaryKeyProp')])
+    const documentPath = `${instance.getModelAttr('path')}/${ownerEmail.toLowerCase()}/contacts`
+    const documentRef = await instance.getModelAttr('firestore').save(contactData, documentPath, contactData[instance.getModelAttr('primaryKeyProp')])
 
     return documentRef
   }
 
-  async getContacts() {
-    const documentPath = `${this.getModelAttr('path')}/${this.data[this.getModelAttr('primaryKeyProp')]}/contacts`
-    const query = await this.getModelAttr('firestore').findDocs(documentPath)
+  static async saveContactBilateral(userA, userB, chatId) {
+    const instance  = new User()
+    const firestore = instance.getModelAttr('firestore')
+    const path      = instance.getModelAttr('path')
+
+    const aEmail = userA.email.toLowerCase()
+    const bEmail = userB.email.toLowerCase()
+
+    const contactForA = {
+      email:          bEmail,
+      name:           userB.name,
+      picture:        userB.picture ?? '',
+      profilePicture: userB.profilePicture ?? userB.picture ?? '',
+      chatId:         chatId,
+      isDeleted:      false,
+    }
+
+    const contactForB = {
+      email:          aEmail,
+      name:           userA.name,
+      picture:        userA.picture ?? '',
+      profilePicture: userA.profilePicture ?? userA.picture ?? '',
+      chatId:         chatId,
+      isDeleted:      false,
+    }
+
+    await firestore.batchWrite([
+      {
+        path:       `${path}/${aEmail}/contacts`,
+        documentId: bEmail,
+        data:       contactForA,
+        merge:      true,
+      },
+      {
+        path:       `${path}/${bEmail}/contacts`,
+        documentId: aEmail,
+        data:       contactForB,
+        merge:      true,
+      }
+    ])
+  }
+
+  static async enrichContacts(contacts) {
+    if (!contacts || contacts.length === 0) return []
+
+    return Promise.all(
+      contacts.map(async contact => {
+        const email     = contact.email.toLowerCase()
+        const user      = new User({ email })
+        const freshData = await user.getDocument()
+
+        return {
+          ...contact,
+          email,
+          about:     freshData?.about     ?? '',
+          publicKey: freshData?.publicKey ?? null,
+        }
+      })
+    )
+  }
+
+  static listenContacts(ownerEmail, callback, onError = null) {
+    const instance  = new User()
+    const firestore = instance.getModelAttr('firestore')
+    const path      = `${instance.getModelAttr('path')}/${ownerEmail.toLowerCase()}/contacts`
+    let latestSequence = 0
+
+    return firestore.onSnapshot(path, null, async (snapshot) => {
+      const currentSeq = ++latestSequence
+      const docs = snapshot.docs ?? []
+      const rawContacts = docs
+        .map(doc => {
+          const data = doc.data()
+          if (data.email) data.email = data.email.toLowerCase()
+          return data
+        })
+        .filter(contact => !contact.isDeleted)
+
+      const enrichedContacts = await User.enrichContacts(rawContacts)
+
+      if (currentSeq !== latestSequence) return
+
+      ProfileCache.set(enrichedContacts)
+      callback(enrichedContacts)
+    }, [], onError)
+  }
+
+  static async getContacts(ownerEmail) {
+    const instance = new User()
+    const documentPath = `${instance.getModelAttr('path')}/${ownerEmail.toLowerCase()}/contacts`
+    const query = await instance.getModelAttr('firestore').findDocs(documentPath)
     const docs = query.docs ?? []
 
     if (docs.length === 0) return []
@@ -42,12 +136,13 @@ class User extends AbstractModel {
       const data = doc.data()
       if (data.email) data.email = data.email.toLowerCase()
       return data
-    })
+    }).filter(contact => !contact.isDeleted)
+
     return contacts
   }
 
-  async getContactsFromCache(updateCache = false) {
-    const contacts    = await this.getContacts()
+  static async getContactsFromCache(ownerEmail, updateCache = false) {
+    const contacts    = await User.getContacts(ownerEmail)
     const cacheObject = ProfileCache.get()
     const cache       = cacheObject?.cache || []
 
@@ -55,32 +150,25 @@ class User extends AbstractModel {
       return cache
     }
 
-    const enrichedContacts = await Promise.all(
-      contacts.map(async contact => {
-        const user      = new User({ email: contact.email.toLowerCase() })
-        const freshData = await user.getDocument()
-
-        return {
-          ...contact,
-          email:     contact.email.toLowerCase(),
-          about:     freshData?.about     ?? '',
-          publicKey: freshData?.publicKey ?? null,
-        }
-      })
-    )
+    const enrichedContacts = await User.enrichContacts(contacts)
 
     ProfileCache.set(enrichedContacts)
     return enrichedContacts
   }
 
-  async markContactAsDeleted(deletedEmail) {
+  static async markContactAsDeleted(ownerEmail, deletedEmail) {
+    if (!ownerEmail || !deletedEmail) {
+      throw new InvalidArgumentException('markContactAsDeleted requires both ownerEmail and deletedEmail.')
+    }
+
     const email    = deletedEmail.toLowerCase()
-    const contacts = await this.getContacts()
+    const contacts = await User.getContacts(ownerEmail)
 
     if (contacts.length === 0) return
 
-    const firestore = this.getModelAttr('firestore')
-    const path      = this.getModelAttr('path')
+    const instance   = new User()
+    const firestore  = instance.getModelAttr('firestore')
+    const path       = instance.getModelAttr('path')
 
     const updatePromises = contacts.map(async contact => {
       const contactEmail     = contact.email.toLowerCase()
@@ -90,7 +178,6 @@ class User extends AbstractModel {
       if (!existingEntry || !existingEntry.exists()) return
 
       const updatedEntry = {
-        ...existingEntry.data(),
         email:     email,
         isDeleted: true,
       }
@@ -101,21 +188,73 @@ class User extends AbstractModel {
     await Promise.all(updatePromises)
   }
 
-  async delete() {
-    const email     = this.data[this.getModelAttr('primaryKeyProp')].toLowerCase()
-    const firestore = this.getModelAttr('firestore')
-    const path      = this.getModelAttr('path')
+  static async delete(userData, onStep = () => {}) {
+    const instance  = new User()
+    const email     = userData[instance.getModelAttr('primaryKeyProp')].toLowerCase()
+    const firestore = instance.getModelAttr('firestore')
+    const path      = instance.getModelAttr('path')
 
-    const tombstone = {
-      name:      this.data.name,
-      isDeleted: true,
-      deletedAt: Date.now(),
+    onStep('tombstone-check-existing')
+    const existing = await firestore.findById(path, email)
+
+    if (existing && existing.exists()) {
+      const currentData = existing.data()
+
+      const tombstone = {
+        email:     email,
+        name:      userData.name,
+        isDeleted: true,
+        deletedAt: serverTimestamp(),
+        ...(currentData.picture             !== undefined && { picture: currentData.picture }),
+        ...(currentData.profilePicture      !== undefined && { profilePicture: currentData.profilePicture }),
+        ...(currentData.about               !== undefined && { about: currentData.about }),
+        ...(currentData.publicKey           !== undefined && { publicKey: currentData.publicKey }),
+        ...(currentData.encryptedPrivateKey !== undefined && { encryptedPrivateKey: currentData.encryptedPrivateKey }),
+        ...(currentData.termsAcceptedVersion !== undefined && { termsAcceptedVersion: currentData.termsAcceptedVersion }),
+        ...(currentData.termsAcceptedAt     !== undefined && { termsAcceptedAt: currentData.termsAcceptedAt }),
+      }
+
+      onStep('tombstone-write')
+      await firestore.save(tombstone, path, email)
+    } else {
+      onStep('tombstone-write-minimal')
+      await firestore.save({
+        email:                email,
+        name:                 userData.name,
+        isDeleted:            true,
+        deletedAt:            serverTimestamp(),
+        termsAcceptedVersion: userData.termsAcceptedVersion || User.CURRENT_TERMS_VERSION,
+        termsAcceptedAt:      serverTimestamp(),
+      }, path, email)
     }
 
-    await firestore.save(tombstone, path, email)
-
+    onStep('tombstone-delete-contacts')
     const contactsPath = `${path}/${email}/contacts`
     await firestore.deleteCollection(contactsPath)
+  }
+
+  async reviveAsNewAccount(freshPayload) {
+    const firestore = this.getModelAttr('firestore')
+    const path       = this.getModelAttr('path')
+    const email       = freshPayload.email
+
+    await firestore.deleteCollection(`${path}/${email}/contacts`)
+    await firestore.save(freshPayload, path, email)
+    await this.getDocument(freshPayload)
+  }
+
+  async reconcileTermsAcceptance() {
+    if (this.data.termsAcceptedVersion === User.CURRENT_TERMS_VERSION) {
+      return false
+    }
+
+    const updated = await this.savePartial({
+      termsAcceptedVersion: User.CURRENT_TERMS_VERSION,
+      termsAcceptedAt:      serverTimestamp(),
+    })
+
+    Object.assign(this.data, updated)
+    return true
   }
 }
 
