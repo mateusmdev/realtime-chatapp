@@ -429,6 +429,12 @@ class AppController {
         fn: () => this.#view.toggleMessageScreen(true),
         behavior: { preventDefault: true }
       })
+
+      this.#view.addEvent('#previewSignInBtn', {
+        eventName: 'click',
+        fn: () => { window.location.href = '/' },
+        behavior: { preventDefault: true, stopPropagation: true }
+      })
     }
   }
 

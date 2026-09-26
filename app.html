@@ -212,8 +212,6 @@
                   <img 
                     src="https://img.freepik.com/premium-vector/man-avatar-profile-picture-isolated-background-avatar-profile-picture-man_1293239-4870.jpg" 
                     alt="user profile picture" class="profile-picture user-picture"
-                    onload="this.classList.add('loaded')"
-                    onerror="this.classList.add('error')"
                   />
                 </div>
                 <div id="btn-container">
@@ -377,7 +375,7 @@
                       To use the app normally and access the features available outside preview mode, sign in with a Google account. After signing in, you'll be redirected to the app in normal mode.
                       </br>
                       </br>
-                      ➡️ <a onclick="window.location.href = `/`">Sign in to Real-time Chat App</a>
+                      ➡️ <a id="preview-sign-in-btn">Sign in to Real-time Chat App</a>
                     </div>
                   </li>
                   <li class="message contact">
