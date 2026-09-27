@@ -1159,6 +1159,23 @@ class AppView extends AbstractView {
   setCryptoLoadingState(isLoading) {
     this.setState('isCryptoLoading', isLoading)
 
+    const { inputContent, sendBtn } = this.$()
+
+    if (inputContent) {
+      inputContent.setAttribute('contenteditable', isLoading ? 'false' : 'true')
+      this.setStyle(inputContent, {
+        opacity:       isLoading ? '0.5'  : '',
+        pointerEvents: isLoading ? 'none' : ''
+      })
+    }
+
+    if (sendBtn) {
+      this.setStyle(sendBtn, {
+        opacity:       isLoading ? '0.5'  : '',
+        pointerEvents: isLoading ? 'none' : ''
+      })
+    }
+
     let indicator = document.getElementById('crypto-loading-indicator')
 
     if (!indicator) {

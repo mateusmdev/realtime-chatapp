@@ -429,6 +429,12 @@ class AppController {
         fn: () => this.#view.toggleMessageScreen(true),
         behavior: { preventDefault: true }
       })
+
+      this.#view.addEvent('#previewSignInBtn', {
+        eventName: 'click',
+        fn: () => { window.location.href = '/' },
+        behavior: { preventDefault: true, stopPropagation: true }
+      })
     }
   }
 
@@ -758,6 +764,9 @@ class AppController {
         case CryptoInitStatus.GENERATED:
           console.info('[Crypto] New key pair generated.')
           break
+        case CryptoInitStatus.REMOTE_KEY_UNREADABLE:
+          console.error('[Crypto] Could not unlock this account\'s existing encryption key. E2E unavailable in this session; the existing identity was left untouched.')
+          break
         case CryptoInitStatus.ERROR:
           console.error('[Crypto] E2E unavailable in this session.')
           break
@@ -836,6 +845,8 @@ class AppController {
     this.#currentContactData = data
     const { messageList }    = this.#view.$()
     const userData           = JSON.parse(LocalStorage.getUserData())
+
+    this.#refreshCurrentContactPublicKey(data.chatId)
 
     messageList.innerHTML = ''
 
@@ -1190,44 +1201,43 @@ class AppController {
     if (messageLength <= 0 || this.#currentChatId === null) return
     if (messageLength > MAX_MESSAGE_LENGTH) return
 
-    const userData  = JSON.parse(LocalStorage.getUserData())
+    if (!this.#cryptoService.isReady) {
+      alert('Encryption is still starting up. Please wait a moment and try sending again.')
+      return
+    }
 
-    let   messageData
+    const userData = JSON.parse(LocalStorage.getUserData())
 
-    const contactPublicKey = this.#currentContactData?.publicKey ?? null
+    let contactPublicKey = this.#currentContactData?.publicKey ?? null
 
-    if (this.#cryptoService.isReady && contactPublicKey) {
-      try {
-        const payload = await this.#cryptoService.encryptMessage(
-          plaintext,
-          contactPublicKey
-        )
+    if (!contactPublicKey) {
+      contactPublicKey = await this.#fetchFreshContactPublicKey()
+    }
 
-        messageData = {
-          type:      'text',
-          status:    'wait',
-          timeStamp: Date.now(),
-          from:      userData.email,
-          ...payload,
-        }
-      } catch (e) {
-        console.warn('[Crypto] Failed to encrypt. Sending without E2E.', e)
-        messageData = {
-          content:   plaintext,
-          type:      'text',
-          status:    'wait',
-          timeStamp: Date.now(),
-          from:      userData.email,
-        }
-      }
-    } else {
+    if (!contactPublicKey) {
+      alert("Encryption isn't available for this contact yet. The message was not sent.")
+      return
+    }
+
+    let messageData
+
+    try {
+      const payload = await this.#cryptoService.encryptMessage(
+        plaintext,
+        contactPublicKey
+      )
+
       messageData = {
-        content:   plaintext,
         type:      'text',
         status:    'wait',
         timeStamp: Date.now(),
         from:      userData.email,
+        ...payload,
       }
+    } catch (e) {
+      console.error('[Crypto] Failed to encrypt message. The message was not sent.', e)
+      alert('Failed to encrypt this message, so it was not sent. Please try again.')
+      return
     }
 
     this.#lastMessageSentAt = now
@@ -1244,6 +1254,37 @@ class AppController {
       inputContent.dispatchEvent(new CustomEvent('keyup', { bubbles: false, cancelable: true }))
       alert('The message could not be sent. Please wait a moment and try again.')
     }
+  }
+
+  async #refreshCurrentContactPublicKey(chatIdAtRefresh) {
+    if (!this.#currentContactData) return
+
+    try {
+      const [fresh] = await User.enrichContacts([this.#currentContactData])
+
+      if (this.#currentChatId === chatIdAtRefresh && fresh) {
+        this.#currentContactData = { ...this.#currentContactData, ...fresh }
+      }
+    } catch (error) {
+      console.error('[AppController] Failed to refresh contact public key on chat open:', error)
+    }
+  }
+
+  async #fetchFreshContactPublicKey() {
+    if (!this.#currentContactData) return null
+
+    try {
+      const [fresh] = await User.enrichContacts([this.#currentContactData])
+
+      if (fresh?.publicKey) {
+        this.#currentContactData = { ...this.#currentContactData, ...fresh }
+        return fresh.publicKey
+      }
+    } catch (error) {
+      console.error('[AppController] Failed to fetch a fresh public key for the current contact:', error)
+    }
+
+    return null
   }
 
   handlerUploadFileClick(inputFile, settings = {}) {
