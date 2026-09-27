@@ -3,6 +3,7 @@ export const CryptoInitStatus = Object.freeze({
   READY:                      'READY',
   LOCAL_FOUND_REMOTE_MISSING: 'LOCAL_FOUND_REMOTE_MISSING',
   REMOTE_FOUND_LOCAL_MISSING: 'REMOTE_FOUND_LOCAL_MISSING',
+  REMOTE_KEY_UNREADABLE:      'REMOTE_KEY_UNREADABLE',
   ERROR:                      'ERROR',
 })
 
@@ -37,15 +38,54 @@ class CryptoService {
     const remoteKeyJwk = firestoreUserDoc?.encryptedPrivateKey ?? null
     const remotePubJwk = firestoreUserDoc?.publicKey ?? null
 
-    if (localKey && remoteKeyJwk) {
-      this.#privateKey   = localKey
-      this.#publicKeyJwk = remotePubJwk
-      this.#publicKey    = await this.#importPublicKeyJwk(remotePubJwk)
-      this.#ready        = true
-      return CryptoInitStatus.READY
-    }
+    try {
+      if (localKey && remoteKeyJwk) {
+        this.#privateKey   = localKey
+        this.#publicKeyJwk = remotePubJwk
+        this.#publicKey    = await this.#importPublicKeyJwk(remotePubJwk)
+        this.#ready        = true
+        return CryptoInitStatus.READY
+      }
 
-    if (localKey && !remoteKeyJwk) {
+      if (localKey && !remoteKeyJwk) {
+        const wrappingKey = await this.#deriveWrappingKey(firebaseUid, dynamicSalt)
+        const { publicKeyJwk, encryptedPrivateKeyB64, runtimePrivateKey } =
+          await this.#generateAndWrap(wrappingKey)
+
+        this.#privateKey   = runtimePrivateKey
+        this.#publicKeyJwk = publicKeyJwk
+        this.#publicKey    = await this.#importPublicKeyJwk(publicKeyJwk)
+
+        await persistToFirestore({
+          publicKey:           publicKeyJwk,
+          encryptedPrivateKey: encryptedPrivateKeyB64,
+        })
+
+        await this.#storePrivateKeyInIDB(runtimePrivateKey)
+
+        this.#ready = true
+        return CryptoInitStatus.LOCAL_FOUND_REMOTE_MISSING
+      }
+
+      if (!localKey && remoteKeyJwk) {
+        try {
+          const wrappingKey = await this.#deriveWrappingKey(firebaseUid, dynamicSalt)
+          const privateKey  = await this.#unwrapPrivateKey(remoteKeyJwk, wrappingKey)
+
+          this.#privateKey   = privateKey
+          this.#publicKeyJwk = remotePubJwk
+          this.#publicKey    = await this.#importPublicKeyJwk(remotePubJwk)
+
+          await this.#storePrivateKeyInIDB(privateKey)
+
+          this.#ready = true
+          return CryptoInitStatus.REMOTE_FOUND_LOCAL_MISSING
+        } catch (err) {
+          console.error('[Crypto] Failed to unwrap the existing remote key. Refusing to overwrite it with a new identity.', err)
+          return CryptoInitStatus.REMOTE_KEY_UNREADABLE
+        }
+      }
+
       const wrappingKey = await this.#deriveWrappingKey(firebaseUid, dynamicSalt)
       const { publicKeyJwk, encryptedPrivateKeyB64, runtimePrivateKey } =
         await this.#generateAndWrap(wrappingKey)
@@ -62,44 +102,11 @@ class CryptoService {
       await this.#storePrivateKeyInIDB(runtimePrivateKey)
 
       this.#ready = true
-      return CryptoInitStatus.LOCAL_FOUND_REMOTE_MISSING
+      return CryptoInitStatus.GENERATED
+    } catch (error) {
+      console.error('[Crypto] E2E initialization failed.', error)
+      return CryptoInitStatus.ERROR
     }
-
-    if (!localKey && remoteKeyJwk) {
-      try {
-        const wrappingKey = await this.#deriveWrappingKey(firebaseUid, dynamicSalt)
-        const privateKey  = await this.#unwrapPrivateKey(remoteKeyJwk, wrappingKey)
-
-        this.#privateKey   = privateKey
-        this.#publicKeyJwk = remotePubJwk
-        this.#publicKey    = await this.#importPublicKeyJwk(remotePubJwk)
-
-        await this.#storePrivateKeyInIDB(privateKey)
-
-        this.#ready = true
-        return CryptoInitStatus.REMOTE_FOUND_LOCAL_MISSING
-      } catch (err) {
-        console.error('[Crypto] Failed to retrieve remote key. Generating new key pair.', err)
-      }
-    }
-
-    const wrappingKey = await this.#deriveWrappingKey(firebaseUid, dynamicSalt)
-    const { publicKeyJwk, encryptedPrivateKeyB64, runtimePrivateKey } =
-      await this.#generateAndWrap(wrappingKey)
-
-    this.#privateKey   = runtimePrivateKey
-    this.#publicKeyJwk = publicKeyJwk
-    this.#publicKey    = await this.#importPublicKeyJwk(publicKeyJwk)
-
-    await persistToFirestore({
-      publicKey:           publicKeyJwk,
-      encryptedPrivateKey: encryptedPrivateKeyB64,
-    })
-
-    await this.#storePrivateKeyInIDB(runtimePrivateKey)
-
-    this.#ready = true
-    return CryptoInitStatus.GENERATED
   }
 
   getPublicKeyJwk() {
