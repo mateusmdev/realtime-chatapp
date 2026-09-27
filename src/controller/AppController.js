@@ -1202,7 +1202,7 @@ class AppController {
     if (messageLength > MAX_MESSAGE_LENGTH) return
 
     if (!this.#cryptoService.isReady) {
-      alert('End-to-end encryption is still starting up. Please wait a moment and try sending again.')
+      alert('Encryption is still starting up. Please wait a moment and try sending again.')
       return
     }
 
@@ -1215,7 +1215,7 @@ class AppController {
     }
 
     if (!contactPublicKey) {
-      alert("End-to-end encryption isn't available for this contact yet. The message was not sent.")
+      alert("Encryption isn't available for this contact yet. The message was not sent.")
       return
     }
 

@@ -105,7 +105,7 @@ A aplicação combina múltiplas camadas de proteção independentes entre si. N
 As regras (`firestore.rules`) validam no servidor tanto o acesso quanto o formato dos dados gravados. Pontos relevantes:
 
 - **Participação na conversa** — leitura e escrita de mensagens exigem que o usuário autenticado seja um dos dois participantes da conversa.
-- **Validação de payload de mensagem** — o campo `type` só aceita `text` ou `contact-attachment`; texto tem limite de 600 caracteres; campos de criptografia (`encryptedContent`, `iv`, `encryptedKey`, `senderKey`) têm tamanho máximo definido; o remetente declarado precisa corresponder ao usuário autenticado.
+- **Validação de payload de mensagem** — o campo `type` só aceita `text` ou `contact-attachment`; texto tem limite de 200 caracteres; campos de criptografia (`encryptedContent`, `iv`, `encryptedKey`, `senderKey`) têm tamanho máximo definido; o remetente declarado precisa corresponder ao usuário autenticado.
 - **Limite de frequência no servidor** — intervalo mínimo de 1,5s entre mensagens de um mesmo usuário, verificado a partir de `lastMessageAt` no documento do usuário.
 - **Aceite de termos como pré-condição** — criar conversas ou enviar mensagens exige `termsAcceptedVersion` preenchido no documento do usuário.
 - **Contas excluídas** — usuários com `isDeleted: true` não conseguem criar conversas nem enviar mensagens; a exclusão definitiva de um documento de usuário só é permitida se ele já estiver marcado como excluído.
@@ -123,7 +123,7 @@ Essas três camadas não dependem uma da outra: nenhuma isoladamente é o único
 
 ### Criptografia
 
-Mensagens de texto são cifradas de ponta a ponta com a Web Crypto API:
+Mensagens de texto são cifradas com a Web Crypto API:
 
 - Cada usuário tem um par de chaves ECDH (curva P-256); a chave privada é gerada no navegador e mantida como `CryptoKey` não extraível no IndexedDB.
 - Um backup cifrado da chave privada é salvo no Firestore (`encryptedPrivateKey`), protegido por uma chave derivada via PBKDF2 (executado em Web Worker) a partir do UID do Firebase, um salt fixo da aplicação (`VITE_CRYPTO_SALT`) e um salt dinâmico armazenado em `_system/crypto` — rotacionado a cada reset da instância quando o subsistema de reset está ativado para fins de demonstração da aplicação. Isso permite recuperar a chave ao acessar de um novo dispositivo sem expor a chave privada em texto puro.
