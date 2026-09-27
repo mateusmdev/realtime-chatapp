@@ -108,8 +108,6 @@ service cloud.firestore {
     function isValidMessagePayload(data) {
       return data.from is string
           && data.type in ['text', 'contact-attachment']
-          && (!('content' in data)
-              || (data.content is string && data.content.size() <= 600))
           && (!('encryptedContent' in data)
               || (
                 data.encryptedContent is string && data.encryptedContent.size() <= 824
@@ -120,11 +118,18 @@ service cloud.firestore {
               ))
           && (!('encrypted' in data) || data.encrypted is bool)
           && (!('status' in data) || (data.status is string && data.status.size() <= 20))
-          && (data.type != 'text' || ('content' in data) || ('encryptedContent' in data))
           && (!('timeStamp' in data) || data.timeStamp == request.time)
+          && (data.type != 'text'
+              || (
+                data.encrypted == true
+                && 'encryptedContent' in data
+                && !('content' in data)
+              ))
           && (data.type != 'contact-attachment'
               || (
-                data.contactName is string && data.contactName.size() <= 100
+                !('content' in data)
+                && !('encryptedContent' in data)
+                && data.contactName is string && data.contactName.size() <= 100
                 && data.contactEmail is string && data.contactEmail.size() <= 200
                 && (!('contactPicture' in data)
                     || (data.contactPicture is string && data.contactPicture.size() <= 500))
@@ -137,12 +142,21 @@ service cloud.firestore {
       return data.type is string
           && data.type in ['text', 'contact-attachment']
           && data.from is string
-          && (!('content' in data) || data.content == null
-              || (data.content is string && data.content.size() <= 600))
+          && (!('content' in data) || data.content == null)
+          && (!('encryptedContent' in data)
+              || (
+                data.encryptedContent is string && data.encryptedContent.size() <= 824
+                && data.iv is string && data.iv.size() <= 16
+                && data.encryptedKey is string && data.encryptedKey.size() <= 56
+                && data.senderKey is string && data.senderKey.size() <= 56
+                && data.ephemeralPublicKey is map
+              ))
           && (!('fileName' in data) || data.fileName == null
               || (data.fileName is string && data.fileName.size() <= 150))
           && (!('contactName' in data) || data.contactName == null
-              || (data.contactName is string && data.contactName.size() <= 100));
+              || (data.contactName is string && data.contactName.size() <= 100))
+          && (data.type != 'text'
+              || (data.encrypted == true && 'encryptedContent' in data));
     }
 
     // ─── System documents ───────────────────────────────────────────────────

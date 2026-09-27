@@ -105,7 +105,7 @@ The application combines multiple layers of protection that are independent of o
 The rules (`firestore.rules`) validate, on the server, both access and the format of the data written. Key points:
 
 - **Conversation participation** — reading and writing messages requires the authenticated user to be one of the two participants in the conversation.
-- **Message payload validation** — the `type` field only accepts `text` or `contact-attachment`; text is limited to 600 characters; encryption fields (`encryptedContent`, `iv`, `encryptedKey`, `senderKey`) have a defined maximum size; the declared sender must match the authenticated user.
+- **Message payload validation** — the `type` field only accepts `text` or `contact-attachment`; text is limited to 200 characters; encryption fields (`encryptedContent`, `iv`, `encryptedKey`, `senderKey`) have a defined maximum size; the declared sender must match the authenticated user.
 - **Server-side rate limit** — a minimum interval of 1.5s between messages from the same user, checked against `lastMessageAt` in the user document.
 - **Terms acceptance as a precondition** — creating conversations or sending messages requires `termsAcceptedVersion` to be populated in the user document.
 - **Deleted accounts** — users with `isDeleted: true` cannot create conversations or send messages; permanent deletion of a user document is only allowed if it is already marked as deleted.
@@ -123,7 +123,7 @@ These three layers do not depend on one another: no single layer, on its own, is
 
 ### Encryption
 
-Text messages are end-to-end encrypted with the Web Crypto API:
+Text messages are encrypted with the Web Crypto API:
 
 - Each user has an ECDH key pair (P-256 curve); the private key is generated in the browser and kept as a non-extractable `CryptoKey` in IndexedDB.
 - An encrypted backup of the private key is saved in Firestore (`encryptedPrivateKey`), protected by a key derived via PBKDF2 (run in a Web Worker) from the Firebase UID, a fixed application salt (`VITE_CRYPTO_SALT`), and a dynamic salt stored in `_system/crypto` — rotated on every instance reset when the reset subsystem is enabled for application demo purposes. This makes it possible to recover the key when accessing from a new device without exposing the private key in plaintext.
