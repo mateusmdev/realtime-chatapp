@@ -68,6 +68,7 @@ class AppView extends AbstractView {
     img.src = dataItem.profilePicture ?? dataItem.picture
     img.alt = 'contact profile picture'
     img.className = 'profile-picture'
+    this.#applyProfilePictureStyle(img)
     pictureWrapper.appendChild(img)
 
     const contactData = document.createElement('div')
@@ -535,6 +536,10 @@ class AppView extends AbstractView {
     this.setState('range', range.cloneRange())
   }
 
+  #applyProfilePictureStyle(img) {
+    img.style.borderRadius = this.getState('appStyle') === 'circle' ? '50%' : '5px'
+  }
+
   setAppStyle() {
     const { btnContainer } = this.$()
     const profilePicure = document.querySelectorAll('.profile-picture')
@@ -543,10 +548,7 @@ class AppView extends AbstractView {
 
     button.style.marginLeft = appStyleState === 'circle' ? '-63%' : '63%';
 
-    [...profilePicure].forEach(item => {
-      const radius = appStyleState === 'circle' ? '50%' : '5px'
-      item.style.borderRadius = radius
-    })
+    [...profilePicure].forEach(item => this.#applyProfilePictureStyle(item))
 
     if (appStyleState === 'circle') {
       btnContainer.classList.remove('square-position')
@@ -706,6 +708,7 @@ class AppView extends AbstractView {
         avatarImg.className = 'profile-picture'
         avatarImg.src = data.contactPicture || ''
         avatarImg.alt = 'contact picture'
+        this.#applyProfilePictureStyle(avatarImg)
         pictureWrapper.appendChild(avatarImg)
 
         const contactNameEl = document.createElement('p')
@@ -785,6 +788,7 @@ class AppView extends AbstractView {
         audioAvatar.className = 'profile-picture'
         audioAvatar.src = data.profilePicture || ''
         audioAvatar.alt = 'contact picture'
+        this.#applyProfilePictureStyle(audioAvatar)
         audioPicWrapper.appendChild(audioAvatar)
 
         const audioDetail = document.createElement('div')
@@ -905,6 +909,7 @@ class AppView extends AbstractView {
       img.className = 'profile-picture'
       img.src = contact.profilePicture ?? contact.picture ?? ''
       img.alt = 'contact picture'
+      this.#applyProfilePictureStyle(img)
       pictureWrapper.appendChild(img)
 
       const nameSpan = document.createElement('span')
@@ -1058,7 +1063,7 @@ class AppView extends AbstractView {
       behavior: { preventDefault: true }
     })
 
-    img.style.borderRadius = this.getState('appStyle') === 'circle' ? '50%' : '5px'
+    this.#applyProfilePictureStyle(img)
 
     return li
   }
